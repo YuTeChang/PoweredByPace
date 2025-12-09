@@ -22,5 +22,7 @@ export interface Game {
   teamA: [string, string]; // player IDs
   teamB: [string, string]; // player IDs
   winningTeam: "A" | "B";
+  teamAScore?: number;
+  teamBScore?: number;
 }
 

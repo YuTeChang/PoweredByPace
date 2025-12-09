@@ -83,16 +83,16 @@ export default function CreateSession() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-japandi-background-primary py-8">
       <div className="max-w-2xl mx-auto px-4">
-        <div className="mb-6">
+        <div className="mb-8">
           <Link
             href="/"
-            className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+            className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
             ← Back to Home
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mt-4">
+          <h1 className="text-3xl font-bold text-japandi-text-primary mt-6">
             Create New Session
           </h1>
         </div>
@@ -100,7 +100,7 @@ export default function CreateSession() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Session Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Session Name (Optional)
             </label>
             <input
@@ -108,54 +108,54 @@ export default function CreateSession() {
               value={sessionName}
               onChange={(e) => setSessionName(e.target.value)}
               placeholder="e.g., Friday Night Session"
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
             />
           </div>
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Date
             </label>
             <input
               type="date"
               value={sessionDate}
               onChange={(e) => setSessionDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
             />
           </div>
 
           {/* Players */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-base font-medium text-japandi-text-primary">
                 Players (4-6 players)
               </label>
               {players.length < 6 && (
                 <button
                   type="button"
                   onClick={addPlayer}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                  className="text-sm text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors"
                 >
                   + Add Player
                 </button>
               )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {players.map((player, index) => (
-                <div key={player.id} className="flex gap-2">
+                <div key={player.id} className="flex gap-3">
                   <input
                     type="text"
                     value={player.name}
                     onChange={(e) => updatePlayerName(index, e.target.value)}
                     placeholder={`Player ${index + 1} name`}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="flex-1 px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
                   />
                   {players.length > 4 && (
                     <button
                       type="button"
                       onClick={() => removePlayer(index)}
-                      className="px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                      className="px-4 py-3 text-japandi-text-secondary hover:bg-japandi-background-card rounded-card transition-colors"
                     >
                       Remove
                     </button>
@@ -167,13 +167,13 @@ export default function CreateSession() {
 
           {/* Organizer */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Organizer (who prepaid costs)
             </label>
             <select
               value={organizerId}
               onChange={(e) => setOrganizerId(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
             >
               <option value="">Select organizer...</option>
               {players
@@ -188,17 +188,17 @@ export default function CreateSession() {
 
           {/* Court Cost */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Court Cost
             </label>
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-3 mb-3">
               <button
                 type="button"
                 onClick={() => setCourtCostType("per_person")}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 px-4 py-3 rounded-full font-medium transition-colors ${
                   courtCostType === "per_person"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    ? "bg-japandi-accent-primary text-white shadow-button"
+                    : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                 }`}
               >
                 Per Person
@@ -206,17 +206,17 @@ export default function CreateSession() {
               <button
                 type="button"
                 onClick={() => setCourtCostType("total")}
-                className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                className={`flex-1 px-4 py-3 rounded-full font-medium transition-colors ${
                   courtCostType === "total"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    ? "bg-japandi-accent-primary text-white shadow-button"
+                    : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                 }`}
               >
                 Total
               </button>
             </div>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-japandi-text-secondary">
                 $
               </span>
               <input
@@ -225,18 +225,18 @@ export default function CreateSession() {
                 value={courtCostValue}
                 onChange={(e) => setCourtCostValue(e.target.value)}
                 placeholder={courtCostType === "per_person" ? "14.40" : "72.00"}
-                className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           {/* Bird Cost */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Bird/Shuttle Cost (Total)
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-japandi-text-secondary">
                 $
               </span>
               <input
@@ -245,18 +245,18 @@ export default function CreateSession() {
                 value={birdCostTotal}
                 onChange={(e) => setBirdCostTotal(e.target.value)}
                 placeholder="3.00"
-                className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           {/* Bet Per Player */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
               Bet Per Player Per Game
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-japandi-text-secondary">
                 $
               </span>
               <input
@@ -265,7 +265,7 @@ export default function CreateSession() {
                 value={betPerPlayer}
                 onChange={(e) => setBetPerPlayer(e.target.value)}
                 placeholder="2.00"
-                className="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
           </div>
@@ -274,7 +274,7 @@ export default function CreateSession() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+            className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover disabled:bg-japandi-text-muted disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-button"
           >
             Start Session
           </button>

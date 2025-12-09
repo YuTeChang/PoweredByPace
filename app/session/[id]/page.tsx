@@ -19,20 +19,23 @@ export default function SessionPage() {
   const { session, games, setSession } = useSession();
   const [activeTab, setActiveTab] = useState<Tab>("stats");
 
-  // For MVP: If no session, create a mock session for testing
-  // In production, this would fetch from context or redirect
+  // Wait a moment for localStorage to load, then check if session exists
   useEffect(() => {
-    if (!session && params.id) {
-      // This is a placeholder - in real app, session would be loaded from context
-      // For now, redirect to create session if no session exists
-      router.push("/create-session");
+    if (params.id) {
+      // Give localStorage time to load (SessionContext loads on mount)
+      const timer = setTimeout(() => {
+        if (!session || session.id !== params.id) {
+          router.push("/create-session");
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
   }, [session, params.id, router]);
 
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600 dark:text-gray-400">Loading session...</p>
+      <div className="min-h-screen flex items-center justify-center bg-japandi-background-primary">
+        <p className="text-japandi-text-secondary">Loading session...</p>
       </div>
     );
   }
@@ -53,17 +56,17 @@ export default function SessionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="min-h-screen bg-japandi-background-primary pb-20">
       <SessionHeader session={session} />
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-8">
         {/* Stats Tab */}
         {activeTab === "stats" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-japandi-text-primary">
               Live Stats
             </h2>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {session.players.map((player) => {
                 const stats = playerStats.find(
                   (s) => s.playerId === player.id
@@ -81,11 +84,11 @@ export default function SessionPage() {
 
             {/* Mini Game List */}
             {games.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              <div className="mt-8">
+                <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
                   Recent Games
                 </h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {games
                     .slice(-5)
                     .reverse()
@@ -100,12 +103,12 @@ export default function SessionPage() {
                       return (
                         <div
                           key={game.id}
-                          className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm"
+                          className="bg-japandi-background-card border border-japandi-border-light rounded-card p-4 text-base shadow-soft"
                         >
-                          <span className="font-medium text-gray-900 dark:text-white">
+                          <span className="font-medium text-japandi-text-primary">
                             Game {game.gameNumber}:
                           </span>{" "}
-                          <span className="text-gray-600 dark:text-gray-400">
+                          <span className="text-japandi-text-secondary">
                             {winner} won
                           </span>
                         </div>
@@ -126,7 +129,7 @@ export default function SessionPage() {
         {/* Record Tab */}
         {activeTab === "record" && (
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
+            <h2 className="text-2xl font-bold text-japandi-text-primary mb-8">
               Record Game
             </h2>
             <QuickGameForm

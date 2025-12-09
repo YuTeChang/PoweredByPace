@@ -12,11 +12,11 @@ export default function FloatingActionButton({
   return (
     <button
       onClick={onClick}
-      className="fixed bottom-20 right-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg transition-all hover:scale-110 z-10"
+      className="fixed bottom-24 right-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white rounded-full w-16 h-16 flex items-center justify-center shadow-button transition-all hover:scale-105 z-10"
       aria-label={label}
     >
       <svg
-        className="w-6 h-6"
+        className="w-7 h-7"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"

@@ -25,19 +25,28 @@ export default function GameHistoryList({
       game.winningTeam === "A" ? teamANames : teamBNames;
     const loserNames = game.winningTeam === "A" ? teamBNames : teamANames;
 
-    return `${winnerNames} def. ${loserNames}`;
+    let result = `${winnerNames} def. ${loserNames}`;
+    
+    // Add scores if available
+    if (game.teamAScore !== undefined && game.teamBScore !== undefined) {
+      const winnerScore = game.winningTeam === "A" ? game.teamAScore : game.teamBScore;
+      const loserScore = game.winningTeam === "A" ? game.teamBScore : game.teamAScore;
+      result += ` (${winnerScore}-${loserScore})`;
+    }
+
+    return result;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {games.length > 0 && (
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-japandi-text-primary">
             Game History ({games.length})
           </h3>
           <button
             onClick={removeLastGame}
-            className="px-3 py-1.5 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm bg-japandi-background-card text-japandi-text-secondary hover:bg-japandi-background-primary border border-japandi-border-light rounded-full transition-colors"
           >
             Undo Last Game
           </button>
@@ -45,23 +54,23 @@ export default function GameHistoryList({
       )}
 
       {games.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <p>No games logged yet.</p>
-          <p className="text-sm mt-2">Switch to Record tab to log your first game!</p>
+        <div className="text-center py-16 text-japandi-text-muted">
+          <p className="text-base">No games logged yet.</p>
+          <p className="text-sm mt-3">Switch to Record tab to log your first game!</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {[...games].reverse().map((game) => (
             <div
               key={game.id}
-              className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+              className="bg-japandi-background-card border border-japandi-border-light rounded-card p-5 shadow-soft"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">
+                  <div className="text-lg font-semibold text-japandi-text-primary">
                     Game {game.gameNumber}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <div className="text-base text-japandi-text-secondary mt-2">
                     {formatGameResult(game)}
                   </div>
                 </div>

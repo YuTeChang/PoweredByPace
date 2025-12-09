@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { Session, Game, Player } from "@/types";
 
 interface SessionContextType {
@@ -14,9 +14,62 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
+const STORAGE_KEY_SESSION = "vibebadminton_session";
+const STORAGE_KEY_GAMES = "vibebadminton_games";
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSessionState] = useState<Session | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load session and games from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+        const savedGames = localStorage.getItem(STORAGE_KEY_GAMES);
+        
+        if (savedSession) {
+          const parsedSession = JSON.parse(savedSession);
+          // Convert date string back to Date object
+          parsedSession.date = new Date(parsedSession.date);
+          setSessionState(parsedSession);
+        }
+        
+        if (savedGames) {
+          const parsedGames = JSON.parse(savedGames);
+          // Convert date strings back to Date objects if needed
+          setGames(parsedGames);
+        }
+      } catch (error) {
+        console.error("Error loading session from localStorage:", error);
+      } finally {
+        setIsLoaded(true);
+      }
+    }
+  }, []);
+
+  // Save session to localStorage whenever it changes
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      if (session) {
+        localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_SESSION);
+      }
+    }
+  }, [session, isLoaded]);
+
+  // Save games to localStorage whenever they change
+  useEffect(() => {
+    if (isLoaded && typeof window !== "undefined") {
+      if (games.length > 0) {
+        localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(games));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_GAMES);
+      }
+    }
+  }, [games, isLoaded]);
 
   const setSession = useCallback((newSession: Session) => {
     setSessionState(newSession);
@@ -49,6 +102,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const clearSession = useCallback(() => {
     setSessionState(null);
     setGames([]);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY_SESSION);
+      localStorage.removeItem(STORAGE_KEY_GAMES);
+    }
   }, []);
 
   return (

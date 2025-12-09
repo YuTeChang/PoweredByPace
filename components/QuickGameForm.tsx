@@ -23,6 +23,8 @@ export default function QuickGameForm({
     null,
   ]);
   const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
+  const [teamAScore, setTeamAScore] = useState<string>("");
+  const [teamBScore, setTeamBScore] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handlePlayerSelect = (
@@ -49,7 +51,7 @@ export default function QuickGameForm({
     );
   };
 
-  const canSave =
+  const teamsComplete =
     teamA[0] &&
     teamA[1] &&
     teamB[0] &&
@@ -57,8 +59,9 @@ export default function QuickGameForm({
     teamA[0] !== teamA[1] &&
     teamB[0] !== teamB[1] &&
     !teamA.includes(teamB[0] as string) &&
-    !teamA.includes(teamB[1] as string) &&
-    winningTeam !== null;
+    !teamA.includes(teamB[1] as string);
+
+  const canSave = teamsComplete && winningTeam !== null;
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -69,12 +72,16 @@ export default function QuickGameForm({
         teamA: [teamA[0]!, teamA[1]!],
         teamB: [teamB[0]!, teamB[1]!],
         winningTeam: winningTeam!,
+        teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
+        teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
       });
 
       // Reset form
       setTeamA([null, null]);
       setTeamB([null, null]);
       setWinningTeam(null);
+      setTeamAScore("");
+      setTeamBScore("");
       onGameSaved();
     } finally {
       setIsSubmitting(false);
@@ -82,16 +89,16 @@ export default function QuickGameForm({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Team A */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+        <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
           Team A
         </h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4">
           {[0, 1].map((position) => (
             <div key={position}>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <div className="text-sm text-japandi-text-muted mb-2">
                 Player {position + 1}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -108,12 +115,12 @@ export default function QuickGameForm({
                         handlePlayerSelect("A", position as 0 | 1, player.id)
                       }
                       disabled={isDisabled}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                         isSelected
-                          ? "bg-blue-600 text-white"
+                          ? "bg-japandi-accent-primary text-white shadow-button"
                           : isDisabled
-                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-japandi-background-primary text-japandi-text-muted cursor-not-allowed opacity-50"
+                          : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                       }`}
                     >
                       {player.name}
@@ -128,13 +135,13 @@ export default function QuickGameForm({
 
       {/* Team B */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+        <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
           Team B
         </h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-4">
           {[0, 1].map((position) => (
             <div key={position}>
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+              <div className="text-sm text-japandi-text-muted mb-2">
                 Player {position + 1}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -151,12 +158,12 @@ export default function QuickGameForm({
                         handlePlayerSelect("B", position as 0 | 1, player.id)
                       }
                       disabled={isDisabled}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                         isSelected
-                          ? "bg-green-600 text-white"
+                          ? "bg-japandi-accent-primary text-white shadow-button"
                           : isDisabled
-                          ? "bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                          ? "bg-japandi-background-primary text-japandi-text-muted cursor-not-allowed opacity-50"
+                          : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                       }`}
                     >
                       {player.name}
@@ -169,20 +176,20 @@ export default function QuickGameForm({
         </div>
       </div>
 
-      {/* Winner Selection */}
-      {canSave && (
+      {/* Winner Selection - Show when teams are complete */}
+      {teamsComplete && (
         <div>
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+          <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
             Winner
           </h3>
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <button
               type="button"
               onClick={() => setWinningTeam("A")}
-              className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+              className={`flex-1 px-5 py-4 rounded-full font-semibold transition-colors ${
                 winningTeam === "A"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-japandi-accent-primary text-white shadow-button"
+                  : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
               }`}
             >
               Team A
@@ -190,14 +197,51 @@ export default function QuickGameForm({
             <button
               type="button"
               onClick={() => setWinningTeam("B")}
-              className={`flex-1 px-4 py-3 rounded-lg font-semibold transition-colors ${
+              className={`flex-1 px-5 py-4 rounded-full font-semibold transition-colors ${
                 winningTeam === "B"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  ? "bg-japandi-accent-primary text-white shadow-button"
+                  : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
               }`}
             >
               Team B
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Scores - Show when teams are complete */}
+      {teamsComplete && (
+        <div>
+          <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
+            Scores (Optional)
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-japandi-text-muted mb-2">
+                Team A Score
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={teamAScore}
+                onChange={(e) => setTeamAScore(e.target.value)}
+                placeholder="e.g., 21"
+                className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-japandi-text-muted mb-2">
+                Team B Score
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={teamBScore}
+                onChange={(e) => setTeamBScore(e.target.value)}
+                placeholder="e.g., 19"
+                className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -208,7 +252,7 @@ export default function QuickGameForm({
           type="button"
           onClick={handleSave}
           disabled={isSubmitting}
-          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors"
+          className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover disabled:bg-japandi-text-muted disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-button"
         >
           {isSubmitting ? "Saving..." : "Save Game"}
         </button>
