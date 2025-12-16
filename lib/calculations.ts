@@ -47,16 +47,20 @@ export function calculatePlayerStats(
 
     // Update stats for winning team
     winningTeam.forEach((playerId) => {
-      const stats = statsMap.get(playerId)!;
-      stats.wins += 1;
-      stats.gamblingNet += betPerPlayer;
+      const stats = statsMap.get(playerId);
+      if (stats) {
+        stats.wins += 1;
+        stats.gamblingNet += betPerPlayer;
+      }
     });
 
     // Update stats for losing team
     losingTeam.forEach((playerId) => {
-      const stats = statsMap.get(playerId)!;
-      stats.losses += 1;
-      stats.gamblingNet -= betPerPlayer;
+      const stats = statsMap.get(playerId);
+      if (stats) {
+        stats.losses += 1;
+        stats.gamblingNet -= betPerPlayer;
+      }
     });
   });
 

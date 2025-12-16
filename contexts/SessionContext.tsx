@@ -6,7 +6,7 @@ import { Session, Game, Player } from "@/types";
 interface SessionContextType {
   session: Session | null;
   games: Game[];
-  setSession: (session: Session) => void;
+  setSession: (session: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => void;
   addGame: (game: Omit<Game, "id" | "sessionId" | "gameNumber">) => void;
   addGames: (games: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => void;
   updateGame: (gameId: string, updates: Partial<Game>) => void;
@@ -36,12 +36,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           // Convert date string back to Date object
           parsedSession.date = new Date(parsedSession.date);
           setSessionState(parsedSession);
-        }
-        
-        if (savedGames) {
-          const parsedGames = JSON.parse(savedGames);
-          // Convert date strings back to Date objects if needed
-          setGames(parsedGames);
+          
+          // Only load games if they belong to this session
+          if (savedGames) {
+            const parsedGames = JSON.parse(savedGames);
+            // Filter games to only include those belonging to the loaded session
+            const filteredGames = parsedGames.filter(
+              (game: Game) => game.sessionId === parsedSession.id
+            );
+            setGames(filteredGames);
+          }
+        } else if (savedGames) {
+          // If no session but games exist, clear games
+          localStorage.removeItem(STORAGE_KEY_GAMES);
         }
       } catch (error) {
         // Silently handle localStorage errors - may occur in private browsing mode
@@ -74,14 +81,33 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [games, isLoaded]);
 
-  const setSession = useCallback((newSession: Session) => {
+  const setSession = useCallback((newSession: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => {
     setSessionState(newSession);
-    // Only clear games if it's a different session
     setGames((prev) => {
-      // If games belong to a different session, clear them
+      // If games belong to a different session, replace them with initial games (or clear if no initial games)
       if (prev.length > 0 && prev[0]?.sessionId !== newSession.id) {
+        if (initialGames && initialGames.length > 0) {
+          const timestamp = Date.now();
+          return initialGames.map((gameData, index) => ({
+            id: `game-${timestamp}-${index}-${Math.random()}`,
+            sessionId: newSession.id,
+            gameNumber: index + 1,
+            ...gameData,
+          }));
+        }
         return [];
       }
+      // If this is a new session (no existing games) and we have initial games, add them
+      if (prev.length === 0 && initialGames && initialGames.length > 0) {
+        const timestamp = Date.now();
+        return initialGames.map((gameData, index) => ({
+          id: `game-${timestamp}-${index}-${Math.random()}`,
+          sessionId: newSession.id,
+          gameNumber: index + 1,
+          ...gameData,
+        }));
+      }
+      // Keep existing games (same session, no initial games provided)
       return prev;
     });
   }, []);
@@ -90,32 +116,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     (gameData: Omit<Game, "id" | "sessionId" | "gameNumber">) => {
       if (!session) return;
 
-      const newGame: Game = {
-        id: `game-${Date.now()}-${Math.random()}`,
-        sessionId: session.id,
-        gameNumber: games.length + 1,
-        ...gameData,
-      };
-
-      setGames((prev) => [...prev, newGame]);
+      setGames((prev) => {
+        const newGame: Game = {
+          id: `game-${Date.now()}-${Math.random()}`,
+          sessionId: session.id,
+          gameNumber: prev.length + 1,
+          ...gameData,
+        };
+        return [...prev, newGame];
+      });
     },
-    [session, games.length]
+    [session]
   );
 
   const addGames = useCallback(
     (gamesData: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => {
       if (!session) return;
 
-      const newGames: Game[] = gamesData.map((gameData, index) => ({
-        id: `game-${Date.now()}-${index}-${Math.random()}`,
-        sessionId: session.id,
-        gameNumber: games.length + index + 1,
-        ...gameData,
-      }));
-
-      setGames((prev) => [...prev, ...newGames]);
+      setGames((prev) => {
+        const timestamp = Date.now();
+        const newGames: Game[] = gamesData.map((gameData, index) => ({
+          id: `game-${timestamp}-${index}-${Math.random()}`,
+          sessionId: session.id,
+          gameNumber: prev.length + index + 1,
+          ...gameData,
+        }));
+        return [...prev, ...newGames];
+      });
     },
-    [session, games.length]
+    [session]
   );
 
   const updateGame = useCallback((gameId: string, updates: Partial<Game>) => {

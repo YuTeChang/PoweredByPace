@@ -49,22 +49,31 @@ Casual badminton groups who constantly forget who won how many games and who owe
 - **Session Header**: Session name, date, player count, "View Summary" button
 - **Stats Tab**:
   - Live stats cards showing W/L and gambling net per player (real-time updates)
-  - Mini game list (last 3-5 games)
+  - "Next Game" card showing first unplayed round robin game (if scheduled games exist)
+  - "Upcoming Games" section showing next 10 scheduled games (if more exist)
+  - Recent games list (last 5 played games)
   - Floating Action Button (FAB) for quick "Record Game" access
 - **Record Tab**:
+  - "Scheduled Games" section listing all unplayed round robin games (if exist)
   - Quick game form:
-    - Select Team A (2 players)
-    - Select Team B (2 players)
+    - Teams can be pre-filled from scheduled games (locked)
+    - OR manually select Team A (2 players)
+    - OR manually select Team B (2 players)
     - Tap which team won
+    - Optionally add scores
     - Save game
-  - Recent teams quick-select (optional)
 - **History Tab**:
-  - Full list of all games: "Game 1: Darvey & Ronny def. James & Dayton"
+  - Full list of all **played** games only: "Game 1: Darvey & Ronny def. James & Dayton"
   - Undo last game option
   - Edit game option (future)
 - Real-time calculation updates after each game is saved
 
-**Nice-to-have (not required for MVP)**: Quick preset for 5-player round robin rotation
+**Round Robin Feature** (Implemented):
+- Can generate round robin schedule when creating session
+- Can specify exact number of games to generate
+- Scheduled games appear in Stats tab and Record tab
+- Easy to record scheduled games with pre-filled teams
+- Clear separation between scheduled and played games
 
 **User Flow**:
 1. User opens session page (defaults to Stats tab)

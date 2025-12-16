@@ -9,7 +9,7 @@ import { generateRoundRobinGames } from "@/lib/roundRobin";
 
 export default function CreateSession() {
   const router = useRouter();
-  const { setSession, addGames } = useSession();
+  const { setSession } = useSession();
   const [sessionName, setSessionName] = useState("");
   const [sessionDate, setSessionDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -24,10 +24,17 @@ export default function CreateSession() {
   const [courtCostType, setCourtCostType] = useState<"per_person" | "total">(
     "per_person"
   );
+  // Default values (all set to 0)
+  const DEFAULT_COURT_COST_PER_PERSON = 0;
+  const DEFAULT_COURT_COST_TOTAL = 0;
+  const DEFAULT_BIRD_COST = 0;
+  const DEFAULT_BET_PER_PLAYER = 0;
+
   const [courtCostValue, setCourtCostValue] = useState("");
-  const [birdCostTotal, setBirdCostTotal] = useState("0");
+  const [birdCostTotal, setBirdCostTotal] = useState("");
   const [betPerPlayer, setBetPerPlayer] = useState("");
   const [enableRoundRobin, setEnableRoundRobin] = useState(false);
+  const [roundRobinGameCount, setRoundRobinGameCount] = useState("");
 
   const addPlayer = () => {
     if (players.length < 6) {
@@ -56,20 +63,33 @@ export default function CreateSession() {
   const canSubmit =
     players.filter((p) => p.name.trim() !== "").length >= 4 &&
     organizerId !== "" &&
-    courtCostValue !== "" &&
-    !isNaN(parseFloat(courtCostValue)) &&
-    parseFloat(courtCostValue) >= 0 &&
-    !isNaN(parseFloat(birdCostTotal || "0")) &&
-    parseFloat(birdCostTotal || "0") >= 0 &&
-    betPerPlayer !== "" &&
-    !isNaN(parseFloat(betPerPlayer)) &&
-    parseFloat(betPerPlayer) >= 0;
+    // Court cost validation - allow empty (will use default)
+    (courtCostValue === "" || (!isNaN(parseFloat(courtCostValue)) && parseFloat(courtCostValue) >= 0)) &&
+    // Bird cost validation - allow empty (will use default)
+    (birdCostTotal === "" || (!isNaN(parseFloat(birdCostTotal)) && parseFloat(birdCostTotal) >= 0)) &&
+    // Bet per player validation - allow empty (will use default)
+    (betPerPlayer === "" || (!isNaN(parseFloat(betPerPlayer)) && parseFloat(betPerPlayer) >= 0)) &&
+    // Round robin game count validation - if round robin is enabled, must be valid number
+    (!enableRoundRobin || 
+     (roundRobinGameCount === "" || (!isNaN(parseInt(roundRobinGameCount)) && parseInt(roundRobinGameCount) > 0)));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
 
     const validPlayers = players.filter((p) => p.name.trim() !== "");
+    
+    // Use default values if fields are empty
+    const finalCourtCostValue = courtCostValue === "" 
+      ? (courtCostType === "per_person" ? DEFAULT_COURT_COST_PER_PERSON : DEFAULT_COURT_COST_TOTAL)
+      : parseFloat(courtCostValue) || 0;
+    const finalBirdCostTotal = birdCostTotal === "" 
+      ? DEFAULT_BIRD_COST 
+      : parseFloat(birdCostTotal) || 0;
+    const finalBetPerPlayer = betPerPlayer === "" 
+      ? DEFAULT_BET_PER_PLAYER 
+      : parseFloat(betPerPlayer) || 0;
+    
     const session: Session = {
       id: `session-${Date.now()}`,
       name: sessionName.trim() || undefined,
@@ -77,15 +97,18 @@ export default function CreateSession() {
       players: validPlayers,
       organizerId,
       courtCostType,
-      courtCostValue: parseFloat(courtCostValue) || 0,
-      birdCostTotal: parseFloat(birdCostTotal || "0") || 0,
-      betPerPlayer: parseFloat(betPerPlayer) || 0,
+      courtCostValue: finalCourtCostValue,
+      birdCostTotal: finalBirdCostTotal,
+      betPerPlayer: finalBetPerPlayer,
     };
 
     // If round robin is enabled, generate games first
     let roundRobinGamesToAdd: Omit<Game, "id" | "sessionId" | "gameNumber">[] = [];
     if (enableRoundRobin) {
-      const roundRobinGames = generateRoundRobinGames(validPlayers);
+      const maxGames = roundRobinGameCount === "" 
+        ? undefined 
+        : (isNaN(parseInt(roundRobinGameCount)) ? undefined : parseInt(roundRobinGameCount));
+      const roundRobinGames = generateRoundRobinGames(validPlayers, maxGames);
       if (roundRobinGames.length > 0) {
         roundRobinGamesToAdd = roundRobinGames.map((game) => ({
           teamA: game.teamA,
@@ -95,15 +118,8 @@ export default function CreateSession() {
       }
     }
 
-    setSession(session);
-
-    // Add round robin games after session is set
-    if (roundRobinGamesToAdd.length > 0) {
-      // Use setTimeout to ensure session state is updated in context
-      setTimeout(() => {
-        addGames(roundRobinGamesToAdd);
-      }, 100);
-    }
+    // Set session with initial games if round robin is enabled
+    setSession(session, roundRobinGamesToAdd.length > 0 ? roundRobinGamesToAdd : undefined);
 
     router.push(`/session/${session.id}`);
   };
@@ -251,7 +267,7 @@ export default function CreateSession() {
                 min="0"
                 value={courtCostValue}
                 onChange={(e) => setCourtCostValue(e.target.value)}
-                placeholder={courtCostType === "per_person" ? "14.40" : "72.00"}
+                placeholder={courtCostType === "per_person" ? `${DEFAULT_COURT_COST_PER_PERSON.toFixed(2)} (default)` : `${DEFAULT_COURT_COST_TOTAL.toFixed(2)} (default)`}
                 className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
@@ -272,7 +288,7 @@ export default function CreateSession() {
                 min="0"
                 value={birdCostTotal}
                 onChange={(e) => setBirdCostTotal(e.target.value)}
-                placeholder="0.00"
+                placeholder={`${DEFAULT_BIRD_COST.toFixed(2)} (default)`}
                 className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
@@ -293,7 +309,7 @@ export default function CreateSession() {
                 min="0"
                 value={betPerPlayer}
                 onChange={(e) => setBetPerPlayer(e.target.value)}
-                placeholder="2.00"
+                placeholder={`${DEFAULT_BET_PER_PLAYER.toFixed(2)} (default)`}
                 className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
               />
             </div>
@@ -308,22 +324,38 @@ export default function CreateSession() {
                 onChange={(e) => setEnableRoundRobin(e.target.checked)}
                 className="w-5 h-5 rounded border-japandi-border-light text-japandi-accent-primary focus:ring-2 focus:ring-japandi-accent-primary"
               />
-              <div>
+              <div className="flex-1">
                 <span className="block text-base font-medium text-japandi-text-primary">
                   Generate Round Robin Schedule
                 </span>
                 <span className="block text-sm text-japandi-text-muted mt-1">
                   Automatically create game combinations so everyone plays with different partners
                 </span>
-                {enableRoundRobin && players.filter((p) => p.name.trim() !== "").length >= 4 && (
-                  <div className="mt-2 p-3 bg-japandi-background-card rounded-card border border-japandi-border-light">
-                    <p className="text-sm text-japandi-text-secondary">
-                      Will generate {generateRoundRobinGames(players.filter((p) => p.name.trim() !== "")).length} games
-                    </p>
-                  </div>
-                )}
               </div>
             </label>
+            
+            {enableRoundRobin && (
+              <div className="mt-4 ml-8">
+                <label className="block text-sm font-medium text-japandi-text-primary mb-2">
+                  Number of Games (leave empty for all possible games)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={roundRobinGameCount}
+                  onChange={(e) => setRoundRobinGameCount(e.target.value)}
+                  placeholder="Auto"
+                  className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                />
+                {players.filter((p) => p.name.trim() !== "").length >= 4 && (
+                  <p className="mt-2 text-sm text-japandi-text-muted">
+                    {roundRobinGameCount 
+                      ? `Will generate up to ${parseInt(roundRobinGameCount) || 0} games`
+                      : `Will generate ${generateRoundRobinGames(players.filter((p) => p.name.trim() !== "")).length} games (all possible)`}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Submit */}

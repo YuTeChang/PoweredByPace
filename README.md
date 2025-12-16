@@ -5,7 +5,10 @@ A tiny web app that helps groups of friends track their badminton doubles games 
 ## Features
 
 - **Create Sessions**: Set up a badminton session with players and financial settings
-- **Log Games**: Quickly log games during play (select teams, mark winner)
+- **Round Robin Scheduling**: Generate scheduled game combinations with customizable count
+- **Log Games**: Quickly log games during play (select teams, mark winner, or use scheduled games)
+- **Live Stats**: Real-time win/loss tracking and gambling net calculations
+- **Game Planning**: See upcoming scheduled games to plan your session time
 - **Auto-Calculate**: Automatically calculates wins/losses, gambling net, and final settlement
 - **Mobile-First**: Designed for use at the court
 

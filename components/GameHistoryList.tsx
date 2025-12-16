@@ -12,7 +12,10 @@ export default function GameHistoryList({
   games,
   players,
 }: GameHistoryListProps) {
-  const { removeLastGame, updateGame } = useSession();
+  const { removeLastGame } = useSession();
+  
+  // Only show played games in history (filter out unplayed round robin games)
+  const playedGames = games.filter(game => game.winningTeam !== null);
 
   const getPlayerName = (playerId: string): string => {
     return players.find((p) => p.id === playerId)?.name || "Unknown";
@@ -44,10 +47,10 @@ export default function GameHistoryList({
 
   return (
     <div className="space-y-6">
-      {games.length > 0 && (
+      {playedGames.length > 0 && (
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-japandi-text-primary">
-            Game History ({games.length})
+            Game History ({playedGames.length})
           </h3>
           <button
             onClick={removeLastGame}
@@ -58,49 +61,26 @@ export default function GameHistoryList({
         </div>
       )}
 
-      {games.length === 0 ? (
+      {playedGames.length === 0 ? (
         <div className="text-center py-16 text-japandi-text-muted">
-          <p className="text-base">No games logged yet.</p>
+          <p className="text-base">No games played yet.</p>
           <p className="text-sm mt-3">Switch to Record tab to log your first game!</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {[...games].reverse().map((game) => (
+          {[...playedGames].reverse().map((game) => (
             <div
               key={game.id}
-              className={`bg-japandi-background-card border border-japandi-border-light rounded-card p-5 shadow-soft ${
-                game.winningTeam === null ? "border-dashed opacity-75" : ""
-              }`}
+              className="bg-japandi-background-card border border-japandi-border-light rounded-card p-5 shadow-soft"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="text-lg font-semibold text-japandi-text-primary">
                     Game {game.gameNumber}
-                    {game.winningTeam === null && (
-                      <span className="ml-2 text-sm font-normal text-japandi-text-muted">
-                        (Not played)
-                      </span>
-                    )}
                   </div>
                   <div className="text-base text-japandi-text-secondary mt-2">
                     {formatGameResult(game)}
                   </div>
-                  {game.winningTeam === null && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => updateGame(game.id, { winningTeam: "A" })}
-                        className="px-3 py-1.5 text-sm bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white rounded-full transition-colors"
-                      >
-                        Team A Won
-                      </button>
-                      <button
-                        onClick={() => updateGame(game.id, { winningTeam: "B" })}
-                        className="px-3 py-1.5 text-sm bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white rounded-full transition-colors"
-                      >
-                        Team B Won
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

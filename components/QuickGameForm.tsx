@@ -1,27 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { Player } from "@/types";
+import { useState, useEffect } from "react";
+import { Player, Game } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 
 interface QuickGameFormProps {
   players: Player[];
   onGameSaved: () => void;
+  initialTeamA?: [string, string];
+  initialTeamB?: [string, string];
+  gameToUpdate?: Game | null;
 }
 
 export default function QuickGameForm({
   players,
   onGameSaved,
+  initialTeamA,
+  initialTeamB,
+  gameToUpdate,
 }: QuickGameFormProps) {
-  const { addGame } = useSession();
-  const [teamA, setTeamA] = useState<[string | null, string | null]>([
-    null,
-    null,
-  ]);
-  const [teamB, setTeamB] = useState<[string | null, string | null]>([
-    null,
-    null,
-  ]);
+  const { addGame, updateGame } = useSession();
+  const [teamA, setTeamA] = useState<[string | null, string | null]>(
+    initialTeamA || [null, null]
+  );
+  const [teamB, setTeamB] = useState<[string | null, string | null]>(
+    initialTeamB || [null, null]
+  );
+  
+  // Reset form when initial teams change
+  useEffect(() => {
+    if (initialTeamA && initialTeamB) {
+      setTeamA(initialTeamA);
+      setTeamB(initialTeamB);
+    }
+  }, [initialTeamA, initialTeamB]);
   const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
   const [teamAScore, setTeamAScore] = useState<string>("");
   const [teamBScore, setTeamBScore] = useState<string>("");
@@ -68,13 +80,23 @@ export default function QuickGameForm({
 
     setIsSubmitting(true);
     try {
-      addGame({
-        teamA: [teamA[0]!, teamA[1]!],
-        teamB: [teamB[0]!, teamB[1]!],
-        winningTeam: winningTeam!,
-        teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
-        teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
-      });
+      // If we're updating an existing game (from round robin schedule)
+      if (gameToUpdate) {
+        updateGame(gameToUpdate.id, {
+          winningTeam: winningTeam!,
+          teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
+          teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
+        });
+      } else {
+        // Create a new game
+        addGame({
+          teamA: [teamA[0]!, teamA[1]!],
+          teamB: [teamB[0]!, teamB[1]!],
+          winningTeam: winningTeam!,
+          teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
+          teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
+        });
+      }
 
       // Reset form
       setTeamA([null, null]);
@@ -88,8 +110,18 @@ export default function QuickGameForm({
     }
   };
 
+  const isUpdatingScheduledGame = !!gameToUpdate;
+
   return (
     <div className="space-y-8">
+      {isUpdatingScheduledGame && (
+        <div className="bg-japandi-background-primary border border-japandi-border-light rounded-card p-4 mb-4">
+          <p className="text-sm text-japandi-text-secondary">
+            Recording result for scheduled Game {gameToUpdate.gameNumber}. Teams are set - just select the winner and scores.
+          </p>
+        </div>
+      )}
+      
       {/* Team A */}
       <div>
         <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
@@ -114,11 +146,11 @@ export default function QuickGameForm({
                       onClick={() =>
                         handlePlayerSelect("A", position as 0 | 1, player.id)
                       }
-                      disabled={isDisabled}
+                      disabled={isDisabled || isUpdatingScheduledGame}
                       className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                         isSelected
                           ? "bg-japandi-accent-primary text-white shadow-button"
-                          : isDisabled
+                          : isDisabled || isUpdatingScheduledGame
                           ? "bg-japandi-background-primary text-japandi-text-muted cursor-not-allowed opacity-50"
                           : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                       }`}
@@ -157,11 +189,11 @@ export default function QuickGameForm({
                       onClick={() =>
                         handlePlayerSelect("B", position as 0 | 1, player.id)
                       }
-                      disabled={isDisabled}
+                      disabled={isDisabled || isUpdatingScheduledGame}
                       className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
                         isSelected
                           ? "bg-japandi-accent-primary text-white shadow-button"
-                          : isDisabled
+                          : isDisabled || isUpdatingScheduledGame
                           ? "bg-japandi-background-primary text-japandi-text-muted cursor-not-allowed opacity-50"
                           : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
                       }`}
