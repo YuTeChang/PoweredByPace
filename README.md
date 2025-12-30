@@ -16,52 +16,15 @@ A tiny web app that helps groups of friends track their badminton games (doubles
 
 ## Screenshots
 
-All screenshots are captured from automated testing and located in `docs/screenshots/test-results/`.
+Screenshots are available in `docs/screenshots/test-results/` showing all current features including:
+- Game mode selection (doubles/singles)
+- Multiple session management
+- Default player names
+- Improved UI layouts
 
-> **Note**: Some screenshots may show older UI. Current features include singles mode toggle, multiple sessions list, improved summary table layout, and default player names.
+See [docs/screenshots/test-results/README.md](docs/screenshots/test-results/README.md) for details.
 
-### Home Page
-![Home Page](docs/screenshots/test-results/01-home-page.png)
-*Welcome page showing all created sessions (current version displays multiple sessions with ability to switch between them)*
-
-### Create Session
-![Create Session - Empty](docs/screenshots/test-results/02-create-session-empty.png)
-*Empty session creation form with game mode toggle (doubles/singles) - current version includes mode selection*
-
-![Create Session - Filled](docs/screenshots/test-results/02-create-session-filled.png)
-*Session creation form with player inputs, financial settings, and organizer selection - current version supports default player names*
-
-![Create Session - Round Robin](docs/screenshots/test-results/02-create-session-round-robin.png)
-*Session creation form with round robin scheduling enabled*
-
-### Session Page - Stats Tab
-![Session Stats - Empty](docs/screenshots/test-results/03-session-stats-empty.png)
-*Stats tab with no games recorded yet*
-
-![Session Stats - With Games](docs/screenshots/test-results/03-session-stats-with-games.png)
-*Live stats showing wins/losses and gambling net for each player*
-
-### Session Page - Record Tab
-![Session Record - Empty](docs/screenshots/test-results/04-session-record-empty.png)
-*Empty game entry form - supports both doubles (2v2) and singles (1v1) modes*
-
-![Session Record - Teams Selected](docs/screenshots/test-results/04-session-record-teams-selected.png)
-*Game entry form with teams selected - auto-selects last player in 4-player doubles mode*
-
-![Session Record - Ready](docs/screenshots/test-results/04-session-record-ready.png)
-*Game entry form ready to save with winner selected*
-
-### Session Page - History Tab
-![Session History](docs/screenshots/test-results/05-session-history.png)
-*Complete game history with undo functionality*
-
-### Summary Page
-![Summary Page](docs/screenshots/test-results/06-summary-page.png)
-*Final settlement table with shareable text - current version features improved table layout, better text wrapping, and enhanced spacing between action buttons*
-
-See [docs/screenshots/test-results/README.md](docs/screenshots/test-results/README.md) for more details.
-
-**To regenerate screenshots with latest features:**
+**To regenerate screenshots:**
 ```bash
 npm run test:screenshots
 ```

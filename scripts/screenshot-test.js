@@ -53,15 +53,22 @@ async function testAllFeatures() {
     await waitForPageLoad(page);
     await takeScreenshot(page, '01-home-page.png', 'Home Page');
 
-    // 2. Create Session Page - Empty
+    // 2. Create Session Page - Empty (with game mode toggle visible)
     console.log('\n2️⃣ Testing Create Session Page (Empty)');
     await page.goto(`${BASE_URL}/create-session`);
     await waitForPageLoad(page);
     await page.evaluate(() => window.scrollTo(0, 0));
-    await takeScreenshot(page, '02-create-session-empty.png', 'Create Session (Empty Form)');
+    await takeScreenshot(page, '02-create-session-empty.png', 'Create Session (Empty Form with Game Mode Toggle)');
 
     // 3. Create Session Page - Filled (without round robin)
     console.log('\n3️⃣ Testing Create Session Page (Filled)');
+    // Ensure doubles mode is selected (should be default)
+    const doublesButton = page.locator('button').filter({ hasText: /Doubles/i }).first();
+    if (await doublesButton.isVisible()) {
+      await doublesButton.click();
+      await page.waitForTimeout(200);
+    }
+    
     await page.fill('input[type="text"][placeholder*="Session"]', 'Friday Night Session');
     
     // Fill player names (wait a bit for inputs to be ready)
@@ -125,6 +132,99 @@ async function testAllFeatures() {
     await page.click('button[type="submit"]:not([disabled])');
     await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
     await waitForPageLoad(page);
+    
+    // Go back to home to show multiple sessions
+    console.log('\n5️⃣a Testing Home Page with Session');
+    await page.goto(BASE_URL);
+    await waitForPageLoad(page);
+    await takeScreenshot(page, '01-home-page-with-session.png', 'Home Page (With Active Session)');
+    
+    // Create a second session to show multiple sessions
+    console.log('\n5️⃣b Creating second session for multiple sessions view...');
+    await page.goto(`${BASE_URL}/create-session`);
+    await waitForPageLoad(page);
+    await page.waitForTimeout(500);
+    
+    // Test singles mode
+    const singlesButton = page.locator('button').filter({ hasText: /Singles/i }).first();
+    if (await singlesButton.isVisible()) {
+      await singlesButton.click();
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await takeScreenshot(page, '02-create-session-singles-mode.png', 'Create Session (Singles Mode)');
+    }
+    
+    // Fill singles session
+    await page.fill('input[type="text"][placeholder*="Session"]', 'Singles Practice');
+    await page.waitForTimeout(300);
+    const singlesPlayerInputs = await page.locator('input[type="text"][placeholder*="Player"]').all();
+    const singlesPlayers = ['Player 1', 'Player 2'];
+    for (let i = 0; i < Math.min(singlesPlayerInputs.length, singlesPlayers.length); i++) {
+      await singlesPlayerInputs[i].fill(singlesPlayers[i]);
+      await page.waitForTimeout(100);
+    }
+    
+    // Select organizer
+    await page.waitForTimeout(300);
+    const singlesOrganizerSelect = page.locator('select').first();
+    await singlesOrganizerSelect.selectOption({ index: 1 });
+    
+    await page.waitForTimeout(500);
+    await page.click('button[type="submit"]:not([disabled])');
+    await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
+    await waitForPageLoad(page);
+    
+    // Go back to home to show multiple sessions
+    await page.goto(BASE_URL);
+    await waitForPageLoad(page);
+    await page.waitForTimeout(1000);
+    await takeScreenshot(page, '01-home-page-multiple-sessions.png', 'Home Page (Multiple Sessions)');
+    
+    // Go back to first session
+    const firstSessionButton = page.locator('button').filter({ hasText: /Friday Night Session|Open Session|Continue Session/i }).first();
+    if (await firstSessionButton.isVisible()) {
+      await firstSessionButton.click();
+      await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
+      await waitForPageLoad(page);
+    } else {
+      // Fallback: navigate directly
+      await page.goto(`${BASE_URL}/create-session`);
+      await waitForPageLoad(page);
+      // Recreate first session
+      const doublesBtn = page.locator('button').filter({ hasText: /Doubles/i }).first();
+      if (await doublesBtn.isVisible()) {
+        await doublesBtn.click();
+        await page.waitForTimeout(200);
+      }
+      await page.fill('input[type="text"][placeholder*="Session"]', 'Friday Night Session');
+      await page.waitForTimeout(300);
+      const playerInputs2 = await page.locator('input[type="text"][placeholder*="Player"]').all();
+      for (let i = 0; i < Math.min(playerInputs2.length, players.length); i++) {
+        await playerInputs2[i].fill(players[i]);
+        await page.waitForTimeout(100);
+      }
+      await page.waitForTimeout(300);
+      const orgSelect = page.locator('select').first();
+      await orgSelect.selectOption({ index: 1 });
+      await page.evaluate(() => window.scrollTo(0, 600));
+      await page.waitForTimeout(300);
+      const courtInput = page.locator('input[type="number"]').nth(0);
+      await courtInput.fill('14.40');
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.scrollTo(0, 800));
+      await page.waitForTimeout(300);
+      const birdInput = page.locator('input[type="number"]').nth(1);
+      await birdInput.fill('3.00');
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.scrollTo(0, 1000));
+      await page.waitForTimeout(300);
+      const betInput2 = page.locator('input[type="number"]').nth(2);
+      await betInput2.fill('2.00');
+      await page.waitForTimeout(500);
+      await page.click('button[type="submit"]:not([disabled])');
+      await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
+      await waitForPageLoad(page);
+    }
 
     // 6. Session Page - Stats Tab (empty)
     console.log('\n6️⃣ Testing Session Page - Stats Tab (No Games)');
@@ -255,8 +355,8 @@ async function testAllFeatures() {
     console.log('\n✅ All screenshots captured successfully!');
     console.log(`\n📁 Screenshots saved to: ${SCREENSHOT_DIR}`);
     console.log(`\n📋 Summary:`);
-    console.log(`   - Home Page`);
-    console.log(`   - Create Session (Empty, Filled, Round Robin)`);
+    console.log(`   - Home Page (Empty, With Session, Multiple Sessions)`);
+    console.log(`   - Create Session (Empty, Filled, Singles Mode, Round Robin)`);
     console.log(`   - Session Stats (Empty, With Games)`);
     console.log(`   - Session Record (Empty, Teams Selected, Ready)`);
     console.log(`   - Session History`);
@@ -276,10 +376,11 @@ async function checkServer() {
   const http = require('http');
   return new Promise((resolve) => {
     const req = http.get(BASE_URL, (res) => {
-      resolve(res.statusCode === 200);
+      // Accept 200, 404, or any response as server is running
+      resolve(res.statusCode === 200 || res.statusCode === 404);
     });
     req.on('error', () => resolve(false));
-    req.setTimeout(2000, () => {
+    req.setTimeout(3000, () => {
       req.destroy();
       resolve(false);
     });
