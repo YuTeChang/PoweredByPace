@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/contexts/SessionContext";
 import { Session, Player, Game } from "@/types";
@@ -21,6 +21,24 @@ export default function CreateSession() {
     { id: "player-3", name: "" },
     { id: "player-4", name: "" },
   ]);
+  
+  // Initialize players based on game mode
+  useEffect(() => {
+    if (gameMode === "singles") {
+      setPlayers((prev) => prev.length > 2 ? prev.slice(0, 2) : prev);
+    } else if (gameMode === "doubles") {
+      setPlayers((prev) => {
+        if (prev.length < 4) {
+          const newPlayers = [...prev];
+          while (newPlayers.length < 4) {
+            newPlayers.push({ id: `player-${Date.now()}-${newPlayers.length}`, name: "" });
+          }
+          return newPlayers;
+        }
+        return prev;
+      });
+    }
+  }, [gameMode]);
   const [organizerId, setOrganizerId] = useState<string>("");
   const [courtCostType, setCourtCostType] = useState<"per_person" | "total">(
     "per_person"
@@ -201,18 +219,7 @@ export default function CreateSession() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setGameMode("doubles");
-                  // Ensure we have at least 4 players for doubles
-                  if (players.length < 4) {
-                    setPlayers([
-                      { id: "player-1", name: "" },
-                      { id: "player-2", name: "" },
-                      { id: "player-3", name: "" },
-                      { id: "player-4", name: "" },
-                    ]);
-                  }
-                }}
+                onClick={() => setGameMode("doubles")}
                 className={`flex-1 px-4 py-3 rounded-full font-medium transition-all active:scale-95 touch-manipulation ${
                   gameMode === "doubles"
                     ? "bg-japandi-accent-primary text-white shadow-button"
@@ -223,13 +230,7 @@ export default function CreateSession() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setGameMode("singles");
-                  // For singles, we only need 2 players minimum
-                  if (players.length > 4) {
-                    setPlayers(players.slice(0, 4));
-                  }
-                }}
+                onClick={() => setGameMode("singles")}
                 className={`flex-1 px-4 py-3 rounded-full font-medium transition-all active:scale-95 touch-manipulation ${
                   gameMode === "singles"
                     ? "bg-japandi-accent-primary text-white shadow-button"

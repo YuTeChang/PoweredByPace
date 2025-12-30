@@ -306,13 +306,6 @@ export default function SessionPage() {
                     );
                   })}
                 </div>
-                {prefillGame && (
-                  <div className="mt-4 p-3 bg-japandi-background-primary rounded-card border border-japandi-border-light">
-                    <p className="text-sm text-japandi-text-secondary">
-                      Teams pre-filled below. Fill in the winner and scores, then save.
-                    </p>
-                  </div>
-                )}
               </div>
             )}
 

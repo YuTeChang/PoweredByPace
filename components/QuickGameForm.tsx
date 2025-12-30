@@ -181,14 +181,6 @@ export default function QuickGameForm({
 
   return (
     <div className="space-y-8">
-      {isUpdatingScheduledGame && (
-        <div className="bg-japandi-background-primary border border-japandi-border-light rounded-card p-4 mb-4">
-          <p className="text-sm text-japandi-text-secondary">
-            Recording result for scheduled Game {gameToUpdate.gameNumber}. Teams are set - just select the winner and scores.
-          </p>
-        </div>
-      )}
-      
       {/* Team A */}
       <div>
         <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
