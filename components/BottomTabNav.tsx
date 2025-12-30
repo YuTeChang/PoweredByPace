@@ -12,19 +12,20 @@ export default function BottomTabNav({
   gameCount = 0,
 }: BottomTabNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-japandi-background-card border-t border-japandi-border-light z-20 shadow-soft">
+    <div className="fixed bottom-0 left-0 right-0 bg-japandi-background-card border-t border-japandi-border-light z-20 shadow-soft safe-area-inset-bottom">
       <div className="max-w-2xl mx-auto">
         <div className="grid grid-cols-3">
           <button
             onClick={() => onTabChange("stats")}
-            className={`flex flex-col items-center justify-center py-4 px-2 transition-colors ${
+            className={`flex flex-col items-center justify-center py-3 sm:py-4 px-2 transition-colors touch-manipulation ${
               activeTab === "stats"
                 ? "text-japandi-accent-primary"
                 : "text-japandi-text-muted"
             }`}
+            aria-label="View stats"
           >
             <svg
-              className="w-6 h-6 mb-1"
+              className="w-5 h-5 sm:w-6 sm:h-6 mb-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -41,14 +42,15 @@ export default function BottomTabNav({
 
           <button
             onClick={() => onTabChange("record")}
-            className={`flex flex-col items-center justify-center py-4 px-2 transition-colors ${
+            className={`flex flex-col items-center justify-center py-3 sm:py-4 px-2 transition-colors touch-manipulation ${
               activeTab === "record"
                 ? "text-japandi-accent-primary"
                 : "text-japandi-text-muted"
             }`}
+            aria-label="Record game"
           >
             <svg
-              className="w-6 h-6 mb-1"
+              className="w-5 h-5 sm:w-6 sm:h-6 mb-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -65,14 +67,15 @@ export default function BottomTabNav({
 
           <button
             onClick={() => onTabChange("history")}
-            className={`flex flex-col items-center justify-center py-4 px-2 transition-colors relative ${
+            className={`flex flex-col items-center justify-center py-3 sm:py-4 px-2 transition-colors relative touch-manipulation ${
               activeTab === "history"
                 ? "text-japandi-accent-primary"
                 : "text-japandi-text-muted"
             }`}
+            aria-label="View game history"
           >
             <svg
-              className="w-6 h-6 mb-1"
+              className="w-5 h-5 sm:w-6 sm:h-6 mb-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -86,8 +89,8 @@ export default function BottomTabNav({
             </svg>
             <span className="text-xs font-medium">History</span>
             {gameCount > 0 && (
-              <span className="absolute top-1 right-2 bg-japandi-accent-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {gameCount}
+              <span className="absolute top-0.5 right-1 sm:top-1 sm:right-2 bg-japandi-accent-primary text-white text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">
+                {gameCount > 99 ? "99+" : gameCount}
               </span>
             )}
           </button>

@@ -60,18 +60,21 @@ export default function CreateSession() {
     setPlayers(updated);
   };
 
+  const validPlayerCount = players.filter((p) => p.name.trim() !== "").length;
+  const hasValidOrganizer = organizerId !== "";
+  const isValidCourtCost = courtCostValue === "" || (!isNaN(parseFloat(courtCostValue)) && parseFloat(courtCostValue) >= 0);
+  const isValidBirdCost = birdCostTotal === "" || (!isNaN(parseFloat(birdCostTotal)) && parseFloat(birdCostTotal) >= 0);
+  const isValidBet = betPerPlayer === "" || (!isNaN(parseFloat(betPerPlayer)) && parseFloat(betPerPlayer) >= 0);
+  const isValidRoundRobinCount = !enableRoundRobin || 
+    (roundRobinGameCount === "" || (!isNaN(parseInt(roundRobinGameCount)) && parseInt(roundRobinGameCount) > 0));
+
   const canSubmit =
-    players.filter((p) => p.name.trim() !== "").length >= 4 &&
-    organizerId !== "" &&
-    // Court cost validation - allow empty (will use default)
-    (courtCostValue === "" || (!isNaN(parseFloat(courtCostValue)) && parseFloat(courtCostValue) >= 0)) &&
-    // Bird cost validation - allow empty (will use default)
-    (birdCostTotal === "" || (!isNaN(parseFloat(birdCostTotal)) && parseFloat(birdCostTotal) >= 0)) &&
-    // Bet per player validation - allow empty (will use default)
-    (betPerPlayer === "" || (!isNaN(parseFloat(betPerPlayer)) && parseFloat(betPerPlayer) >= 0)) &&
-    // Round robin game count validation - if round robin is enabled, must be valid number
-    (!enableRoundRobin || 
-     (roundRobinGameCount === "" || (!isNaN(parseInt(roundRobinGameCount)) && parseInt(roundRobinGameCount) > 0)));
+    validPlayerCount >= 4 &&
+    hasValidOrganizer &&
+    isValidCourtCost &&
+    isValidBirdCost &&
+    isValidBet &&
+    isValidRoundRobinCount;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,8 +128,8 @@ export default function CreateSession() {
   };
 
   return (
-    <div className="min-h-screen bg-japandi-background-primary py-8">
-      <div className="max-w-2xl mx-auto px-4">
+    <div className="min-h-screen bg-japandi-background-primary py-4 sm:py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <div className="mb-8">
           <Link
             href="/"
@@ -134,7 +137,7 @@ export default function CreateSession() {
           >
             ← Back to Home
           </Link>
-          <h1 className="text-3xl font-bold text-japandi-text-primary mt-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-japandi-text-primary mt-4 sm:mt-6">
             Create New Session
           </h1>
         </div>
@@ -151,6 +154,7 @@ export default function CreateSession() {
               onChange={(e) => setSessionName(e.target.value)}
               placeholder="e.g., Friday Night Session"
               className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+              aria-label="Session name (optional)"
             />
           </div>
 
@@ -164,6 +168,7 @@ export default function CreateSession() {
               value={sessionDate}
               onChange={(e) => setSessionDate(e.target.value)}
               className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+              aria-label="Session date"
             />
           </div>
 
@@ -177,7 +182,7 @@ export default function CreateSession() {
                 <button
                   type="button"
                   onClick={addPlayer}
-                  className="text-sm text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors"
+                  className="text-sm text-japandi-accent-primary hover:text-japandi-accent-hover active:scale-95 transition-all touch-manipulation"
                 >
                   + Add Player
                 </button>
@@ -197,7 +202,7 @@ export default function CreateSession() {
                     <button
                       type="button"
                       onClick={() => removePlayer(index)}
-                      className="px-4 py-3 text-japandi-text-secondary hover:bg-japandi-background-card rounded-card transition-colors"
+                      className="px-4 py-3 text-japandi-text-secondary hover:bg-japandi-background-card active:scale-95 rounded-card transition-all touch-manipulation"
                     >
                       Remove
                     </button>
@@ -205,6 +210,11 @@ export default function CreateSession() {
                 </div>
               ))}
             </div>
+            {validPlayerCount < 4 && (
+              <p className="mt-2 text-sm text-red-600">
+                At least 4 players are required
+              </p>
+            )}
           </div>
 
           {/* Organizer */}
@@ -226,6 +236,11 @@ export default function CreateSession() {
                   </option>
                 ))}
             </select>
+            {!hasValidOrganizer && validPlayerCount >= 4 && (
+              <p className="mt-2 text-sm text-red-600">
+                Please select an organizer
+              </p>
+            )}
           </div>
 
           {/* Court Cost */}
@@ -237,7 +252,7 @@ export default function CreateSession() {
               <button
                 type="button"
                 onClick={() => setCourtCostType("per_person")}
-                className={`flex-1 px-4 py-3 rounded-full font-medium transition-colors ${
+                className={`flex-1 px-4 py-3 rounded-full font-medium transition-all active:scale-95 touch-manipulation ${
                   courtCostType === "per_person"
                     ? "bg-japandi-accent-primary text-white shadow-button"
                     : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
@@ -248,7 +263,7 @@ export default function CreateSession() {
               <button
                 type="button"
                 onClick={() => setCourtCostType("total")}
-                className={`flex-1 px-4 py-3 rounded-full font-medium transition-colors ${
+                className={`flex-1 px-4 py-3 rounded-full font-medium transition-all active:scale-95 touch-manipulation ${
                   courtCostType === "total"
                     ? "bg-japandi-accent-primary text-white shadow-button"
                     : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
@@ -268,9 +283,16 @@ export default function CreateSession() {
                 value={courtCostValue}
                 onChange={(e) => setCourtCostValue(e.target.value)}
                 placeholder={courtCostType === "per_person" ? `${DEFAULT_COURT_COST_PER_PERSON.toFixed(2)} (default)` : `${DEFAULT_COURT_COST_TOTAL.toFixed(2)} (default)`}
-                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                className={`w-full pl-8 pr-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                  !isValidCourtCost ? "border-red-300" : "border-japandi-border-light"
+                }`}
               />
             </div>
+            {!isValidCourtCost && (
+              <p className="mt-2 text-sm text-red-600">
+                Please enter a valid number (0 or greater)
+              </p>
+            )}
           </div>
 
           {/* Bird Cost */}
@@ -289,9 +311,16 @@ export default function CreateSession() {
                 value={birdCostTotal}
                 onChange={(e) => setBirdCostTotal(e.target.value)}
                 placeholder={`${DEFAULT_BIRD_COST.toFixed(2)} (default)`}
-                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                className={`w-full pl-8 pr-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                  !isValidBirdCost ? "border-red-300" : "border-japandi-border-light"
+                }`}
               />
             </div>
+            {!isValidBirdCost && (
+              <p className="mt-2 text-sm text-red-600">
+                Please enter a valid number (0 or greater)
+              </p>
+            )}
           </div>
 
           {/* Bet Per Player */}
@@ -310,9 +339,16 @@ export default function CreateSession() {
                 value={betPerPlayer}
                 onChange={(e) => setBetPerPlayer(e.target.value)}
                 placeholder={`${DEFAULT_BET_PER_PLAYER.toFixed(2)} (default)`}
-                className="w-full pl-8 pr-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                className={`w-full pl-8 pr-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                  !isValidBet ? "border-red-300" : "border-japandi-border-light"
+                }`}
               />
             </div>
+            {!isValidBet && (
+              <p className="mt-2 text-sm text-red-600">
+                Please enter a valid number (0 or greater)
+              </p>
+            )}
           </div>
 
           {/* Round Robin Option */}
@@ -345,13 +381,20 @@ export default function CreateSession() {
                   value={roundRobinGameCount}
                   onChange={(e) => setRoundRobinGameCount(e.target.value)}
                   placeholder="Auto"
-                  className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                  className={`w-full px-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                    !isValidRoundRobinCount ? "border-red-300" : "border-japandi-border-light"
+                  }`}
                 />
                 {players.filter((p) => p.name.trim() !== "").length >= 4 && (
                   <p className="mt-2 text-sm text-japandi-text-muted">
                     {roundRobinGameCount 
                       ? `Will generate up to ${parseInt(roundRobinGameCount) || 0} games`
                       : `Will generate ${generateRoundRobinGames(players.filter((p) => p.name.trim() !== "")).length} games (all possible)`}
+                  </p>
+                )}
+                {!isValidRoundRobinCount && (
+                  <p className="mt-2 text-sm text-red-600">
+                    Please enter a valid number (1 or greater)
                   </p>
                 )}
               </div>
@@ -362,7 +405,7 @@ export default function CreateSession() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover disabled:bg-japandi-text-muted disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-button"
+            className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 disabled:bg-japandi-text-muted disabled:cursor-not-allowed disabled:active:scale-100 text-white font-semibold rounded-full transition-all shadow-button touch-manipulation"
           >
             Start Session
           </button>

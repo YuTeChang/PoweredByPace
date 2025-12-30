@@ -147,7 +147,7 @@ export default function QuickGameForm({
                         handlePlayerSelect("A", position as 0 | 1, player.id)
                       }
                       disabled={isDisabled || isUpdatingScheduledGame}
-                      className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all active:scale-95 touch-manipulation ${
                         isSelected
                           ? "bg-japandi-accent-primary text-white shadow-button"
                           : isDisabled || isUpdatingScheduledGame
@@ -190,7 +190,7 @@ export default function QuickGameForm({
                         handlePlayerSelect("B", position as 0 | 1, player.id)
                       }
                       disabled={isDisabled || isUpdatingScheduledGame}
-                      className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors ${
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium transition-all active:scale-95 touch-manipulation ${
                         isSelected
                           ? "bg-japandi-accent-primary text-white shadow-button"
                           : isDisabled || isUpdatingScheduledGame
@@ -218,7 +218,7 @@ export default function QuickGameForm({
             <button
               type="button"
               onClick={() => setWinningTeam("A")}
-              className={`flex-1 px-5 py-4 rounded-full font-semibold transition-colors ${
+              className={`flex-1 px-4 sm:px-5 py-3 sm:py-4 rounded-full font-semibold transition-all active:scale-95 touch-manipulation ${
                 winningTeam === "A"
                   ? "bg-japandi-accent-primary text-white shadow-button"
                   : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
@@ -229,7 +229,7 @@ export default function QuickGameForm({
             <button
               type="button"
               onClick={() => setWinningTeam("B")}
-              className={`flex-1 px-5 py-4 rounded-full font-semibold transition-colors ${
+              className={`flex-1 px-4 sm:px-5 py-3 sm:py-4 rounded-full font-semibold transition-all active:scale-95 touch-manipulation ${
                 winningTeam === "B"
                   ? "bg-japandi-accent-primary text-white shadow-button"
                   : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
@@ -259,6 +259,7 @@ export default function QuickGameForm({
                 onChange={(e) => setTeamAScore(e.target.value)}
                 placeholder="e.g., 21"
                 className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                aria-label="Team A score"
               />
             </div>
             <div>
@@ -272,6 +273,7 @@ export default function QuickGameForm({
                 onChange={(e) => setTeamBScore(e.target.value)}
                 placeholder="e.g., 19"
                 className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+                aria-label="Team B score"
               />
             </div>
           </div>
@@ -284,7 +286,7 @@ export default function QuickGameForm({
           type="button"
           onClick={handleSave}
           disabled={isSubmitting}
-          className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover disabled:bg-japandi-text-muted disabled:cursor-not-allowed text-white font-semibold rounded-full transition-colors shadow-button"
+          className="w-full px-6 py-4 bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 disabled:bg-japandi-text-muted disabled:cursor-not-allowed disabled:active:scale-100 text-white font-semibold rounded-full transition-all shadow-button touch-manipulation"
         >
           {isSubmitting ? "Saving..." : "Save Game"}
         </button>

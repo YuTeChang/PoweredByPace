@@ -75,11 +75,11 @@ export default function SessionPage() {
     <div className="min-h-screen bg-japandi-background-primary pb-20">
       <SessionHeader session={session} />
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         {/* Stats Tab */}
         {activeTab === "stats" && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-japandi-text-primary">
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-japandi-text-primary">
               Live Stats
             </h2>
             <div className="space-y-4">
@@ -100,17 +100,17 @@ export default function SessionPage() {
 
             {/* Next Game - Show first unplayed round robin game */}
             {nextUnplayedGame && (
-              <div className="mt-8">
-                <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
+              <div className="mt-6 sm:mt-8">
+                <h3 className="text-base font-semibold text-japandi-text-primary mb-3 sm:mb-4">
                   Next Game
                 </h3>
-                <div className="bg-japandi-background-card border-2 border-japandi-accent-primary rounded-card p-5 shadow-soft">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="text-lg font-semibold text-japandi-text-primary mb-1">
+                <div className="bg-japandi-background-card border-2 border-japandi-accent-primary rounded-card p-4 sm:p-5 shadow-soft">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-base sm:text-lg font-semibold text-japandi-text-primary mb-1">
                         Game {nextUnplayedGame.gameNumber}
                       </div>
-                      <div className="text-base text-japandi-text-secondary">
+                      <div className="text-sm sm:text-base text-japandi-text-secondary break-words">
                         {session.players.find(p => p.id === nextUnplayedGame.teamA[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamA[1])?.name}
                         {" vs "}
                         {session.players.find(p => p.id === nextUnplayedGame.teamB[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamB[1])?.name}
@@ -121,7 +121,7 @@ export default function SessionPage() {
                         setPrefillGame(nextUnplayedGame);
                         setActiveTab("record");
                       }}
-                      className="ml-4 px-5 py-2.5 bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white font-semibold rounded-full transition-colors shadow-button whitespace-nowrap"
+                      className="w-full sm:w-auto ml-0 sm:ml-4 px-5 py-2.5 bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 text-white font-semibold rounded-full transition-all shadow-button whitespace-nowrap touch-manipulation"
                     >
                       Record Now
                     </button>
@@ -132,15 +132,15 @@ export default function SessionPage() {
 
             {/* Upcoming Games - Show next few scheduled games */}
             {scheduledGames.length > 1 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-4">
+              <div className="mt-4 sm:mt-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <h3 className="text-base font-semibold text-japandi-text-primary">
                     Upcoming Games
                   </h3>
                   {scheduledGames.length > 11 && (
                     <button
                       onClick={() => setActiveTab("record")}
-                      className="text-sm text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors"
+                      className="text-xs sm:text-sm text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors touch-manipulation"
                     >
                       View All ({scheduledGames.length})
                     </button>
@@ -157,16 +157,16 @@ export default function SessionPage() {
                       return (
                         <div
                           key={game.id}
-                          className="bg-japandi-background-card border border-japandi-border-light rounded-card p-3.5 shadow-soft hover:border-japandi-border transition-colors"
+                          className="bg-japandi-background-card border border-japandi-border-light rounded-card p-3 sm:p-3.5 shadow-soft hover:border-japandi-border transition-colors"
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-medium text-japandi-text-primary whitespace-nowrap">
+                                <span className="text-xs sm:text-sm font-medium text-japandi-text-primary whitespace-nowrap">
                                   Game {game.gameNumber}
                                 </span>
                               </div>
-                              <div className="text-sm text-japandi-text-secondary truncate">
+                              <div className="text-xs sm:text-sm text-japandi-text-secondary break-words">
                                 {teamA} vs {teamB}
                               </div>
                             </div>
@@ -175,7 +175,7 @@ export default function SessionPage() {
                                 setPrefillGame(game);
                                 setActiveTab("record");
                               }}
-                              className="ml-3 px-3 py-1.5 text-xs font-medium bg-japandi-background-primary text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-card rounded-full transition-colors whitespace-nowrap flex-shrink-0"
+                              className="ml-2 sm:ml-3 px-3 py-1.5 text-xs font-medium bg-japandi-background-primary text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-card active:scale-95 rounded-full transition-all whitespace-nowrap flex-shrink-0 touch-manipulation"
                             >
                               Use
                             </button>
@@ -194,11 +194,11 @@ export default function SessionPage() {
 
             {/* Recent Games - Only show played games */}
             {playedGames.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-base font-semibold text-japandi-text-primary mb-4">
+              <div className="mt-6 sm:mt-8">
+                <h3 className="text-base font-semibold text-japandi-text-primary mb-3 sm:mb-4">
                   Recent Games
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {playedGames
                     .slice(-5)
                     .reverse()
@@ -212,18 +212,27 @@ export default function SessionPage() {
                       return (
                         <div
                           key={game.id}
-                          className="bg-japandi-background-card border border-japandi-border-light rounded-card p-4 text-base shadow-soft"
+                          className="bg-japandi-background-card border border-japandi-border-light rounded-card p-3 sm:p-4 text-sm sm:text-base shadow-soft"
                         >
                           <span className="font-medium text-japandi-text-primary">
                             Game {game.gameNumber}:
                           </span>{" "}
-                          <span className="text-japandi-text-secondary">
+                          <span className="text-japandi-text-secondary break-words">
                             {winner} won
                           </span>
                         </div>
                       );
                     })}
                 </div>
+              </div>
+            )}
+            
+            {/* Empty State - No games played yet */}
+            {playedGames.length === 0 && scheduledGames.length === 0 && (
+              <div className="mt-8 text-center py-12">
+                <p className="text-japandi-text-muted text-base">
+                  No games recorded yet. Start by recording your first game!
+                </p>
               </div>
             )}
 
@@ -238,17 +247,17 @@ export default function SessionPage() {
         {/* Record Tab */}
         {activeTab === "record" && (
           <div>
-            <h2 className="text-2xl font-bold text-japandi-text-primary mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-japandi-text-primary mb-6 sm:mb-8">
               Record Game
             </h2>
             
             {/* Scheduled Games Section */}
             {scheduledGames.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-japandi-text-primary mb-4">
+              <div className="mb-6 sm:mb-8">
+                <h3 className="text-base sm:text-lg font-semibold text-japandi-text-primary mb-3 sm:mb-4">
                   Scheduled Games ({scheduledGames.length})
                 </h3>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
+                <div className="space-y-2 sm:space-y-3 max-h-64 overflow-y-auto">
                   {scheduledGames.map((game) => {
                     const getPlayerName = (id: string) =>
                       session.players.find((p) => p.id === id)?.name || "";
@@ -259,24 +268,24 @@ export default function SessionPage() {
                     return (
                       <div
                         key={game.id}
-                        className={`bg-japandi-background-card border rounded-card p-4 transition-all ${
+                        className={`bg-japandi-background-card border rounded-card p-3 sm:p-4 transition-all ${
                           isPrefilled
                             ? "border-2 border-japandi-accent-primary shadow-soft"
                             : "border-japandi-border-light hover:border-japandi-border"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="text-base font-medium text-japandi-text-primary">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm sm:text-base font-medium text-japandi-text-primary">
                               Game {game.gameNumber}
                             </div>
-                            <div className="text-sm text-japandi-text-secondary mt-1">
+                            <div className="text-xs sm:text-sm text-japandi-text-secondary mt-1 break-words">
                               {teamA} vs {teamB}
                             </div>
                           </div>
                           <button
                             onClick={() => setPrefillGame(game)}
-                            className={`ml-4 px-4 py-2 text-sm font-medium rounded-full transition-colors ${
+                            className={`w-full sm:w-auto ml-0 sm:ml-4 px-4 py-2 text-sm font-medium rounded-full transition-all active:scale-95 touch-manipulation ${
                               isPrefilled
                                 ? "bg-japandi-accent-primary text-white"
                                 : "bg-japandi-background-primary text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-card"

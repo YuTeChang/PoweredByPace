@@ -46,15 +46,15 @@ export default function GameHistoryList({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {playedGames.length > 0 && (
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-japandi-text-primary">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-japandi-text-primary">
             Game History ({playedGames.length})
           </h3>
           <button
             onClick={removeLastGame}
-            className="px-4 py-2 text-sm bg-japandi-background-card text-japandi-text-secondary hover:bg-japandi-background-primary border border-japandi-border-light rounded-full transition-colors"
+            className="px-4 py-2 text-sm bg-japandi-background-card text-japandi-text-secondary hover:bg-japandi-background-primary active:scale-95 border border-japandi-border-light rounded-full transition-all touch-manipulation"
           >
             Undo Last Game
           </button>
@@ -62,23 +62,23 @@ export default function GameHistoryList({
       )}
 
       {playedGames.length === 0 ? (
-        <div className="text-center py-16 text-japandi-text-muted">
+        <div className="text-center py-12 sm:py-16 text-japandi-text-muted">
           <p className="text-base">No games played yet.</p>
           <p className="text-sm mt-3">Switch to Record tab to log your first game!</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {[...playedGames].reverse().map((game) => (
             <div
               key={game.id}
-              className="bg-japandi-background-card border border-japandi-border-light rounded-card p-5 shadow-soft"
+              className="bg-japandi-background-card border border-japandi-border-light rounded-card p-4 sm:p-5 shadow-soft"
             >
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="text-lg font-semibold text-japandi-text-primary">
+                <div className="flex-1 min-w-0">
+                  <div className="text-base sm:text-lg font-semibold text-japandi-text-primary">
                     Game {game.gameNumber}
                   </div>
-                  <div className="text-base text-japandi-text-secondary mt-2">
+                  <div className="text-sm sm:text-base text-japandi-text-secondary mt-2 break-words">
                     {formatGameResult(game)}
                   </div>
                 </div>

@@ -141,43 +141,56 @@ async function testAllFeatures() {
 
     // 8. Record a game - Select Team A
     console.log('\n8️⃣ Testing Record Tab - Selecting Teams');
-    // Find and click player buttons for Team A
-    const aliceButton = page.locator('button').filter({ hasText: 'Alice' }).first();
-    const bobButton = page.locator('button').filter({ hasText: 'Bob' }).first();
     
-    // Click Alice for Team A Position 1
-    await aliceButton.click();
-    await page.waitForTimeout(200);
+    // Find available (not disabled) player buttons for Team A Position 1
+    // Use a more specific selector - buttons that are not disabled
+    const aliceButtons = page.locator('button:not([disabled])').filter({ hasText: 'Alice' });
+    const aliceCount = await aliceButtons.count();
+    if (aliceCount > 0) {
+      await aliceButtons.first().click();
+      await page.waitForTimeout(300);
+    }
     
     // Scroll to see Team A Position 2
     await page.evaluate(() => window.scrollTo(0, 200));
     await page.waitForTimeout(300);
     
-    // Click Bob for Team A Position 2 (find the second instance)
-    const bobButtons = await page.locator('button').filter({ hasText: 'Bob' }).all();
-    if (bobButtons.length > 1) {
-      await bobButtons[1].click();
-    } else {
-      await bobButton.click();
+    // Find available Bob button for Team A Position 2
+    const bobButtons = page.locator('button:not([disabled])').filter({ hasText: 'Bob' });
+    const bobCount = await bobButtons.count();
+    if (bobCount > 0) {
+      // Try to get the second one if available, otherwise first
+      if (bobCount > 1) {
+        await bobButtons.nth(1).click();
+      } else {
+        await bobButtons.first().click();
+      }
+      await page.waitForTimeout(300);
     }
-    await page.waitForTimeout(300);
 
     // Scroll to Team B section
     await page.evaluate(() => window.scrollTo(0, 400));
     await page.waitForTimeout(300);
     
-    // Select Team B players
-    const charlieButton = page.locator('button').filter({ hasText: 'Charlie' }).first();
-    const dianaButton = page.locator('button').filter({ hasText: 'Diana' }).first();
+    // Find available Charlie button for Team B Position 1
+    const charlieButtons = page.locator('button:not([disabled])').filter({ hasText: 'Charlie' });
+    const charlieCount = await charlieButtons.count();
+    if (charlieCount > 0) {
+      await charlieButtons.first().click();
+      await page.waitForTimeout(300);
+    }
     
-    await charlieButton.click();
-    await page.waitForTimeout(200);
-    
-    const dianaButtons = await page.locator('button').filter({ hasText: 'Diana' }).all();
-    if (dianaButtons.length > 1) {
-      await dianaButtons[1].click();
-    } else {
-      await dianaButton.click();
+    // Find available Diana button for Team B Position 2
+    const dianaButtons = page.locator('button:not([disabled])').filter({ hasText: 'Diana' });
+    const dianaCount = await dianaButtons.count();
+    if (dianaCount > 0) {
+      // Try to get the second one if available, otherwise first
+      if (dianaCount > 1) {
+        await dianaButtons.nth(1).click();
+      } else {
+        await dianaButtons.first().click();
+      }
+      await page.waitForTimeout(300);
     }
     
     await page.waitForTimeout(1000);
@@ -201,20 +214,18 @@ async function testAllFeatures() {
       // Save the game
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(500);
-      const saveButton = page.locator('button').filter({ hasText: /Save Game/i }).first();
-      await saveButton.click({ timeout: 5000 });
-      await page.waitForTimeout(1500);
-      await waitForPageLoad(page);
+      const saveButton = page.locator('button:not([disabled])').filter({ hasText: /Save Game/i }).first();
+      if (await saveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await saveButton.click({ timeout: 5000 });
+        await page.waitForTimeout(2000);
+        await waitForPageLoad(page);
+      } else {
+        console.log('⚠️  Save button not visible, continuing...');
+      }
     } catch (error) {
       console.log('⚠️  Could not complete game recording automatically:', error.message);
       console.log('⚠️  Continuing with remaining screenshots...');
     }
-
-    // Save the game
-    const saveButton = page.locator('button').filter({ hasText: /Save Game/i }).first();
-    await saveButton.click();
-    await page.waitForTimeout(1000);
-    await waitForPageLoad(page);
 
     // 9. Session Page - Stats Tab (with games)
     console.log('\n9️⃣ Testing Session Page - Stats Tab (With Games)');

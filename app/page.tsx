@@ -21,12 +21,12 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-md w-full space-y-8 text-center">
-        <h1 className="text-4xl font-bold text-japandi-text-primary">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold text-japandi-text-primary">
           VibeBadminton
         </h1>
-        <p className="text-lg text-japandi-text-secondary">
+        <p className="text-base sm:text-lg text-japandi-text-secondary px-4">
           Track your badminton doubles games and automatically calculate who owes what
         </p>
         
@@ -49,7 +49,7 @@ export default function Home() {
             </div>
             <Link
               href={`/session/${session.id}`}
-              className="block w-full bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white font-semibold py-3 px-6 rounded-full transition-colors text-center shadow-button"
+              className="block w-full bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 text-white font-semibold py-3 px-6 rounded-full transition-all text-center shadow-button touch-manipulation"
             >
               Continue Session
             </Link>
@@ -59,7 +59,7 @@ export default function Home() {
         <div className="pt-4 space-y-3">
           <Link
             href="/create-session"
-            className="inline-block w-full bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white font-semibold py-3 px-6 rounded-full transition-colors shadow-button"
+            className="inline-block w-full bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 text-white font-semibold py-3 px-6 rounded-full transition-all shadow-button touch-manipulation"
           >
             {session ? "Create New Session" : "Create New Session"}
           </Link>

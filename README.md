@@ -14,29 +14,48 @@ A tiny web app that helps groups of friends track their badminton doubles games 
 
 ## Screenshots
 
+All screenshots are captured from automated testing and located in `docs/screenshots/test-results/`.
+
 ### Home Page
-![Home Page](docs/screenshots/01-home-page.png)
+![Home Page](docs/screenshots/test-results/01-home-page.png)
 *Welcome page with active session card and create session button*
 
 ### Create Session
-![Create Session Page](docs/screenshots/02-create-session-page.png)
+![Create Session - Empty](docs/screenshots/test-results/02-create-session-empty.png)
+*Empty session creation form*
+
+![Create Session - Filled](docs/screenshots/test-results/02-create-session-filled.png)
 *Session creation form with player inputs, financial settings, and organizer selection*
 
+![Create Session - Round Robin](docs/screenshots/test-results/02-create-session-round-robin.png)
+*Session creation form with round robin scheduling enabled*
+
 ### Session Page - Stats Tab
-![Session Stats Tab](docs/screenshots/03-session-page-stats.png)
+![Session Stats - Empty](docs/screenshots/test-results/03-session-stats-empty.png)
+*Stats tab with no games recorded yet*
+
+![Session Stats - With Games](docs/screenshots/test-results/03-session-stats-with-games.png)
 *Live stats showing wins/losses and gambling net for each player*
 
 ### Session Page - Record Tab
-![Session Record Tab](docs/screenshots/04-session-page-record.png)
-*Game entry form for logging new games with team selection*
+![Session Record - Empty](docs/screenshots/test-results/04-session-record-empty.png)
+*Empty game entry form*
+
+![Session Record - Teams Selected](docs/screenshots/test-results/04-session-record-teams-selected.png)
+*Game entry form with teams selected*
+
+![Session Record - Ready](docs/screenshots/test-results/04-session-record-ready.png)
+*Game entry form ready to save with winner selected*
 
 ### Session Page - History Tab
-![Session History Tab](docs/screenshots/05-session-page-history.png)
+![Session History](docs/screenshots/test-results/05-session-history.png)
 *Complete game history with undo functionality*
 
 ### Summary Page
-![Summary Page](docs/screenshots/06-summary-page.png)
+![Summary Page](docs/screenshots/test-results/06-summary-page.png)
 *Final settlement table with shareable text for easy distribution*
+
+See [docs/screenshots/test-results/README.md](docs/screenshots/test-results/README.md) for more details.
 
 ## Tech Stack
 
@@ -85,12 +104,13 @@ VibeBadminton/
 
 ## Documentation
 
-See `docs/` folder for:
-- Product vision and use cases
-- MVP specification
-- Development plan
-- Engineering documentation
-- AI agent system
+**📖 Start here**: **[docs/README.md](docs/README.md)** - Complete guide covering everything you need to know.
+
+**Quick Reference**:
+- [MVP Specification](docs/reference/mvp/mvp_spec.md) - Detailed requirements
+- [Testing Checklist](docs/TESTING_CHECKLIST.md) - Test guide
+
+All documentation is organized for easy navigation. The main README has everything essential; detailed reference docs are in `docs/reference/` and `docs/_archive/`.
 
 ## Development
 
