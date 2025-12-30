@@ -62,14 +62,26 @@ async function testAllFeatures() {
 
     // 3. Create Session Page - Filled (without round robin)
     console.log('\n3️⃣ Testing Create Session Page (Filled)');
-    // Ensure doubles mode is selected (should be default)
-    const doublesButton = page.locator('button').filter({ hasText: /Doubles/i }).first();
-    if (await doublesButton.isVisible()) {
+    // Navigate to create session page fresh
+    await page.goto(`${BASE_URL}/create-session`);
+    await waitForPageLoad(page);
+    await page.waitForTimeout(500);
+    
+    // Ensure doubles mode is selected (should be default, but click to be sure)
+    const doublesButton = page.locator('button').filter({ hasText: /^Doubles$/i }).first();
+    if (await doublesButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await doublesButton.click();
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(300);
     }
     
-    await page.fill('input[type="text"][placeholder*="Session"]', 'Friday Night Session');
+    // Find session name input - it's the first text input after game mode buttons
+    await page.waitForTimeout(500);
+    const allTextInputs = await page.locator('input[type="text"]').all();
+    if (allTextInputs.length > 0) {
+      await allTextInputs[0].fill('Friday Night Session');
+    } else {
+      console.log('⚠️  Could not find session name input');
+    }
     
     // Fill player names (wait a bit for inputs to be ready)
     await page.waitForTimeout(300);
@@ -133,97 +145,71 @@ async function testAllFeatures() {
     await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
     await waitForPageLoad(page);
     
-    // Go back to home to show multiple sessions
+    // Go back to home to show session
     console.log('\n5️⃣a Testing Home Page with Session');
     await page.goto(BASE_URL);
     await waitForPageLoad(page);
+    await page.waitForTimeout(1000);
     await takeScreenshot(page, '01-home-page-with-session.png', 'Home Page (With Active Session)');
     
-    // Create a second session to show multiple sessions
-    console.log('\n5️⃣b Creating second session for multiple sessions view...');
+    // Create a second session to show multiple sessions - Test singles mode
+    console.log('\n5️⃣b Testing Singles Mode and Multiple Sessions...');
     await page.goto(`${BASE_URL}/create-session`);
     await waitForPageLoad(page);
     await page.waitForTimeout(500);
     
     // Test singles mode
-    const singlesButton = page.locator('button').filter({ hasText: /Singles/i }).first();
-    if (await singlesButton.isVisible()) {
+    const singlesButton = page.locator('button').filter({ hasText: /^Singles$/i }).first();
+    if (await singlesButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await singlesButton.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(500);
       await page.evaluate(() => window.scrollTo(0, 0));
       await takeScreenshot(page, '02-create-session-singles-mode.png', 'Create Session (Singles Mode)');
-    }
-    
-    // Fill singles session
-    await page.fill('input[type="text"][placeholder*="Session"]', 'Singles Practice');
-    await page.waitForTimeout(300);
-    const singlesPlayerInputs = await page.locator('input[type="text"][placeholder*="Player"]').all();
-    const singlesPlayers = ['Player 1', 'Player 2'];
-    for (let i = 0; i < Math.min(singlesPlayerInputs.length, singlesPlayers.length); i++) {
-      await singlesPlayerInputs[i].fill(singlesPlayers[i]);
-      await page.waitForTimeout(100);
-    }
-    
-    // Select organizer
-    await page.waitForTimeout(300);
-    const singlesOrganizerSelect = page.locator('select').first();
-    await singlesOrganizerSelect.selectOption({ index: 1 });
-    
-    await page.waitForTimeout(500);
-    await page.click('button[type="submit"]:not([disabled])');
-    await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
-    await waitForPageLoad(page);
-    
-    // Go back to home to show multiple sessions
-    await page.goto(BASE_URL);
-    await waitForPageLoad(page);
-    await page.waitForTimeout(1000);
-    await takeScreenshot(page, '01-home-page-multiple-sessions.png', 'Home Page (Multiple Sessions)');
-    
-    // Go back to first session
-    const firstSessionButton = page.locator('button').filter({ hasText: /Friday Night Session|Open Session|Continue Session/i }).first();
-    if (await firstSessionButton.isVisible()) {
-      await firstSessionButton.click();
-      await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
-      await waitForPageLoad(page);
-    } else {
-      // Fallback: navigate directly
-      await page.goto(`${BASE_URL}/create-session`);
-      await waitForPageLoad(page);
-      // Recreate first session
-      const doublesBtn = page.locator('button').filter({ hasText: /Doubles/i }).first();
-      if (await doublesBtn.isVisible()) {
-        await doublesBtn.click();
-        await page.waitForTimeout(200);
-      }
-      await page.fill('input[type="text"][placeholder*="Session"]', 'Friday Night Session');
-      await page.waitForTimeout(300);
-      const playerInputs2 = await page.locator('input[type="text"][placeholder*="Player"]').all();
-      for (let i = 0; i < Math.min(playerInputs2.length, players.length); i++) {
-        await playerInputs2[i].fill(players[i]);
-        await page.waitForTimeout(100);
+      
+      // Fill singles session (only need 2 players)
+      await page.waitForTimeout(500);
+      const allTextInputs2 = await page.locator('input[type="text"]').all();
+      if (allTextInputs2.length > 0) {
+        await allTextInputs2[0].fill('Singles Practice');
       }
       await page.waitForTimeout(300);
-      const orgSelect = page.locator('select').first();
-      await orgSelect.selectOption({ index: 1 });
-      await page.evaluate(() => window.scrollTo(0, 600));
-      await page.waitForTimeout(300);
-      const courtInput = page.locator('input[type="number"]').nth(0);
-      await courtInput.fill('14.40');
-      await page.waitForTimeout(300);
-      await page.evaluate(() => window.scrollTo(0, 800));
-      await page.waitForTimeout(300);
-      const birdInput = page.locator('input[type="number"]').nth(1);
-      await birdInput.fill('3.00');
-      await page.waitForTimeout(300);
-      await page.evaluate(() => window.scrollTo(0, 1000));
-      await page.waitForTimeout(300);
-      const betInput2 = page.locator('input[type="number"]').nth(2);
-      await betInput2.fill('2.00');
+      const singlesPlayerInputs = await page.locator('input[type="text"][placeholder*="Player"]').all();
+      const singlesPlayers = ['Alex', 'Sam'];
+      for (let i = 0; i < Math.min(singlesPlayerInputs.length, 2); i++) {
+        if (singlesPlayers[i]) {
+          await singlesPlayerInputs[i].fill(singlesPlayers[i]);
+          await page.waitForTimeout(100);
+        }
+      }
+      
+      // Select organizer
+      await page.waitForTimeout(500);
+      const singlesOrganizerSelect = page.locator('select').first();
+      const optionCount = await singlesOrganizerSelect.locator('option').count();
+      if (optionCount > 1) {
+        await singlesOrganizerSelect.selectOption({ index: 1 });
+      }
+      
       await page.waitForTimeout(500);
       await page.click('button[type="submit"]:not([disabled])');
       await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
       await waitForPageLoad(page);
+      await page.waitForTimeout(1000);
+      
+      // Go back to home to show multiple sessions
+      await page.goto(BASE_URL);
+      await waitForPageLoad(page);
+      await page.waitForTimeout(2000); // Wait for sessions to load
+      await takeScreenshot(page, '01-home-page-multiple-sessions.png', 'Home Page (Multiple Sessions)');
+      
+      // Navigate back to first session by clicking it
+      const sessionButtons = page.locator('button, a').filter({ hasText: /Friday Night Session|Open Session|Continue Session/i });
+      const buttonCount = await sessionButtons.count();
+      if (buttonCount > 0) {
+        await sessionButtons.first().click();
+        await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
+        await waitForPageLoad(page);
+      }
     }
 
     // 6. Session Page - Stats Tab (empty)
