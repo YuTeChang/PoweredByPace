@@ -80,9 +80,10 @@ export default function CreateSession() {
     setPlayers(updated);
   };
 
-  const validPlayerCount = players.filter((p) => p.name.trim() !== "").length;
   const minPlayersRequired = gameMode === "singles" ? 2 : 4;
-  const hasValidOrganizer = organizerId !== "";
+  const hasEnoughPlayers = players.length >= minPlayersRequired;
+  // Organizer is valid if selected, or if we have enough players (we'll default to first player)
+  const hasValidOrganizer = organizerId !== "" || hasEnoughPlayers;
   const isValidCourtCost = courtCostValue === "" || (!isNaN(parseFloat(courtCostValue)) && parseFloat(courtCostValue) >= 0);
   const isValidBirdCost = birdCostTotal === "" || (!isNaN(parseFloat(birdCostTotal)) && parseFloat(birdCostTotal) >= 0);
   const isValidBet = betPerPlayer === "" || (!isNaN(parseFloat(betPerPlayer)) && parseFloat(betPerPlayer) >= 0);
@@ -90,7 +91,7 @@ export default function CreateSession() {
     (roundRobinGameCount === "" || (!isNaN(parseInt(roundRobinGameCount)) && parseInt(roundRobinGameCount) > 0));
 
   const canSubmit =
-    validPlayerCount >= minPlayersRequired &&
+    hasEnoughPlayers &&
     hasValidOrganizer &&
     isValidCourtCost &&
     isValidBirdCost &&
@@ -101,8 +102,7 @@ export default function CreateSession() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    // Assign default names to players without names, and include all players up to the number of valid players
-    // We need at least minPlayersRequired players with names (or we'll use defaults)
+    // Assign default names to players without names
     const minRequired = gameMode === "singles" ? 2 : 4;
     const playersWithDefaults = players.map((p, index) => ({
       ...p,
@@ -110,7 +110,13 @@ export default function CreateSession() {
     }));
     
     // Take the first minRequired players (or all if more are provided)
-    const allPlayers = playersWithDefaults.slice(0, Math.max(minRequired, validPlayerCount));
+    const allPlayers = playersWithDefaults.slice(0, Math.max(minRequired, players.length));
+    
+    // If no organizer was selected but we have players, default to first player
+    let finalOrganizerId = organizerId;
+    if (!finalOrganizerId && allPlayers.length > 0) {
+      finalOrganizerId = allPlayers[0].id;
+    }
     
     // Use default values if fields are empty
     const finalCourtCostValue = courtCostValue === "" 
@@ -136,7 +142,7 @@ export default function CreateSession() {
       name: finalSessionName,
       date: new Date(sessionDate),
       players: allPlayers,
-      organizerId,
+      organizerId: finalOrganizerId,
       courtCostType,
       courtCostValue: finalCourtCostValue,
       birdCostTotal: finalBirdCostTotal,
@@ -265,7 +271,7 @@ export default function CreateSession() {
                     type="text"
                     value={player.name}
                     onChange={(e) => updatePlayerName(index, e.target.value)}
-                    placeholder={`Player ${index + 1} name (default: Player ${index + 1})`}
+                    placeholder={`Player ${index + 1}`}
                     className="flex-1 px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
                   />
                   {players.length > (gameMode === "singles" ? 2 : 4) && (
@@ -280,7 +286,7 @@ export default function CreateSession() {
                 </div>
               ))}
             </div>
-            {validPlayerCount < minPlayersRequired && (
+            {!hasEnoughPlayers && (
               <p className="mt-2 text-sm text-red-600">
                 At least {minPlayersRequired} players are required for {gameMode} mode
               </p>
@@ -306,9 +312,9 @@ export default function CreateSession() {
                   </option>
                 ))}
             </select>
-            {!hasValidOrganizer && validPlayerCount >= 4 && (
-              <p className="mt-2 text-sm text-red-600">
-                Please select an organizer
+            {organizerId === "" && hasEnoughPlayers && players.filter((p) => p.name.trim() !== "").length > 0 && (
+              <p className="mt-2 text-sm text-japandi-text-muted">
+                Organizer will default to first player if not selected
               </p>
             )}
           </div>
@@ -455,11 +461,11 @@ export default function CreateSession() {
                     !isValidRoundRobinCount ? "border-red-300" : "border-japandi-border-light"
                   }`}
                 />
-                {validPlayerCount >= minPlayersRequired && (
+                {hasEnoughPlayers && (
                   <p className="mt-2 text-sm text-japandi-text-muted">
                     {roundRobinGameCount 
                       ? `Will generate up to ${parseInt(roundRobinGameCount) || 0} games`
-                      : `Will generate ${generateRoundRobinGames(players.filter((p) => p.name.trim() !== "").map((p, i) => ({ ...p, name: p.name || `Player ${i + 1}` })), undefined, gameMode).length} games (all possible)`}
+                      : `Will generate ${generateRoundRobinGames(players.map((p, i) => ({ ...p, name: p.name.trim() || `Player ${i + 1}` })), undefined, gameMode).length} games (all possible)`}
                   </p>
                 )}
                 {!isValidRoundRobinCount && (
