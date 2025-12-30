@@ -23,10 +23,10 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number): R
   if (playerIds.length === 4) {
     // For 4 players, generate all unique pairings (3 games base)
     // If maxGames is specified and > 3, we can repeat some combinations
-    const baseGames = [
-      { teamA: [playerIds[0], playerIds[1]], teamB: [playerIds[2], playerIds[3]] },
-      { teamA: [playerIds[0], playerIds[2]], teamB: [playerIds[1], playerIds[3]] },
-      { teamA: [playerIds[0], playerIds[3]], teamB: [playerIds[1], playerIds[2]] }
+    const baseGames: RoundRobinGame[] = [
+      { teamA: [playerIds[0], playerIds[1]] as [string, string], teamB: [playerIds[2], playerIds[3]] as [string, string] },
+      { teamA: [playerIds[0], playerIds[2]] as [string, string], teamB: [playerIds[1], playerIds[3]] as [string, string] },
+      { teamA: [playerIds[0], playerIds[3]] as [string, string], teamB: [playerIds[1], playerIds[2]] as [string, string] }
     ];
     
     if (maxGames !== undefined && maxGames > 3) {
@@ -49,9 +49,9 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number): R
       
       // Generate all pairings of the 4 playing players
       allRotations.push(
-        { teamA: [playing[0], playing[1]], teamB: [playing[2], playing[3]] },
-        { teamA: [playing[0], playing[2]], teamB: [playing[1], playing[3]] },
-        { teamA: [playing[0], playing[3]], teamB: [playing[1], playing[2]] }
+        { teamA: [playing[0], playing[1]] as [string, string], teamB: [playing[2], playing[3]] as [string, string] },
+        { teamA: [playing[0], playing[2]] as [string, string], teamB: [playing[1], playing[3]] as [string, string] },
+        { teamA: [playing[0], playing[3]] as [string, string], teamB: [playing[1], playing[2]] as [string, string] }
       );
     }
     
@@ -93,8 +93,8 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number): R
             if (!usedGameKeys.has(gameKey)) {
               usedGameKeys.add(gameKey);
               allPossibleGames.push({
-                teamA: [playerIds[i], playerIds[j]],
-                teamB: [playerIds[k], playerIds[l]],
+                teamA: [playerIds[i], playerIds[j]] as [string, string],
+                teamB: [playerIds[k], playerIds[l]] as [string, string],
               });
             }
           }
