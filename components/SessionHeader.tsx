@@ -21,9 +21,13 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
   });
 
   const handleEndSession = () => {
-    if (confirm("Are you sure you want to end this session? This will clear all data.")) {
+    const confirmed = window.confirm("Are you sure you want to end this session? This will clear all data.");
+    if (confirmed) {
       clearSession();
-      router.push("/");
+      // Use setTimeout to ensure state updates before navigation
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     }
   };
 
@@ -38,6 +42,7 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
             ← Back to Home
           </Link>
           <button
+            type="button"
             onClick={handleEndSession}
             className="text-sm text-japandi-text-secondary hover:text-japandi-text-primary active:opacity-70 transition-all touch-manipulation"
           >

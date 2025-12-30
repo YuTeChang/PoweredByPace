@@ -42,9 +42,13 @@ export default function SummaryPage() {
   };
 
   const handleEndSession = () => {
-    if (confirm("Are you sure you want to end this session? This will clear all data.")) {
+    const confirmed = window.confirm("Are you sure you want to end this session? This will clear all data.");
+    if (confirmed) {
       clearSession();
-      router.push("/");
+      // Use setTimeout to ensure state updates before navigation
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     }
   };
 
@@ -168,6 +172,7 @@ export default function SummaryPage() {
           </div>
           <div className="pt-1">
             <button
+              type="button"
               onClick={handleEndSession}
               className="w-full px-5 py-3 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-semibold rounded-full transition-all shadow-button touch-manipulation"
             >

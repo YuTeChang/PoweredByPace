@@ -222,8 +222,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY_SESSION);
       localStorage.removeItem(STORAGE_KEY_GAMES);
+      // Also remove current session from all sessions list
+      setAllSessions((prev) => {
+        const currentSessionId = session?.id;
+        if (currentSessionId) {
+          const updated = prev.filter((s) => s.id !== currentSessionId);
+          localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
     }
-  }, []);
+  }, [session]);
 
   return (
     <SessionContext.Provider
