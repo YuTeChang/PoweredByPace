@@ -8,16 +8,25 @@
 - **Multiple Sessions Support**: Home page now displays all created sessions, allowing users to switch between different sessions.
 - **Session Name Default**: Session name automatically defaults to the formatted date if not provided.
 - **Auto-Select Last Player**: In 4-player doubles mode, the last player is automatically selected when 3 players are chosen.
+- **Flexible Session Creation**: Can now start sessions without entering all player names - defaults are assigned automatically.
 
 ### Fixed
 - **Long Player Names**: Fixed text truncation issue in summary screen - player names now wrap properly and display fully.
+- **Table Layout**: Fixed left-side text clipping in summary table by removing negative margins and improving table structure.
+- **Column Alignment**: Fixed header and cell alignment inconsistencies in summary table.
 - **Mobile UI**: Removed floating action button that blocked screen on mobile. Record game functionality is now accessible via bottom tab navigation.
 - **Multiple Sessions Display**: Fixed issue where only one session was visible. All sessions are now stored and displayed on the home page.
+- **Validation Logic**: Fixed validation to allow session creation with default player names instead of requiring all names to be entered.
 
 ### Changed
 - **Mobile Navigation**: Replaced floating action button with bottom tab navigation for better mobile UX.
 - **Session Management**: Sessions are now stored in a list, allowing users to create and manage multiple sessions.
 - **Game Mode Architecture**: Refactored to support both doubles and singles modes while maintaining code scalability and reusability.
+- **Summary Screen UI**: Improved table layout, spacing, and visual hierarchy. Better contrast for positive net values (green instead of accent color).
+- **Shareable Text Display**: Changed from `<pre>` to styled `<div>` to avoid looking editable, added border for clarity.
+- **Action Buttons**: Improved spacing and separation between primary and destructive actions on summary screen.
+- **Player Input Placeholders**: Simplified from "Player 1 name (default: Player 1)" to just "Player 1" for cleaner UI.
+- **Organizer Selection**: Auto-selects first player as organizer if none selected when creating session.
 
 ## [Unreleased] - 2024-12-15
 

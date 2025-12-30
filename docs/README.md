@@ -7,18 +7,22 @@
 ## Quick Start
 
 ### What It Does
-Helps groups of 4-6 friends track badminton doubles games during a session and automatically calculates:
+Helps groups of friends track badminton games (doubles or singles) during a session and automatically calculates:
 - Wins/losses per player
 - Gambling net (from per-game bets)
 - Final money settlement (who owes the organizer how much)
 
 ### Key Features
+- ✅ **Game Modes**: Support for both doubles (4-6 players) and singles (2-6 players)
 - ✅ Create session with players and financial settings
-- ✅ Log games with team selection
+- ✅ Default player names (Player 1, Player 2, etc.) if not provided
+- ✅ Multiple session management - create and switch between sessions
+- ✅ Log games with team/player selection
 - ✅ Real-time stats (wins/losses, gambling net)
 - ✅ Round robin scheduling (optional)
 - ✅ Automatic final settlement calculation
 - ✅ Shareable summary text
+- ✅ Mobile-optimized UI with bottom tab navigation
 
 ### Tech Stack
 - **Framework**: Next.js 14 (App Router)
@@ -37,13 +41,16 @@ See **[PRODUCT.md](PRODUCT.md)** for complete product overview, problem statemen
 ## Features
 
 ### 1. Create Session
-- Session name (optional) and date
-- Add 4-6 players
+- Session name (optional, defaults to date) and date
+- **Game Mode**: Toggle between doubles (4-6 players) and singles (2-6 players)
+- Add players (minimum required based on mode)
+  - Default names (Player 1, Player 2, etc.) assigned automatically
+  - Can start session without entering all names
 - Financial settings:
   - Court cost (per person or total)
   - Bird/shuttle cost
   - Bet per player per game
-- Select organizer (who prepaid costs)
+- Select organizer (auto-selects first player if none chosen)
 - Optional: Round robin scheduling
 
 ### 2. Live Session
@@ -55,11 +62,11 @@ Three tabs for managing the session:
 - Next scheduled game (if round robin enabled)
 - Upcoming games list
 - Recent games
-- Floating action button for quick record
 
 **Record Tab**:
-- Select Team A (2 players)
-- Select Team B (2 players)
+- Select Team A (2 players for doubles, 1 player for singles)
+- Select Team B (2 players for doubles, 1 player for singles)
+- Auto-selects last player in 4-player doubles mode when 3 are selected
 - Mark winning team
 - Optional scores
 - Save game
@@ -83,22 +90,24 @@ Browser → Next.js App Router → React Components → Context API → In-Memor
 ```
 
 ### Key Components
-- **Pages**: Home, Create Session, Live Session, Summary
-- **State**: SessionContext (stores session and games)
+- **Pages**: Home (with session list), Create Session, Live Session, Summary
+- **State**: SessionContext (stores current session, games, and all sessions list)
 - **Calculations**: `lib/calculations.ts` (wins, losses, gambling net, settlement)
+- **Round Robin**: `lib/roundRobin.ts` (generates game schedules for doubles and singles)
 - **No Backend**: All state in browser memory (localStorage for persistence)
 
 ### Data Model
 ```typescript
 Session {
   id, name, date, players[], organizerId,
-  courtCostType, courtCostValue, birdCostTotal, betPerPlayer
+  courtCostType, courtCostValue, birdCostTotal, betPerPlayer,
+  gameMode: "doubles" | "singles"
 }
 
 Game {
   id, sessionId, gameNumber,
-  teamA: [playerId, playerId],
-  teamB: [playerId, playerId],
+  teamA: [playerId, playerId] | [playerId],  // doubles or singles
+  teamB: [playerId, playerId] | [playerId],  // doubles or singles
   winningTeam: "A" | "B",
   teamAScore?, teamBScore?
 }
@@ -161,24 +170,29 @@ See `docs/TESTING_CHECKLIST.md` for comprehensive test scenarios.
 
 ---
 
-## MVP Status: ✅ Complete
+## MVP Status: ✅ Complete + Post-MVP Features
 
-All MVP features implemented, tested, and polished. Ready for deployment.
+All MVP features implemented, tested, and polished. Additional features have been added post-MVP.
 
 **What's Included:**
-- Session creation and management
-- Game logging with team selection
+- **Game Modes**: Doubles (4-6 players) and Singles (2-6 players)
+- Session creation and management (multiple sessions supported)
+- Default player names for faster setup
+- Game logging with team/player selection
+- Auto-select last player in 4-player doubles mode
 - Real-time stats
 - Round robin scheduling
 - Automatic settlement calculation
-- Mobile-responsive design
+- Mobile-responsive design with bottom tab navigation
 - Error handling and validation
+- Improved UI/UX (summary screen, table layouts, spacing)
 
 **What's Not (Future):**
 - User authentication
-- Multi-session history
+- Cloud persistence (currently uses localStorage)
 - Elo ratings
-- Persistence across browser sessions (uses localStorage)
+- Player history across sessions
+- Head-to-head statistics
 
 ---
 
@@ -186,6 +200,7 @@ All MVP features implemented, tested, and polished. Ready for deployment.
 
 ### Essential References
 - **[Product Overview](PRODUCT.md)** - Problem, solution, target users, future features
+- **[Features Development Log](FEATURES_LOG.md)** - Complete log of all features, improvements, and fixes
 - **[MVP Specification](reference/mvp/mvp_spec.md)** - Complete requirements and data model
 - **[Testing Checklist](TESTING_CHECKLIST.md)** - Manual testing guide
 - **[Design Decisions](decisions.md)** - Important technical and design decisions

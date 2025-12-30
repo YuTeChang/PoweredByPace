@@ -17,9 +17,13 @@
 ## Components
 
 ### Frontend
-- **Pages**: Home, Create Session, Live Session, Summary
-- **Components**: Reusable UI components (buttons, forms, tables)
-- **State Management**: React Context API for session state
+- **Pages**: 
+  - Home (displays all sessions, allows switching)
+  - Create Session (with game mode toggle: doubles/singles)
+  - Live Session (tabs: Stats, Record, History)
+  - Summary (final settlement with improved table layout)
+- **Components**: Reusable UI components (buttons, forms, tables, bottom tab navigation)
+- **State Management**: React Context API for session state and multi-session management
 - **Routing**: Next.js App Router
 
 ### Backend
@@ -29,11 +33,18 @@
 ## Data Flow
 
 ### Session Creation Flow
-1. User fills out create session form
-2. Form data validated
-3. Session object created in memory
-4. Navigate to live session page
-5. Session state stored in React Context
+1. User selects game mode (doubles or singles)
+2. User adds players (minimum required: 2 for singles, 4 for doubles)
+   - Default names assigned if not provided
+   - Can create session without all names entered
+3. User sets financial settings (optional, defaults to 0)
+4. User selects organizer (auto-selects first player if none chosen)
+5. Optional: Enable round robin scheduling
+6. Form data validated
+7. Session object created with gameMode field
+8. Session added to all sessions list
+9. Navigate to live session page
+10. Session state stored in React Context and localStorage
 
 ### Game Logging Flow
 1. User selects Team A (2 players for doubles, 1 player for singles)
@@ -56,10 +67,16 @@
 ## State Management
 
 ### Session Context
-- Stores current session data (with gameMode: "doubles" | "singles")
-- Stores games array
-- Stores all sessions list for multi-session support
-- Provides methods to add games, update session, load session, switch between sessions
+- **Current Session**: Active session data (with gameMode: "doubles" | "singles")
+- **Games Array**: All games for current session
+- **All Sessions List**: Complete list of all created sessions for multi-session support
+- **Methods**:
+  - `setSession`: Create or update session
+  - `addGame`: Add new game to current session
+  - `updateGame`: Update existing game
+  - `loadSession`: Switch to different session
+  - `clearSession`: End current session
+- **Persistence**: Uses localStorage to persist sessions and games across page refreshes
 
 ### No External State Management
 - MVP uses React built-in state
