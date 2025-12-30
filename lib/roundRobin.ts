@@ -133,8 +133,11 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number, ga
     const defaultLimit = maxGames !== undefined ? maxGames : 15;
     const selectedGames: RoundRobinGame[] = [];
     for (const game of allPossibleGames) {
-      const [p1, p2] = game.teamA;
-      const [p3, p4] = game.teamB;
+      // In doubles mode (6 players), teams are always [string, string]
+      const teamA = game.teamA as [string, string];
+      const teamB = game.teamB as [string, string];
+      const [p1, p2] = teamA;
+      const [p3, p4] = teamB;
       
       const count1 = partnerCount.get(p1)!.get(p2)!;
       const count2 = partnerCount.get(p3)!.get(p4)!;
