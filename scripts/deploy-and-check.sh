@@ -59,8 +59,8 @@ echo ""
 echo "📜 Fetching build logs..."
 echo ""
 
-# Fetch logs
-LOGS=$(vercel logs "$DEPLOYMENT_URL" 2>&1)
+# Fetch logs (get more lines for build output)
+LOGS=$(vercel logs "$DEPLOYMENT_URL" --since 10m 2>&1)
 
 if [ $? -eq 0 ]; then
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -83,10 +83,12 @@ if [ $? -eq 0 ]; then
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   
-  ERROR_LOGS=$(echo "$LOGS" | grep -i -E "(error|failed|✗|❌)" || echo "")
+  ERROR_LOGS=$(echo "$LOGS" | grep -i -E "(error|failed|✗|❌|ERR_MODULE|Cannot find module|Type error)" || echo "")
   
   if [ -n "$ERROR_LOGS" ]; then
     echo "$ERROR_LOGS"
+    echo ""
+    echo "⚠️  ERRORS DETECTED - Review the logs above"
   else
     echo "✅ No errors found"
   fi
@@ -107,10 +109,38 @@ if [ $? -eq 0 ]; then
   
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "📋 FULL LOGS (last 50 lines)"
+  echo "📋 BUILD LOGS (last 100 lines)"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
-  echo "$LOGS" | tail -50
+  echo "$LOGS" | tail -100
+  
+  # Check for specific error patterns
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "🔍 ERROR SUMMARY"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  
+  if echo "$LOGS" | grep -qi "ERR_MODULE\|Cannot find module"; then
+    echo "❌ Module import error detected!"
+    echo "   This usually means a TypeScript file is being imported incorrectly"
+    echo "   Check that scripts use tsx or proper import paths"
+  fi
+  
+  if echo "$LOGS" | grep -qi "Type error"; then
+    echo "❌ TypeScript compilation error detected!"
+    echo "   Check TypeScript errors in the build output above"
+  fi
+  
+  if echo "$LOGS" | grep -qi "Migration.*failed\|Migration.*error"; then
+    echo "❌ Migration error detected!"
+    echo "   Check migration logs in the output above"
+  fi
+  
+  if echo "$LOGS" | grep -qi "Build.*failed\|Command.*exited.*1"; then
+    echo "❌ Build failed!"
+    echo "   Review the full logs above for details"
+  fi
   
 else
   echo "❌ Failed to fetch logs"
