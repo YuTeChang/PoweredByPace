@@ -24,8 +24,16 @@ export default function CreateGroup() {
     try {
       const result = await ApiClient.createGroup(groupName.trim());
       setCreatedGroup(result.group);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create group");
+    } catch (err: any) {
+      // Check if it's a migration needed error
+      if (err.message?.includes('migration') || err.message?.includes('does not exist') || err.message?.includes('Groups table')) {
+        setError(
+          "Database migration needed. Please run the migration SQL in your Supabase SQL Editor. " +
+          "See scripts/migrate-add-groups.sql for the SQL to run."
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to create group");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +96,21 @@ export default function CreateGroup() {
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm">{error}</div>
+              <div className="bg-red-50 border border-red-200 rounded-card p-4 text-sm">
+                <div className="text-red-800 font-semibold mb-2">Error: {error}</div>
+                {error.includes('migration') && (
+                  <div className="text-red-700 mt-3 space-y-2">
+                    <p className="font-medium">To fix this:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                      <li>Go to your Supabase project dashboard</li>
+                      <li>Navigate to SQL Editor</li>
+                      <li>Copy the contents of <code className="bg-red-100 px-1 rounded">scripts/migrate-add-groups.sql</code></li>
+                      <li>Paste and run in SQL Editor</li>
+                      <li>Try creating the group again</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
             )}
 
             <button
