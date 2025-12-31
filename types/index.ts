@@ -1,6 +1,21 @@
+export interface Group {
+  id: string;
+  name: string;
+  shareableLink: string;
+  createdAt?: Date;
+}
+
+export interface GroupPlayer {
+  id: string;
+  groupId: string;
+  name: string;
+  createdAt?: Date;
+}
+
 export interface Player {
   id: string;
   name: string;
+  groupPlayerId?: string; // Links to group player pool
 }
 
 export interface Session {
@@ -13,7 +28,9 @@ export interface Session {
   courtCostValue: number;
   birdCostTotal: number;
   betPerPlayer: number;
-  gameMode: "doubles" | "singles"; // doubles or singles mode
+  gameMode: "doubles" | "singles";
+  groupId?: string; // Optional - null for standalone sessions
+  bettingEnabled: boolean; // Per-session toggle
 }
 
 export interface Game {

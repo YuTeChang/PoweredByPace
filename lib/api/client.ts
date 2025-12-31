@@ -1,4 +1,4 @@
-import { Session, Game } from '@/types';
+import { Session, Game, Group, GroupPlayer } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
@@ -33,6 +33,69 @@ export class ApiClient {
       console.error(`[ApiClient] Error fetching ${endpoint}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Groups API
+   */
+  static async getAllGroups(): Promise<Group[]> {
+    return this.fetch<Group[]>('/groups');
+  }
+
+  static async getGroup(groupId: string): Promise<Group> {
+    return this.fetch<Group>(`/groups/${groupId}`);
+  }
+
+  static async getGroupByShareableLink(link: string): Promise<Group> {
+    return this.fetch<Group>(`/groups/shareable/${link}`);
+  }
+
+  static async createGroup(name: string): Promise<{ success: boolean; group: Group }> {
+    return this.fetch<{ success: boolean; group: Group }>('/groups', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  static async deleteGroup(groupId: string): Promise<{ success: boolean }> {
+    return this.fetch<{ success: boolean }>(`/groups/${groupId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Group Players API
+   */
+  static async getGroupPlayers(groupId: string): Promise<GroupPlayer[]> {
+    return this.fetch<GroupPlayer[]>(`/groups/${groupId}/players`);
+  }
+
+  static async addGroupPlayer(groupId: string, name: string): Promise<{ success: boolean; player: GroupPlayer }> {
+    return this.fetch<{ success: boolean; player: GroupPlayer }>(`/groups/${groupId}/players`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  static async addGroupPlayers(groupId: string, names: string[]): Promise<{ success: boolean; players: GroupPlayer[] }> {
+    return this.fetch<{ success: boolean; players: GroupPlayer[] }>(`/groups/${groupId}/players`, {
+      method: 'POST',
+      body: JSON.stringify({ names }),
+    });
+  }
+
+  static async removeGroupPlayer(groupId: string, playerId: string): Promise<{ success: boolean }> {
+    return this.fetch<{ success: boolean }>(`/groups/${groupId}/players`, {
+      method: 'DELETE',
+      body: JSON.stringify({ playerId }),
+    });
+  }
+
+  /**
+   * Group Sessions API
+   */
+  static async getGroupSessions(groupId: string): Promise<Session[]> {
+    return this.fetch<Session[]>(`/groups/${groupId}/sessions`);
   }
 
   /**

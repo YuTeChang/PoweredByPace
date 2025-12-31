@@ -12,6 +12,8 @@ export interface SessionRow {
   bet_per_player: string;
   game_mode: string;
   round_robin_count: number | null;
+  group_id: string | null;
+  betting_enabled: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -20,6 +22,7 @@ export interface PlayerRow {
   id: string;
   session_id: string;
   name: string;
+  group_player_id: string | null;
   created_at: Date;
 }
 
@@ -119,6 +122,8 @@ export class SessionService {
           bet_per_player: session.betPerPlayer,
           game_mode: session.gameMode,
           round_robin_count: roundRobinCount || null,
+          group_id: session.groupId || null,
+          betting_enabled: session.bettingEnabled ?? true,
         }, {
           onConflict: 'id',
         });
@@ -133,6 +138,7 @@ export class SessionService {
           id: player.id,
           session_id: session.id,
           name: player.name,
+          group_player_id: player.groupPlayerId || null,
         }));
 
         const { error: playersError } = await supabase
@@ -183,7 +189,7 @@ export class SessionService {
       
       const { data: playersData, error: playersError } = await supabase
         .from('players')
-        .select('id, name')
+        .select('id, name, group_player_id')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
@@ -194,10 +200,46 @@ export class SessionService {
       return (playersData || []).map((row) => ({
         id: row.id,
         name: row.name,
+        groupPlayerId: row.group_player_id || undefined,
       }));
     } catch (error) {
       console.error('[SessionService] Error fetching players:', error);
       return [];
+    }
+  }
+
+  /**
+   * Get sessions by group ID
+   */
+  static async getSessionsByGroupId(groupId: string): Promise<Session[]> {
+    try {
+      const supabase = createSupabaseClient();
+      
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('date', { ascending: false });
+
+      if (sessionsError) {
+        throw sessionsError;
+      }
+
+      if (!sessionsData) {
+        return [];
+      }
+
+      const sessionsWithPlayers = await Promise.all(
+        sessionsData.map(async (session) => {
+          const players = await this.getPlayersBySessionId(session.id);
+          return this.mapRowToSession(session as any, players);
+        })
+      );
+
+      return sessionsWithPlayers;
+    } catch (error) {
+      console.error('[SessionService] Error fetching sessions by group:', error);
+      throw new Error('Failed to fetch sessions');
     }
   }
 
@@ -219,6 +261,8 @@ export class SessionService {
       birdCostTotal: parseFloat(String(row.bird_cost_total || 0)),
       betPerPlayer: parseFloat(String(row.bet_per_player || 0)),
       gameMode: row.game_mode as 'doubles' | 'singles',
+      groupId: row.group_id || undefined,
+      bettingEnabled: row.betting_enabled ?? true,
     };
   }
 }

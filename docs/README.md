@@ -1,18 +1,21 @@
-# VibeBadminton Documentation
+# SportsAnalyze Documentation
 
-**A web app for tracking badminton doubles games and calculating money settlements.**
+**A web app for tracking badminton games and calculating money settlements.**
 
-> **📖 This is the main documentation file.** Everything you need to understand and work with VibeBadminton is here. Detailed reference docs are linked at the bottom.
+> **📖 This is the main documentation file.** Everything you need to understand and work with SportsAnalyze is here. Detailed reference docs are linked at the bottom.
 
 ## Quick Start
 
 ### What It Does
 Helps groups of friends track badminton games (doubles or singles) during a session and automatically calculates:
 - Wins/losses per player
-- Gambling net (from per-game bets)
+- Win rates and point statistics (always shown)
+- Gambling net (from per-game bets, optional)
 - Final money settlement (who owes the organizer how much)
 
 ### Key Features
+
+#### Core Features
 - ✅ **Game Modes**: Support for both doubles (4-6 players) and singles (2-6 players)
 - ✅ Create session with players and financial settings
 - ✅ Default player names (Player 1, Player 2, etc.) if not provided
@@ -24,13 +27,26 @@ Helps groups of friends track badminton games (doubles or singles) during a sess
 - ✅ Shareable summary text
 - ✅ Mobile-optimized UI with bottom tab navigation
 
+#### Groups Feature (NEW)
+- ✅ **Create Groups**: Organize recurring badminton groups
+- ✅ **Shareable Links**: Share group links with friends (no accounts required)
+- ✅ **Player Pool**: Maintain a player pool per group for quick session setup
+- ✅ **Group Sessions**: Track all sessions within a group over time
+- ✅ **Player Linking**: Link session players to group player pool for cross-session tracking
+
+#### Optional Betting (NEW)
+- ✅ **Toggle Betting**: Enable or disable betting per session
+- ✅ **Universal Stats**: Always see win rate, points scored/conceded, point differential
+- ✅ **Conditional UI**: Betting fields and calculations only shown when enabled
+- ✅ **Stats-Only Mode**: Use app purely for game tracking without betting
+
 ### Tech Stack
 - **Framework**: Next.js 14 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **State**: React Context API with optimistic updates
 - **Backend**: Next.js API Routes
-- **Database**: Vercel Postgres (shared sessions)
+- **Database**: Supabase (PostgreSQL) for shared sessions and groups
 - **Sync Strategy**: Event-driven (no wasteful polling)
 
 ---
@@ -43,25 +59,44 @@ See **[PRODUCT.md](PRODUCT.md)** for complete product overview, problem statemen
 
 ## Features
 
-### 1. Create Session
+### 1. Groups
+
+**Create and Manage Groups:**
+- Create a group (e.g., "Friday Night Badminton")
+- Get a shareable link to invite friends
+- Add players to the group's player pool
+- View all sessions within the group
+
+**Benefits:**
+- Organize recurring playing groups
+- Track players across multiple sessions
+- Share group with friends (no accounts needed)
+- View aggregated stats across sessions
+
+### 2. Create Session
+
 - Session name (optional, defaults to date) and date
+- **Group Selection** (optional): Link session to a group
 - **Game Mode**: Toggle between doubles (4-6 players) and singles (2-6 players)
+- **Player Suggestions**: Quick-add players from group pool
 - Add players (minimum required based on mode)
   - Default names (Player 1, Player 2, etc.) assigned automatically
   - Can start session without entering all names
 - Financial settings:
   - Court cost (per person or total)
   - Bird/shuttle cost
-  - Bet per player per game
+  - **Betting Toggle**: Enable or disable betting for this session
+  - Bet per player per game (only shown when betting enabled)
 - Select organizer (auto-selects first player if none chosen)
 - Optional: Round robin scheduling
 
-### 2. Live Session
+### 3. Live Session
 Three tabs for managing the session:
 
 **Stats Tab** (default):
 - Live W/L record for each player
-- Current gambling net (+$X or -$X)
+- Win rate and point statistics
+- Current gambling net (+$X or -$X) if betting enabled
 - Next scheduled game (if round robin enabled)
 - Upcoming games list
 - Recent games
@@ -78,8 +113,11 @@ Three tabs for managing the session:
 - Complete list of all played games
 - Undo last game option
 
-### 3. Summary
-- Final stats table (W/L, Net, Amount to Pay)
+### 4. Summary
+- Final stats table:
+  - **Universal Stats**: W/L, Win %, Point Differential (always shown)
+  - **Betting Stats**: Net, Amount to Pay (only when betting enabled)
+- Cost breakdown (court, birds, betting if enabled)
 - Shareable text (copy to WhatsApp/Discord)
 - All calculations automatic
 
@@ -89,22 +127,43 @@ Three tabs for managing the session:
 
 ### System Overview
 ```
-Browser → Next.js App Router → React Components → Context API → In-Memory State
+Browser → Next.js App Router → React Components → Context API → Supabase Database
 ```
 
 ### Key Components
-- **Pages**: Home (with session list), Create Session, Live Session, Summary
-- **State**: SessionContext (stores current session, games, and all sessions list)
-- **Calculations**: `lib/calculations.ts` (wins, losses, gambling net, settlement)
+- **Pages**: 
+  - Home (groups and sessions list)
+  - Create Group
+  - Create Session
+  - Group Detail (sessions, players, stats)
+  - Live Session (tabs)
+  - Summary
+- **State**: SessionContext (stores current session, games, all sessions, groups)
+- **Calculations**: `lib/calculations.ts` (wins, losses, gambling net, settlement, non-betting stats)
 - **Round Robin**: `lib/roundRobin.ts` (generates game schedules for doubles and singles)
-- **No Backend**: All state in browser memory (localStorage for persistence)
+- **Services**: Service layer for database operations (groups, sessions, games, stats)
 
 ### Data Model
 ```typescript
+Group {
+  id, name, shareableLink, createdAt
+}
+
+GroupPlayer {
+  id, groupId, name, createdAt
+}
+
 Session {
   id, name, date, players[], organizerId,
   courtCostType, courtCostValue, birdCostTotal, betPerPlayer,
-  gameMode: "doubles" | "singles"
+  gameMode: "doubles" | "singles",
+  groupId?: string,  // Optional - links to group
+  bettingEnabled: boolean  // Per-session toggle
+}
+
+Player {
+  id, name,
+  groupPlayerId?: string  // Optional - links to group player pool
 }
 
 Game {
@@ -117,11 +176,18 @@ Game {
 ```
 
 ### Calculation Logic
-1. **Gambling Net**: Winners get +bet, losers get -bet per game
-2. **Shared Costs**: Court cost + bird cost
-3. **Even Share**: Total shared costs / number of players
-4. **Fair Total**: Even share - gambling net
-5. **Final Amount**: Fair total (organizer pays $0)
+1. **Non-Betting Stats** (always calculated):
+   - Wins, losses, games played
+   - Win rate (wins / games played * 100)
+   - Points scored, points conceded
+   - Point differential (scored - conceded)
+
+2. **Betting Stats** (only when betting enabled):
+   - Gambling Net: Winners get +bet, losers get -bet per game
+   - Shared Costs: Court cost + bird cost
+   - Even Share: Total shared costs / number of players
+   - Fair Total: Even share - gambling net
+   - Final Amount: Fair total (organizer pays $0)
 
 ---
 
@@ -139,18 +205,26 @@ npm run dev
 app/              # Next.js pages
 components/       # React components
 contexts/         # SessionContext
-lib/              # Utilities (calculations, round robin)
+lib/              # Utilities and services
+  services/       # Database service layer
+  calculations.ts # Money and stats calculations
+  roundRobin.ts   # Round robin scheduling
 types/            # TypeScript definitions
 docs/             # Documentation
+scripts/          # Database migration scripts
 ```
 
 ### Key Files
-- `app/page.tsx` - Home page
+- `app/page.tsx` - Home page (groups and sessions)
+- `app/create-group/page.tsx` - Create group form
 - `app/create-session/page.tsx` - Create session form
+- `app/group/[id]/page.tsx` - Group detail page
 - `app/session/[id]/page.tsx` - Live session (tabs)
 - `app/session/[id]/summary/page.tsx` - Final summary
 - `contexts/SessionContext.tsx` - State management
-- `lib/calculations.ts` - Money calculations
+- `lib/calculations.ts` - Money and stats calculations
+- `lib/services/groupService.ts` - Group database operations
+- `lib/services/statsService.ts` - Cross-session stats aggregation
 
 ### Design System
 - **Style**: Japandi/Scandinavian minimal
@@ -160,42 +234,66 @@ docs/             # Documentation
 
 ---
 
+## Database Setup
+
+### Initial Setup
+1. Create Supabase project
+2. Run `scripts/init-db-schema.sql` in Supabase SQL Editor
+3. Set environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+
+### Migration (if upgrading existing database)
+Run `scripts/migrate-add-groups.sql` to add groups feature to existing database.
+
+See [SETUP_BACKEND.md](SETUP_BACKEND.md) for detailed instructions.
+
+---
+
 ## Testing
 
 ### Automated Screenshots
 ```bash
 npm run test:screenshots
 ```
-Captures 11 screenshots of all features. See `docs/screenshots/test-results/`.
+Captures screenshots of all features. See `docs/screenshots/test-results/`.
 
 ### Manual Testing
 See `docs/TESTING_CHECKLIST.md` for comprehensive test scenarios.
 
 ---
 
-## MVP Status: ✅ Complete + Post-MVP Features
+## Features Status
 
-All MVP features implemented, tested, and polished. Additional features have been added post-MVP.
+### ✅ Complete Features
 
-**What's Included:**
-- **Game Modes**: Doubles (4-6 players) and Singles (2-6 players)
-- Session creation and management (multiple sessions supported)
-- Default player names for faster setup
+**Core:**
+- Game modes (doubles and singles)
+- Session creation and management
 - Game logging with team/player selection
-- Auto-select last player in 4-player doubles mode
 - Real-time stats
 - Round robin scheduling
 - Automatic settlement calculation
-- Mobile-responsive design with bottom tab navigation
-- Error handling and validation
-- Improved UI/UX (summary screen, table layouts, spacing)
+- Mobile-responsive design
+
+**Groups:**
+- Create and manage groups
+- Shareable links
+- Player pool management
+- Group sessions tracking
+- Player linking across sessions
+
+**Optional Betting:**
+- Per-session betting toggle
+- Universal stats (always shown)
+- Conditional betting UI
+- Stats-only mode
 
 **What's Not (Future):**
 - User authentication
-- Cloud persistence (currently uses localStorage)
 - Elo ratings
-- Player history across sessions
 - Head-to-head statistics
+- Advanced analytics
 
 ---
 
@@ -211,7 +309,6 @@ All MVP features implemented, tested, and polished. Additional features have bee
 ### Essential References
 - **[Product Overview](PRODUCT.md)** - Problem, solution, target users, future features
 - **[Features Development Log](FEATURES_LOG.md)** - Complete log of all features, improvements, and fixes
-- **[MVP Specification](reference/mvp/mvp_spec.md)** - Complete requirements and data model
 - **[Testing Checklist](TESTING_CHECKLIST.md)** - Manual testing guide
 - **[Design Decisions](decisions.md)** - Important technical and design decisions
 
@@ -223,22 +320,10 @@ All MVP features implemented, tested, and polished. Additional features have bee
 - **[Component System](engineering/component-system.md)** - Component architecture
 
 ### Test Results
-- **[Screenshot Test Results](screenshots/test-results/)** - Visual proof of all features (11 screenshots)
-
-### Historical/Planning Docs
-For historical context and planning materials, see `_archive/`:
-- Development process and progress logs
-- AI agent system (if using AI agents)
-
----
-
-## AI Agents (Optional)
-
-If using AI agents for development, see `_archive/prompts/` for agent prompts and context files.
+- **[Screenshot Test Results](screenshots/test-results/)** - Visual proof of all features
 
 ---
 
 ## License
 
 MIT
-

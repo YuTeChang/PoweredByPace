@@ -23,10 +23,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const sessionData = body.session;
-    // Parse date string back to Date object
+    // Parse date string back to Date object and ensure defaults
     const session: Session = {
       ...sessionData,
       date: new Date(sessionData.date),
+      groupId: sessionData.groupId || undefined,
+      bettingEnabled: sessionData.bettingEnabled ?? true,
     };
     const initialGames: Omit<Game, 'id' | 'sessionId' | 'gameNumber'>[] = body.initialGames || [];
     const roundRobinCount = body.roundRobinCount || null;

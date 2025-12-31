@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/contexts/SessionContext";
-import { Session, Player, Game } from "@/types";
+import { Session, Player, Game, Group, GroupPlayer } from "@/types";
 import Link from "next/link";
 import { generateRoundRobinGames } from "@/lib/roundRobin";
+import { ApiClient } from "@/lib/api/client";
 
-export default function CreateSession() {
+function CreateSessionContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialGroupId = searchParams.get("groupId");
+  
   const { setSession } = useSession();
   const [sessionName, setSessionName] = useState("");
   const [sessionDate, setSessionDate] = useState(
@@ -21,6 +25,46 @@ export default function CreateSession() {
     { id: "player-3", name: "" },
     { id: "player-4", name: "" },
   ]);
+  
+  // Group and betting state
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(initialGroupId || "");
+  const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>([]);
+  const [selectedGroupPlayerIds, setSelectedGroupPlayerIds] = useState<Set<string>>(new Set());
+  const [bettingEnabled, setBettingEnabled] = useState(true);
+  
+  // Load groups on mount
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const fetchedGroups = await ApiClient.getAllGroups();
+        setGroups(fetchedGroups);
+      } catch (error) {
+        console.warn('[CreateSession] Failed to load groups:', error);
+      }
+    };
+    loadGroups();
+  }, []);
+  
+  // Load group players when group is selected
+  useEffect(() => {
+    const loadGroupPlayers = async () => {
+      if (!selectedGroupId) {
+        setGroupPlayers([]);
+        setSelectedGroupPlayerIds(new Set());
+        return;
+      }
+      
+      try {
+        const fetchedPlayers = await ApiClient.getGroupPlayers(selectedGroupId);
+        setGroupPlayers(fetchedPlayers);
+      } catch (error) {
+        console.warn('[CreateSession] Failed to load group players:', error);
+        setGroupPlayers([]);
+      }
+    };
+    loadGroupPlayers();
+  }, [selectedGroupId]);
   
   // Initialize players based on game mode
   useEffect(() => {
@@ -39,6 +83,7 @@ export default function CreateSession() {
       });
     }
   }, [gameMode]);
+  
   const [organizerId, setOrganizerId] = useState<string>("");
   const [courtCostType, setCourtCostType] = useState<"per_person" | "total">(
     "per_person"
@@ -78,6 +123,36 @@ export default function CreateSession() {
     const updated = [...players];
     updated[index].name = name;
     setPlayers(updated);
+  };
+  
+  // Toggle group player selection
+  const toggleGroupPlayer = (groupPlayer: GroupPlayer) => {
+    const newSelected = new Set(selectedGroupPlayerIds);
+    if (newSelected.has(groupPlayer.id)) {
+      newSelected.delete(groupPlayer.id);
+      // Remove from players list
+      setPlayers(players.filter(p => p.groupPlayerId !== groupPlayer.id));
+    } else {
+      newSelected.add(groupPlayer.id);
+      // Add to players list
+      if (players.length < 6) {
+        const newPlayer: Player = {
+          id: `player-${Date.now()}`,
+          name: groupPlayer.name,
+          groupPlayerId: groupPlayer.id,
+        };
+        // Replace empty player slot or add new
+        const emptyIndex = players.findIndex(p => p.name.trim() === "" && !p.groupPlayerId);
+        if (emptyIndex !== -1) {
+          const updated = [...players];
+          updated[emptyIndex] = newPlayer;
+          setPlayers(updated);
+        } else {
+          setPlayers([...players, newPlayer]);
+        }
+      }
+    }
+    setSelectedGroupPlayerIds(newSelected);
   };
 
   const minPlayersRequired = gameMode === "singles" ? 2 : 4;
@@ -125,9 +200,9 @@ export default function CreateSession() {
     const finalBirdCostTotal = birdCostTotal === "" 
       ? DEFAULT_BIRD_COST 
       : parseFloat(birdCostTotal) || 0;
-    const finalBetPerPlayer = betPerPlayer === "" 
-      ? DEFAULT_BET_PER_PLAYER 
-      : parseFloat(betPerPlayer) || 0;
+    const finalBetPerPlayer = bettingEnabled && betPerPlayer !== "" 
+      ? parseFloat(betPerPlayer) || DEFAULT_BET_PER_PLAYER 
+      : DEFAULT_BET_PER_PLAYER;
     
     // Default session name to formatted date if not provided
     const formattedDate = new Date(sessionDate).toLocaleDateString("en-US", {
@@ -148,6 +223,8 @@ export default function CreateSession() {
       birdCostTotal: finalBirdCostTotal,
       betPerPlayer: finalBetPerPlayer,
       gameMode,
+      groupId: selectedGroupId || undefined,
+      bettingEnabled,
     };
 
     // If round robin is enabled, generate games first
@@ -177,10 +254,10 @@ export default function CreateSession() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <div className="mb-8">
           <Link
-            href="/"
+            href={selectedGroupId ? `/group/${selectedGroupId}` : "/"}
             className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
-            ← Back to Home
+            ← {selectedGroupId ? "Back to Group" : "Back to Home"}
           </Link>
           <h1 className="text-2xl sm:text-3xl font-bold text-japandi-text-primary mt-4 sm:mt-6">
             Create New Session
@@ -188,6 +265,28 @@ export default function CreateSession() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Group Selector */}
+          <div>
+            <label className="block text-base font-medium text-japandi-text-primary mb-3">
+              Group (Optional)
+            </label>
+            <select
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              className="w-full px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
+            >
+              <option value="">No group (standalone session)</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-sm text-japandi-text-muted">
+              Sessions in a group can be tracked together
+            </p>
+          </div>
+
           {/* Session Name */}
           <div>
             <label className="block text-base font-medium text-japandi-text-primary mb-3">
@@ -247,6 +346,34 @@ export default function CreateSession() {
               </button>
             </div>
           </div>
+
+          {/* Group Player Suggestions */}
+          {selectedGroupId && groupPlayers.length > 0 && (
+            <div>
+              <label className="block text-base font-medium text-japandi-text-primary mb-3">
+                Quick Add from Group
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {groupPlayers.map((gp) => {
+                  const isSelected = selectedGroupPlayerIds.has(gp.id);
+                  return (
+                    <button
+                      key={gp.id}
+                      type="button"
+                      onClick={() => toggleGroupPlayer(gp)}
+                      className={`px-3 py-2 rounded-full text-sm font-medium transition-all active:scale-95 touch-manipulation ${
+                        isSelected
+                          ? "bg-japandi-accent-primary text-white"
+                          : "bg-japandi-background-card text-japandi-text-primary border border-japandi-border-light hover:bg-japandi-background-primary"
+                      }`}
+                    >
+                      {isSelected ? "✓ " : "+ "}{gp.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Players */}
           <div>
@@ -399,33 +526,55 @@ export default function CreateSession() {
             )}
           </div>
 
-          {/* Bet Per Player */}
+          {/* Betting Toggle */}
           <div>
-            <label className="block text-base font-medium text-japandi-text-primary mb-3">
-              Bet Per Player Per Game
-            </label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-japandi-text-secondary">
-                $
-              </span>
+            <label className="flex items-center gap-3 cursor-pointer">
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={betPerPlayer}
-                onChange={(e) => setBetPerPlayer(e.target.value)}
-                placeholder={`${DEFAULT_BET_PER_PLAYER.toFixed(2)} (default)`}
-                className={`w-full pl-8 pr-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
-                  !isValidBet ? "border-red-300" : "border-japandi-border-light"
-                }`}
+                type="checkbox"
+                checked={bettingEnabled}
+                onChange={(e) => setBettingEnabled(e.target.checked)}
+                className="w-5 h-5 rounded border-japandi-border-light text-japandi-accent-primary focus:ring-2 focus:ring-japandi-accent-primary"
               />
-            </div>
-            {!isValidBet && (
-              <p className="mt-2 text-sm text-red-600">
-                Please enter a valid number (0 or greater)
-              </p>
-            )}
+              <div className="flex-1">
+                <span className="block text-base font-medium text-japandi-text-primary">
+                  Enable Betting
+                </span>
+                <span className="block text-sm text-japandi-text-muted mt-1">
+                  Track gambling nets and include in settlement calculations
+                </span>
+              </div>
+            </label>
           </div>
+
+          {/* Bet Per Player (only shown when betting is enabled) */}
+          {bettingEnabled && (
+            <div>
+              <label className="block text-base font-medium text-japandi-text-primary mb-3">
+                Bet Per Player Per Game
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-japandi-text-secondary">
+                  $
+                </span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={betPerPlayer}
+                  onChange={(e) => setBetPerPlayer(e.target.value)}
+                  placeholder={`${DEFAULT_BET_PER_PLAYER.toFixed(2)} (default)`}
+                  className={`w-full pl-8 pr-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                    !isValidBet ? "border-red-300" : "border-japandi-border-light"
+                  }`}
+                />
+              </div>
+              {!isValidBet && (
+                <p className="mt-2 text-sm text-red-600">
+                  Please enter a valid number (0 or greater)
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Round Robin Option */}
           <div>
@@ -488,5 +637,18 @@ export default function CreateSession() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Wrapper component with Suspense boundary for useSearchParams
+export default function CreateSession() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-japandi-background-primary flex items-center justify-center">
+        <p className="text-japandi-text-secondary">Loading...</p>
+      </div>
+    }>
+      <CreateSessionContent />
+    </Suspense>
   );
 }

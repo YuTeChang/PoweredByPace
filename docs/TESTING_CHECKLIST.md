@@ -1,4 +1,4 @@
-# VibeBadminton Testing Checklist
+# SportsAnalyze Testing Checklist
 
 ## Pre-Testing Setup
 - [ ] Dev server is running (`npm run dev`)
@@ -9,7 +9,7 @@
 
 ### 1. Home Page
 - [ ] Page loads without errors
-- [ ] "VibeBadminton" title is visible
+- [ ] "SportsAnalyze" title is visible
 - [ ] Description text is readable
 - [ ] "Create New Session" button is visible and clickable
 - [ ] If session exists, "Active Session" card is displayed

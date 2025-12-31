@@ -2,131 +2,95 @@
 
 ## Overview
 
-VibeBadminton uses **Postgres** for shared session storage. This allows multiple users to see and edit the same sessions.
-
-This works with:
-- **Vercel Postgres** (original target)
-- **Supabase Postgres** (supported)
+VibeBadminton uses **Supabase (PostgreSQL)** for shared session storage. This allows multiple users to see and edit the same sessions and groups.
 
 ## Architecture
 
 - **Frontend**: Next.js React app (client-side)
 - **Backend**: Next.js API routes (server-side)
-- **Database**: Vercel Postgres (shared PostgreSQL database)
+- **Database**: Supabase (PostgreSQL database)
 - **Sync Strategy**: Event-driven (syncs on user actions, no constant polling)
 
 See [docs/engineering/architecture.md](engineering/architecture.md) for detailed architecture documentation.
 
-## Quick Setup (Automated)
+## Quick Setup
 
-### Option 1: Using Setup Script (Recommended)
+### 1. Create Supabase Project
 
-Run the automated setup script:
+1. Go to [supabase.com](https://supabase.com)
+2. Sign up or log in
+3. Click "New Project"
+4. Choose a name, database password, and region
+5. Wait for project to be created
 
-```bash
-npm run setup:vercel
-```
+### 2. Get Environment Variables
 
-This script will:
-1. ✅ Check/install Vercel CLI
-2. ✅ Log you in to Vercel
-3. ✅ Link your project
-4. ✅ Guide you through database creation
-5. ✅ Pull environment variables
-6. ✅ Initialize database schema
+1. Go to your Supabase project dashboard
+2. Navigate to **Settings** → **API**
+3. Copy the following:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **service_role key** (under "Project API keys") → `SUPABASE_SERVICE_ROLE_KEY`
 
-### Option 2: Manual Setup
+### 3. Set Environment Variables
 
-Follow the manual steps below if you prefer more control.
-
-## Manual Setup Steps
-
-### 1. Install Vercel CLI (if not already installed)
+Create a `.env.local` file in the project root:
 
 ```bash
-npm install -g vercel
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
-### 2. Login to Vercel
+**Important**: Never commit `.env.local` to git. It's already in `.gitignore`.
 
-```bash
-vercel login
-```
+### 4. Initialize Database Schema
 
-### 3. Link Your Project
+1. Go to your Supabase project dashboard
+2. Navigate to **SQL Editor**
+3. Click **New Query**
+4. Copy the contents of `scripts/init-db-schema.sql`
+5. Paste into the SQL Editor
+6. Click **Run** (or press Cmd/Ctrl + Enter)
 
-```bash
-vercel link
-```
-
-This will:
-- Ask if you want to link to an existing project or create a new one
-- Create a `.vercel` directory with project configuration
-
-### 4. Create a Postgres Database
-
-1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-2. Select your project
-3. Go to **Storage** → **Create Database** → **Postgres**
-4. Choose a name and region
-5. Click **Create**
-
-### 5. Set Environment Variables
-
-If you're using Vercel Postgres, Vercel CLI can automatically pull environment variables:
-
-```bash
-vercel env pull .env.local
-```
-
-This will create `.env.local` with the Postgres connection strings:
-- `POSTGRES_URL`
-- `POSTGRES_PRISMA_URL`
-- `POSTGRES_URL_NON_POOLING`
-- `POSTGRES_USER`
-- `POSTGRES_HOST`
-- `POSTGRES_PASSWORD`
-- `POSTGRES_DATABASE`
-
-**Note**: If you prefer manual setup, copy from Vercel Dashboard → Settings → Environment Variables
-
-### 6. Initialize Database Schema
-
-After setting up environment variables, initialize the database.
-
-If you're using Supabase and the script cannot connect (common due to pooler settings), run the SQL manually:
-- Copy from `npm run init:db:sql`
-- Paste into Supabase Dashboard → SQL Editor → Run
-
-#### Option A: Using npm script (Easiest)
-
-```bash
-npm run dev
-# In another terminal:
-npm run init:db
-```
-
-#### Option B: Via API Endpoint
-
-1. Start your dev server: `npm run dev`
-2. Open: `http://localhost:3000/api/init`
-3. Or use curl:
-   ```bash
-   curl -X POST http://localhost:3000/api/init
-   ```
-
-#### Option C: Via Vercel Dashboard (Production)
-
-1. Deploy your project to Vercel
-2. Go to your project → **Functions** → **API Routes**
-3. Call the `/api/init` endpoint
+This creates:
+- `groups` table (for recurring badminton groups)
+- `group_players` table (player pool per group)
+- `sessions` table (badminton sessions)
+- `players` table (session players)
+- `games` table (individual games)
+- All necessary indexes and RLS policies
 
 ### 5. Verify Setup
 
-1. Create a session in the app
-2. Check Vercel Postgres dashboard to see if data appears
-3. Open the session in another browser/device
-4. You should see the same session!
+1. Start your dev server: `npm run dev`
+2. Open: `http://localhost:3000/api/health/db`
+3. You should see:
+   ```json
+   {
+     "ok": true,
+     "db": "connected",
+     "sessionsCount": 0
+   }
+   ```
+
+### 6. Test Shared Sessions
+
+1. Open the app in Browser A: `http://localhost:3000`
+2. Create a new badminton session
+3. Open the app in Browser B (or another device)
+4. Refresh Browser B
+5. You should see the session you just created!
+
+## Migration (Upgrading Existing Database)
+
+If you have an existing database without groups support:
+
+1. Go to Supabase SQL Editor
+2. Run `scripts/migrate-add-groups.sql`
+3. This adds:
+   - `groups` and `group_players` tables
+   - `group_id` and `betting_enabled` columns to `sessions`
+   - `group_player_id` column to `players`
+   - All necessary indexes and policies
 
 ## How It Works
 
@@ -146,12 +110,18 @@ This means:
 - ✅ **Works offline** - localStorage fallback
 - ✅ **Efficient** - minimal API calls
 
-### Manual Refresh
+### Database Schema
 
-Users can manually refresh to see other users' changes:
-- Add a "Refresh" button in the session header
-- Pulls latest data from server
-- Only when needed, not automatic
+**Groups:**
+- `groups` - Group information with shareable links
+- `group_players` - Player pool per group
+
+**Sessions:**
+- `sessions` - Badminton sessions (can belong to a group)
+- `players` - Session players (can link to group players)
+- `games` - Individual games within sessions
+
+See `scripts/init-db-schema.sql` for complete schema.
 
 ## Troubleshooting
 
@@ -159,16 +129,17 @@ Users can manually refresh to see other users' changes:
 
 **Error**: `relation "sessions" does not exist`
 
-**Solution**: Call `/api/init` endpoint to create tables
+**Solution**: Run the SQL schema from `scripts/init-db-schema.sql` in Supabase SQL Editor
 
 ### Connection Errors
 
 **Error**: `Connection refused` or `Authentication failed`
 
 **Solution**: 
-1. Check environment variables are set correctly
-2. Verify connection strings from Vercel dashboard
+1. Check environment variables are set correctly in `.env.local`
+2. Verify connection strings from Supabase dashboard
 3. Make sure database is created and active
+4. Check that you're using the `service_role` key (not `anon` key)
 
 ### API Not Available
 
@@ -177,6 +148,12 @@ The app falls back to localStorage if API is unavailable:
 - Works offline
 - Data not shared across devices
 
+### RLS Policies
+
+If you see permission errors, make sure the RLS policies were created:
+1. Go to Supabase SQL Editor
+2. Run the RLS policy creation statements from `scripts/init-db-schema.sql`
+
 ## Testing
 
 ### Test Local Setup
@@ -184,7 +161,7 @@ The app falls back to localStorage if API is unavailable:
 1. Start dev server: `npm run dev`
 2. Create a session
 3. Check browser Network tab for API calls
-4. Verify data in Vercel Postgres dashboard
+4. Verify data in Supabase Table Editor
 
 ### Test Multi-User
 
@@ -192,16 +169,34 @@ The app falls back to localStorage if API is unavailable:
 2. Create session in Browser 1
 3. Refresh Browser 2 - should see the session
 4. Add game in Browser 1
-5. Click "Refresh" in Browser 2 - should see the game
+5. Refresh Browser 2 - should see the game
+
+### Test Groups
+
+1. Create a group
+2. Add players to group pool
+3. Create a session linked to the group
+4. Verify players can be linked to group players
+5. Check group page shows the session
 
 ## Production Deployment
 
 1. Push code to GitHub
-2. Connect repository to Vercel
-3. Add environment variables in Vercel dashboard
+2. Connect repository to Vercel (or your hosting platform)
+3. Add environment variables in hosting platform:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
 4. Deploy
-5. Initialize database: `POST https://your-app.vercel.app/api/init`
+5. Verify database is initialized (run schema if needed)
 6. Test!
+
+## Security Notes
+
+- **Service Role Key**: The `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS policies. Keep it secret!
+- **RLS Policies**: Currently set to allow public read/write for simplicity. For production, consider:
+  - Adding authentication
+  - Restricting write access
+  - Using row-level security more strictly
 
 ## Future Enhancements
 
@@ -209,4 +204,4 @@ The app falls back to localStorage if API is unavailable:
 - **WebSockets**: Real-time updates (for high usage)
 - **Conflict Resolution**: Handle simultaneous edits
 - **Offline Queue**: Queue actions when offline, sync when online
-
+- **Authentication**: User accounts with proper access control

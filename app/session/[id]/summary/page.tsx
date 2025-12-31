@@ -8,6 +8,7 @@ import {
   calculateFinalSettlement,
   formatCurrency,
   generateShareableText,
+  formatPercentage,
 } from "@/lib/calculations";
 import Link from "next/link";
 import { Session, Game } from "@/types";
@@ -113,9 +114,10 @@ export default function SummaryPage() {
   // Use local state for rendering
   const currentSession = localSession;
   const currentGames = localGames;
+  const bettingEnabled = currentSession.bettingEnabled ?? true; // Default to true for backward compatibility
 
   const settlement = calculateFinalSettlement(currentSession, currentGames);
-  const shareableText = generateShareableText(settlement);
+  const shareableText = generateShareableText(settlement, bettingEnabled);
 
   const handleCopy = async () => {
     try {
@@ -154,66 +156,125 @@ export default function SummaryPage() {
           </h1>
           <p className="text-base text-japandi-text-secondary">
             {currentSession.name || "Badminton Session"} • {currentGames.filter(g => g.winningTeam !== null).length} games played
+            {!bettingEnabled && <span className="text-japandi-accent-primary ml-2">(Stats Only)</span>}
           </p>
         </div>
 
         {/* Stats Table */}
         <div className="bg-japandi-background-card rounded-card border border-japandi-border-light overflow-hidden mb-6 shadow-soft">
           <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-japandi-background-primary">
-                  <tr>
+            <table className="min-w-full">
+              <thead className="bg-japandi-background-primary">
+                <tr>
                   <th className="px-4 sm:px-5 py-3 sm:py-4 text-left text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                      Player
-                    </th>
-                  <th className="px-4 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                      W/L
-                    </th>
-                  <th className="px-4 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                      Net
-                    </th>
-                  <th className="px-4 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                      Pay Organizer
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-japandi-border-light">
-                  {settlement.map((s) => (
-                    <tr key={s.playerId}>
+                    Player
+                  </th>
+                  <th className="px-3 sm:px-4 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
+                    W/L
+                  </th>
+                  <th className="px-3 sm:px-4 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
+                    Win %
+                  </th>
+                  <th className="px-3 sm:px-4 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
+                    +/-
+                  </th>
+                  {bettingEnabled && (
+                    <>
+                      <th className="px-3 sm:px-4 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
+                        Net
+                      </th>
+                      <th className="px-3 sm:px-4 py-3 sm:py-4 text-right text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
+                        Pay
+                      </th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-japandi-border-light">
+                {settlement.map((s) => (
+                  <tr key={s.playerId}>
                     <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base font-medium text-japandi-text-primary">
-                        <div className="flex flex-col sm:block">
+                      <div className="flex flex-col sm:block">
                         <span className="break-words">{s.playerName}</span>
-                          {s.playerId === currentSession.organizerId && (
+                        {s.playerId === currentSession.organizerId && (
                           <span className="ml-0 sm:ml-2 text-xs text-japandi-accent-primary font-medium block sm:inline whitespace-nowrap">
-                              (Organizer)
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center text-japandi-text-secondary">
-                        {s.wins}-{s.losses}
-                      </td>
-                      <td
-                      className={`px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center font-semibold ${
-                          s.gamblingNet > 0
+                            (Organizer)
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-center text-japandi-text-secondary">
+                      {s.wins}-{s.losses}
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-center text-japandi-text-secondary">
+                      {formatPercentage(s.winRate)}
+                    </td>
+                    <td
+                      className={`px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-center font-semibold ${
+                        s.pointDifferential > 0
                           ? "text-green-700"
-                            : s.gamblingNet < 0
-                            ? "text-japandi-text-secondary"
-                            : "text-japandi-text-muted"
-                        }`}
-                      >
-                        {s.gamblingNet > 0 && "+"}
-                        {formatCurrency(s.gamblingNet)}
-                      </td>
-                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-right font-semibold text-japandi-text-primary">
-                        {formatCurrency(s.amountToPayOrganizer)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          : s.pointDifferential < 0
+                          ? "text-japandi-text-secondary"
+                          : "text-japandi-text-muted"
+                      }`}
+                    >
+                      {s.pointDifferential > 0 && "+"}
+                      {s.pointDifferential}
+                    </td>
+                    {bettingEnabled && (
+                      <>
+                        <td
+                          className={`px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-center font-semibold ${
+                            s.gamblingNet > 0
+                              ? "text-green-700"
+                              : s.gamblingNet < 0
+                              ? "text-japandi-text-secondary"
+                              : "text-japandi-text-muted"
+                          }`}
+                        >
+                          {s.gamblingNet > 0 && "+"}
+                          {formatCurrency(s.gamblingNet)}
+                        </td>
+                        <td className="px-3 sm:px-4 py-3 sm:py-4 text-sm sm:text-base text-right font-semibold text-japandi-text-primary">
+                          {formatCurrency(s.amountToPayOrganizer)}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
+
+        {/* Cost Summary (only when betting enabled or when there are costs) */}
+        {(bettingEnabled || currentSession.courtCostValue > 0 || currentSession.birdCostTotal > 0) && (
+          <div className="bg-japandi-background-card rounded-card border border-japandi-border-light p-5 mb-6 shadow-soft">
+            <h2 className="text-lg font-semibold text-japandi-text-primary mb-4">
+              Cost Breakdown
+            </h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-japandi-text-secondary">Court Cost ({currentSession.courtCostType === "per_person" ? "per person" : "total"}):</span>
+                <span className="text-japandi-text-primary font-medium">{formatCurrency(currentSession.courtCostValue)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-japandi-text-secondary">Bird/Shuttle Cost:</span>
+                <span className="text-japandi-text-primary font-medium">{formatCurrency(currentSession.birdCostTotal)}</span>
+              </div>
+              {bettingEnabled && (
+                <div className="flex justify-between">
+                  <span className="text-japandi-text-secondary">Bet Per Player:</span>
+                  <span className="text-japandi-text-primary font-medium">{formatCurrency(currentSession.betPerPlayer)}/game</span>
+                </div>
+              )}
+              <div className="border-t border-japandi-border-light pt-2 mt-2 flex justify-between">
+                <span className="text-japandi-text-primary font-medium">Per Person Share:</span>
+                <span className="text-japandi-text-primary font-semibold">{formatCurrency(settlement[0]?.evenSharePerPlayer || 0)}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Shareable Text */}
         <div className="bg-japandi-background-card rounded-card border border-japandi-border-light p-5 mb-6 shadow-soft">

@@ -1,5 +1,5 @@
 /**
- * Screenshot Testing Script for VibeBadminton
+ * Screenshot Testing Script for SportsAnalyze
  * 
  * This script tests all features and takes screenshots of each page.
  * Run with: node scripts/screenshot-test.js

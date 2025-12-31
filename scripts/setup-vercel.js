@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * VibeBadminton Vercel Setup Script
+ * SportsAnalyze Vercel Setup Script
  * Interactive setup script using Vercel CLI
  */
 
@@ -28,7 +28,7 @@ function exec(command, options = {}) {
 }
 
 async function main() {
-  console.log('🚀 VibeBadminton Vercel Setup');
+  console.log('🚀 SportsAnalyze Vercel Setup');
   console.log('==============================\n');
 
   // Check if Vercel CLI is installed

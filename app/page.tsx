@@ -4,32 +4,60 @@ import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Group } from "@/types";
+import { ApiClient } from "@/lib/api/client";
 
 export default function Home() {
   const router = useRouter();
   const { session, games, allSessions, loadSession } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupSessionCounts, setGroupSessionCounts] = useState<Record<string, number>>({});
   const [sessionGameCounts, setSessionGameCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    setIsLoaded(true);
-    
-    // Load game counts for all sessions
-    if (typeof window !== "undefined") {
+    const loadData = async () => {
       try {
-        const savedGames = localStorage.getItem("vibebadminton_games");
-        if (savedGames) {
-          const parsedGames = JSON.parse(savedGames);
-          const counts: Record<string, number> = {};
-          parsedGames.forEach((game: { sessionId: string }) => {
-            counts[game.sessionId] = (counts[game.sessionId] || 0) + 1;
-          });
-          setSessionGameCounts(counts);
+        // Load groups from API
+        const fetchedGroups = await ApiClient.getAllGroups();
+        setGroups(fetchedGroups);
+        
+        // Load session counts for each group
+        const counts: Record<string, number> = {};
+        for (const group of fetchedGroups) {
+          try {
+            const sessions = await ApiClient.getGroupSessions(group.id);
+            counts[group.id] = sessions.length;
+          } catch {
+            counts[group.id] = 0;
+          }
         }
+        setGroupSessionCounts(counts);
       } catch (error) {
-        // Silently handle errors
+        console.warn('[Home] Failed to load groups:', error);
       }
-    }
+
+      // Load game counts for all sessions from localStorage
+      if (typeof window !== "undefined") {
+        try {
+          const savedGames = localStorage.getItem("sportsanalyze_games");
+          if (savedGames) {
+            const parsedGames = JSON.parse(savedGames);
+            const counts: Record<string, number> = {};
+            parsedGames.forEach((game: { sessionId: string }) => {
+              counts[game.sessionId] = (counts[game.sessionId] || 0) + 1;
+            });
+            setSessionGameCounts(counts);
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+      }
+      
+      setIsLoaded(true);
+    };
+
+    loadData();
   }, []);
 
   const formatDate = (date: Date) => {
@@ -45,23 +73,54 @@ export default function Home() {
     router.push(`/session/${sessionId}`);
   };
 
+  // Filter standalone sessions (no group)
+  const standaloneSessions = allSessions.filter(s => !s.groupId);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
       <div className="max-w-md w-full space-y-6 sm:space-y-8 text-center">
         <h1 className="text-3xl sm:text-4xl font-bold text-japandi-text-primary">
-          VibeBadminton
+          SportsAnalyze
         </h1>
         <p className="text-base sm:text-lg text-japandi-text-secondary px-4">
           Track your badminton games and automatically calculate who owes what
         </p>
-        
-        {/* All Sessions List */}
-        {isLoaded && allSessions.length > 0 && (
+
+        {/* Groups Section */}
+        {isLoaded && groups.length > 0 && (
           <div className="space-y-3 text-left">
             <h2 className="text-lg font-semibold text-japandi-text-primary mb-3">
-              Your Sessions
+              Your Groups
             </h2>
-            {allSessions
+            {groups.map((group) => (
+              <Link
+                key={group.id}
+                href={`/group/${group.id}`}
+                className="block bg-japandi-background-card border border-japandi-border-light rounded-card p-4 sm:p-5 shadow-soft hover:border-japandi-accent-primary transition-colors"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-base font-semibold text-japandi-text-primary">
+                    {group.name}
+                  </h3>
+                  <span className="text-xs text-japandi-accent-primary bg-japandi-background-primary px-2 py-1 rounded-full">
+                    {groupSessionCounts[group.id] || 0} sessions
+                  </span>
+                </div>
+                <div className="text-sm text-japandi-text-muted">
+                  Share link: {group.shareableLink}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+        
+        {/* Standalone Sessions List */}
+        {isLoaded && standaloneSessions.length > 0 && (
+          <div className="space-y-3 text-left">
+            <h2 className="text-lg font-semibold text-japandi-text-primary mb-3">
+              Standalone Sessions
+            </h2>
+            {standaloneSessions
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
               .map((s) => {
                 const isActive = session?.id === s.id;
@@ -133,10 +192,16 @@ export default function Home() {
 
         <div className="pt-4 space-y-3">
           <Link
+            href="/create-group"
+            className="inline-block w-full bg-japandi-background-card hover:bg-japandi-background-primary active:scale-95 text-japandi-text-primary border border-japandi-border-light font-semibold py-3 px-6 rounded-full transition-all touch-manipulation"
+          >
+            Create New Group
+          </Link>
+          <Link
             href="/create-session"
             className="inline-block w-full bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 text-white font-semibold py-3 px-6 rounded-full transition-all shadow-button touch-manipulation"
           >
-            Create New Session
+            Quick Session (No Group)
           </Link>
         </div>
       </div>

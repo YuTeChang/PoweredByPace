@@ -1,9 +1,10 @@
-# VibeBadminton
+# SportsAnalyze
 
-A tiny web app that helps groups of friends track their badminton games (doubles or singles) during a session and automatically calculates wins/losses, gambling results, shared costs, and final "who owes who how much" at the end of the night.
+A web app that helps groups of friends track their badminton games (doubles or singles) during a session and automatically calculates wins/losses, gambling results, shared costs, and final "who owes who how much" at the end of the night.
 
 ## Features
 
+### Core Features
 - **Create Sessions**: Set up a badminton session with players and financial settings
 - **Game Modes**: Support for both doubles (4-6 players) and singles (2-6 players) gameplay
 - **Round Robin Scheduling**: Generate scheduled game combinations with customizable count
@@ -11,29 +12,24 @@ A tiny web app that helps groups of friends track their badminton games (doubles
 - **Live Stats**: Real-time win/loss tracking and gambling net calculations
 - **Game Planning**: See upcoming scheduled games to plan your session time
 - **Auto-Calculate**: Automatically calculates wins/losses, gambling net, and final settlement
-- **Multiple Sessions**: Create and manage multiple sessions, switch between them easily
 - **Mobile-First**: Designed for use at the court with optimized mobile navigation
+
+### Groups Feature (NEW)
+- **Create Groups**: Organize recurring badminton groups (e.g., "Friday Night Badminton")
+- **Shareable Links**: Share group links with friends so they can view sessions and stats
+- **Player Pool**: Maintain a player pool per group for quick session setup
+- **Group Sessions**: Track all sessions within a group over time
+- **Cross-Session Stats**: View aggregated player statistics across all group sessions
+
+### Optional Betting (NEW)
+- **Toggle Betting**: Enable or disable betting per session
+- **Universal Stats**: Always see win rate, points scored/conceded, and point differential
+- **Conditional Betting UI**: Betting-related fields and calculations only shown when enabled
+- **Stats-Only Mode**: Use the app purely for tracking games without betting
 
 ## Screenshots
 
-Screenshots are available in `docs/screenshots/test-results/` showing all current features:
-
-**Home Page:**
-- Empty state, single session, and multiple sessions view
-
-**Create Session:**
-- Game mode toggle (doubles/singles)
-- Filled form with players and settings
-- Round robin scheduling enabled
-- Singles mode with 2 players
-
-**Session Management:**
-- Stats tab (empty and with games)
-- Record tab (empty and with teams selected)
-- History tab with all recorded games
-
-**Summary:**
-- Final settlement page with improved table layout and action buttons
+Screenshots are available in `docs/screenshots/test-results/` showing all current features.
 
 See [docs/screenshots/README.md](docs/screenshots/README.md) for complete details.
 
@@ -49,7 +45,7 @@ npm run test:screenshots
 - **Styling**: Tailwind CSS
 - **State**: React Context API with optimistic updates
 - **Backend**: Next.js API Routes
-- **Database**: Vercel Postgres (shared sessions across users)
+- **Database**: Supabase (PostgreSQL) for shared sessions and groups
 - **Sync Strategy**: Event-driven (no wasteful polling)
 
 ## Getting Started
@@ -57,6 +53,7 @@ npm run test:screenshots
 ### Prerequisites
 
 - Node.js 18+ and npm
+- Supabase account (for shared sessions)
 
 ### Installation
 
@@ -65,55 +62,55 @@ npm run test:screenshots
 npm install
 ```
 
-2. Run the development server:
+2. Set up environment variables:
+```bash
+# Copy .env.example to .env.local and fill in your Supabase credentials
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+3. Initialize database:
+   - Run the SQL schema from `scripts/init-db-schema.sql` in your Supabase SQL Editor
+   - Or use the migration script `scripts/migrate-add-groups.sql` if you have an existing database
+
+4. Run the development server:
 ```bash
 npm run dev
 ```
 
-3. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### Backend Setup (For Shared Sessions)
+### Backend Setup
 
-To enable shared sessions across users, set up Vercel Postgres:
+To enable shared sessions across users, set up Supabase:
 
-**Quick Setup (Automated):**
-```bash
-npm run setup:vercel
-```
-
-This will guide you through:
-- Installing Vercel CLI
-- Linking your project
-- Creating Postgres database
-- Pulling environment variables
-- Initializing database schema
-
-**Manual Setup:**
-1. Install Vercel CLI: `npm install -g vercel`
-2. Login: `vercel login`
-3. Link project: `vercel link`
-4. Create Postgres database in Vercel dashboard
-5. Pull env vars: `vercel env pull .env.local`
-6. Initialize: `npm run dev` then `npm run init:db`
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Get your project URL and service role key from Settings → API
+3. Add environment variables (see Installation step 2)
+4. Run the database schema from `scripts/init-db-schema.sql` in Supabase SQL Editor
 
 See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed instructions.
 
 ## Project Structure
 
 ```
-VibeBadminton/
+SportsAnalyze/
 ├── app/                    # Next.js app directory
-│   ├── page.tsx           # Home page
+│   ├── page.tsx           # Home page (groups and sessions)
+│   ├── create-group/      # Create group page
 │   ├── create-session/    # Create session page
-│   └── ...
-├── docs/                   # Documentation
-│   ├── vision/            # Product vision
-│   ├── mvp/               # MVP specifications
-│   ├── process/           # Dev plans, progress logs
-│   ├── engineering/       # Technical documentation
-│   └── prompts/           # AI agent prompts
-├── types/                 # TypeScript type definitions
-└── ...
+│   ├── group/[id]/        # Group detail page
+│   ├── session/[id]/      # Live session page
+│   └── api/               # API routes
+├── components/            # React components
+├── contexts/              # React Context (SessionContext)
+├── lib/                   # Utilities and services
+│   ├── services/         # Database service layer
+│   ├── calculations.ts   # Money and stats calculations
+│   └── roundRobin.ts     # Round robin scheduling
+├── types/                # TypeScript type definitions
+├── docs/                 # Documentation
+└── scripts/              # Database migration scripts
 ```
 
 ## Documentation
@@ -121,37 +118,33 @@ VibeBadminton/
 **📖 Start here**: **[docs/README.md](docs/README.md)** - Complete guide covering everything you need to know.
 
 **Quick Reference**:
-- [MVP Specification](docs/reference/mvp/mvp_spec.md) - Detailed requirements
+- [Product Overview](docs/PRODUCT.md) - Product vision and features
+- [Features Log](docs/FEATURES_LOG.md) - Complete feature history
 - [Testing Checklist](docs/TESTING_CHECKLIST.md) - Test guide
+- [Backend Setup](docs/SETUP_BACKEND.md) - Database setup instructions
 
-All documentation is organized for easy navigation. The main README has everything essential; detailed reference docs are in `docs/reference/` and `docs/_archive/`.
+All documentation is organized for easy navigation. The main README has everything essential; detailed reference docs are in `docs/`.
 
 ## Development
 
-### Using AI Agents
+### Key Concepts
 
-This project uses specialized AI agents for different tasks:
+- **Groups**: Organize recurring playing groups with shareable links
+- **Sessions**: Individual badminton sessions (can belong to a group or standalone)
+- **Players**: Can be linked to group player pool for tracking across sessions
+- **Betting**: Optional per-session feature for tracking gambling nets
+- **Stats**: Universal stats (win rate, points) always shown; betting stats shown when enabled
 
-- **PM Agent**: "PM agent, update the docs based on what we just did"
-- **QA Agent**: "QA agent: design tests for [feature]"
-- **Engineer Agent**: "Engineer agent: implement [feature]"
+### Database Schema
 
-See `docs/prompts/USAGE_GUIDE.md` for more details.
+- `groups` - Badminton groups with shareable links
+- `group_players` - Player pool per group
+- `sessions` - Badminton sessions (can belong to a group)
+- `players` - Session players (can link to group players)
+- `games` - Individual games within sessions
 
-## MVP Scope
-
-The MVP focuses on:
-- Creating a session with players and financial settings
-- Logging games during the session
-- Automatically calculating final money settlement
-
-**Out of scope for MVP:**
-- User authentication
-- Persistence across sessions
-- Elo ratings
-- Multi-session history
+See `scripts/init-db-schema.sql` for complete schema.
 
 ## License
 
 MIT
-

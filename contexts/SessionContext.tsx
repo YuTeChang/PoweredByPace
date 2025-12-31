@@ -1,13 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { Session, Game, Player } from "@/types";
+import { Session, Game, Group } from "@/types";
 import { ApiClient, isApiAvailable } from "@/lib/api/client";
 
 interface SessionContextType {
   session: Session | null;
   games: Game[];
   allSessions: Session[];
+  groups: Group[];
   setSession: (session: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => void;
   addGame: (game: Omit<Game, "id" | "sessionId" | "gameNumber">) => void;
   addGames: (games: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => void;
@@ -15,22 +16,25 @@ interface SessionContextType {
   removeLastGame: () => void;
   clearSession: () => void;
   loadSession: (sessionId: string) => void;
+  refreshGroups: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
-const STORAGE_KEY_SESSION = "vibebadminton_session";
-const STORAGE_KEY_GAMES = "vibebadminton_games";
-const STORAGE_KEY_ALL_SESSIONS = "vibebadminton_all_sessions";
+const STORAGE_KEY_SESSION = "sportsanalyze_session";
+const STORAGE_KEY_GAMES = "sportsanalyze_games";
+const STORAGE_KEY_ALL_SESSIONS = "sportsanalyze_all_sessions";
+const STORAGE_KEY_GROUPS = "sportsanalyze_groups";
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSessionState] = useState<Session | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [allSessions, setAllSessions] = useState<Session[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
 
-  // Load sessions from API (primary) or localStorage (fallback) on mount
+  // Load sessions and groups from API (primary) or localStorage (fallback) on mount
   useEffect(() => {
     const loadData = async () => {
       if (typeof window === "undefined") return;
@@ -41,10 +45,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setApiAvailable(apiReady);
 
         if (apiReady) {
-          // Load all sessions from database
+          // Load all sessions and groups from database
           try {
-            const sessions = await ApiClient.getAllSessions();
+            const [sessions, fetchedGroups] = await Promise.all([
+              ApiClient.getAllSessions(),
+              ApiClient.getAllGroups(),
+            ]);
             setAllSessions(sessions);
+            setGroups(fetchedGroups);
+            
+            // Cache groups to localStorage
+            localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(fetchedGroups));
             
             // Try to load the active session from localStorage first (for immediate UI)
             const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
@@ -53,6 +64,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
               parsedSession.date = new Date(parsedSession.date);
               if (!parsedSession.gameMode) {
                 parsedSession.gameMode = "doubles";
+              }
+              if (parsedSession.bettingEnabled === undefined) {
+                parsedSession.bettingEnabled = true;
               }
               
               // Verify session exists in database, or use the one from localStorage
@@ -94,6 +108,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const loadFromLocalStorage = () => {
     try {
+      // Load groups
+      const savedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
+      if (savedGroups) {
+        const parsedGroups = JSON.parse(savedGroups);
+        setGroups(parsedGroups);
+      }
+
       const savedAllSessions = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
       if (savedAllSessions) {
         const parsedAllSessions = JSON.parse(savedAllSessions);
@@ -101,6 +122,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           ...s,
           date: new Date(s.date),
           gameMode: s.gameMode || "doubles",
+          bettingEnabled: s.bettingEnabled ?? true,
         }));
         setAllSessions(sessionsWithDates);
       }
@@ -113,6 +135,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         parsedSession.date = new Date(parsedSession.date);
         if (!parsedSession.gameMode) {
           parsedSession.gameMode = "doubles";
+        }
+        if (parsedSession.bettingEnabled === undefined) {
+          parsedSession.bettingEnabled = true;
         }
         setSessionState(parsedSession);
         
@@ -191,18 +216,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, [games, isLoaded, session, apiAvailable]);
 
   const setSession = useCallback(async (newSession: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => {
+    // Ensure bettingEnabled has a default
+    const sessionWithDefaults = {
+      ...newSession,
+      bettingEnabled: newSession.bettingEnabled ?? true,
+    };
+    
     // Optimistically update UI
-    setSessionState(newSession);
+    setSessionState(sessionWithDefaults);
     
     // Handle games
     setGames((prev) => {
       // If games belong to a different session, replace them with initial games (or clear if no initial games)
-      if (prev.length > 0 && prev[0]?.sessionId !== newSession.id) {
+      if (prev.length > 0 && prev[0]?.sessionId !== sessionWithDefaults.id) {
         if (initialGames && initialGames.length > 0) {
           const timestamp = Date.now();
           return initialGames.map((gameData, index) => ({
             id: `game-${timestamp}-${index}-${Math.random()}`,
-            sessionId: newSession.id,
+            sessionId: sessionWithDefaults.id,
             gameNumber: index + 1,
             ...gameData,
           }));
@@ -214,7 +245,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const timestamp = Date.now();
         return initialGames.map((gameData, index) => ({
           id: `game-${timestamp}-${index}-${Math.random()}`,
-          sessionId: newSession.id,
+          sessionId: sessionWithDefaults.id,
           gameNumber: index + 1,
           ...gameData,
         }));
@@ -228,12 +259,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       try {
         // Determine roundRobinCount from initialGames length if applicable
         const roundRobinCount = initialGames && initialGames.length > 0 ? initialGames.length : null;
-        await ApiClient.createSession(newSession, initialGames, roundRobinCount);
+        await ApiClient.createSession(sessionWithDefaults, initialGames, roundRobinCount);
         
         // If we created initial games, reload them from API to get proper IDs
         if (initialGames && initialGames.length > 0) {
           try {
-            const dbGames = await ApiClient.getGames(newSession.id);
+            const dbGames = await ApiClient.getGames(sessionWithDefaults.id);
             setGames(dbGames);
           } catch (error) {
             console.warn('[SessionContext] Failed to reload games from API');
@@ -376,12 +407,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session, apiAvailable]);
 
+  const refreshGroups = useCallback(async () => {
+    if (apiAvailable) {
+      try {
+        const fetchedGroups = await ApiClient.getAllGroups();
+        setGroups(fetchedGroups);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(fetchedGroups));
+        }
+      } catch (error) {
+        console.error('[SessionContext] Failed to refresh groups:', error);
+      }
+    }
+  }, [apiAvailable]);
+
   return (
     <SessionContext.Provider
       value={{
         session,
         games,
         allSessions,
+        groups,
         setSession,
         addGame,
         addGames,
@@ -389,6 +435,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         removeLastGame,
         clearSession,
         loadSession,
+        refreshGroups,
       }}
     >
       {children}
