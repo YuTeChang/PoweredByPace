@@ -33,36 +33,56 @@ export interface PlayerRow {
 export class SessionService {
   /**
    * Get all sessions with their players
-   * Optimized: Uses JOIN to fetch all data in a single query instead of N+1 queries
+   * Optimized: Uses batch query to fetch all players in one query instead of N+1 queries
+   * (More efficient than JOIN for this use case - avoids cartesian product issues)
    */
   static async getAllSessions(): Promise<Session[]> {
     try {
       const supabase = createSupabaseClient();
       
-      // Use JOIN to fetch sessions and players in a single query (eliminates N+1 problem)
+      // Fetch all sessions first
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
-        .select(`
-          *,
-          players (*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (sessionsError) {
         throw sessionsError;
       }
 
-      if (!sessionsData) {
+      if (!sessionsData || sessionsData.length === 0) {
         return [];
       }
 
-      // Map sessions with their players (Supabase returns players as nested array)
+      // Batch fetch all players for all sessions in a single query
+      const sessionIds = sessionsData.map(s => s.id);
+      const { data: allPlayersData, error: playersError } = await supabase
+        .from('players')
+        .select('id, name, group_player_id, session_id')
+        .in('session_id', sessionIds)
+        .order('created_at', { ascending: true });
+
+      if (playersError) {
+        throw playersError;
+      }
+
+      // Group players by session_id for O(1) lookup
+      const playersBySessionId = new Map<string, any[]>();
+      (allPlayersData || []).forEach((player: any) => {
+        const sessionId = player.session_id;
+        if (!playersBySessionId.has(sessionId)) {
+          playersBySessionId.set(sessionId, []);
+        }
+        playersBySessionId.get(sessionId)!.push({
+          id: player.id,
+          name: player.name,
+          groupPlayerId: player.group_player_id || undefined,
+        });
+      });
+
+      // Map sessions with their players
       const sessionsWithPlayers = sessionsData.map((session: any) => {
-        const players = (session.players || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          groupPlayerId: p.group_player_id || undefined,
-        }));
+        const players = playersBySessionId.get(session.id) || [];
         return this.mapRowToSession(session, players);
       });
 

@@ -177,6 +177,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Track if session was just created to prevent duplicate API calls
+  const sessionJustCreatedRef = useRef<string | null>(null);
+
   // Sync session to API and localStorage whenever it changes
   useEffect(() => {
     if (!isLoaded || typeof window === "undefined" || !session) return;
@@ -198,11 +201,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    // Sync to API if available (don't await to avoid blocking UI)
-    if (apiAvailable) {
+    // Only sync to API if this session wasn't just created by setSession
+    // (setSession already calls createSession, so we don't need to call it again)
+    if (apiAvailable && sessionJustCreatedRef.current !== session.id) {
       ApiClient.createSession(session).catch((error) => {
         console.warn('[SessionContext] Failed to sync session to API:', error);
       });
+    }
+    
+    // Clear the ref after a short delay to allow future updates
+    if (sessionJustCreatedRef.current === session.id) {
+      setTimeout(() => {
+        sessionJustCreatedRef.current = null;
+      }, 1000);
     }
   }, [session, isLoaded, apiAvailable]);
 
@@ -265,6 +276,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // Sync to API if available
     if (apiAvailable) {
       try {
+        // Mark this session as just created to prevent duplicate API call in useEffect
+        sessionJustCreatedRef.current = sessionWithDefaults.id;
+        
         // Determine roundRobinCount from initialGames length if applicable
         const roundRobinCount = initialGames && initialGames.length > 0 ? initialGames.length : null;
         await ApiClient.createSession(sessionWithDefaults, initialGames, roundRobinCount);
