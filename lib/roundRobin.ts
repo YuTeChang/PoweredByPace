@@ -25,18 +25,30 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number, ga
     }
 
     // Generate all unique 1v1 matchups
+    const baseGames: RoundRobinGame[] = [];
     for (let i = 0; i < playerIds.length; i++) {
       for (let j = i + 1; j < playerIds.length; j++) {
-        games.push({
+        baseGames.push({
           teamA: [playerIds[i]] as [string],
           teamB: [playerIds[j]] as [string],
         });
       }
     }
 
-    // Apply maxGames limit if specified
-    if (maxGames !== undefined && games.length > maxGames) {
-      return games.slice(0, maxGames);
+    // If maxGames is specified and greater than unique matchups, repeat games
+    if (maxGames !== undefined && maxGames > baseGames.length) {
+      // Repeat base games until we reach maxGames
+      games = [];
+      while (games.length < maxGames) {
+        games.push(...baseGames);
+      }
+      games = games.slice(0, maxGames);
+    } else if (maxGames !== undefined && maxGames <= baseGames.length) {
+      // Limit to maxGames if it's less than or equal to unique matchups
+      games = baseGames.slice(0, maxGames);
+    } else {
+      // No limit, return all unique matchups
+      games = baseGames;
     }
 
     return games;
