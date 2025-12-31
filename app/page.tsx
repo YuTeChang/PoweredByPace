@@ -8,7 +8,7 @@ import { ApiClient } from "@/lib/api/client";
 
 export default function Home() {
   const router = useRouter();
-  const { session, games, allSessions, loadSession, groups } = useSession();
+  const { session, games, allSessions, loadSession, groups, ensureSessionsAndGroupsLoaded } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
   const [groupSessionCounts, setGroupSessionCounts] = useState<Record<string, number>>({});
   const [sessionGameCounts, setSessionGameCounts] = useState<Record<string, number>>({});
@@ -16,7 +16,10 @@ export default function Home() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Use groups from context (already loaded by SessionContext)
+        // Ensure sessions and groups are loaded (lazy load on home page)
+        await ensureSessionsAndGroupsLoaded();
+        
+        // Use groups from context (now loaded)
         if (groups && groups.length > 0) {
           // Load session counts for each group in parallel (batch API calls)
           const counts: Record<string, number> = {};

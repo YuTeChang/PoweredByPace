@@ -17,6 +17,7 @@ interface SessionContextType {
   clearSession: () => void;
   loadSession: (sessionId: string) => void;
   refreshGroups: () => Promise<void>;
+  ensureSessionsAndGroupsLoaded: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -405,7 +406,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Load games from API if available, otherwise from localStorage
-      if (apiAvailable) {
+      // Only load if we don't already have games for this session (prevent duplicate calls)
+      if (apiAvailable && (games.length === 0 || games[0]?.sessionId !== sessionId)) {
         loadingGamesRef.current.add(sessionId);
         try {
           const dbGames = await ApiClient.getGames(sessionId);
@@ -420,7 +422,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         } finally {
           loadingGamesRef.current.delete(sessionId);
         }
-      } else {
+      } else if (games.length === 0 || games[0]?.sessionId !== sessionId) {
+        // Only load from localStorage if we don't have games for this session
         loadGamesFromLocalStorage(sessionId);
       }
     }
@@ -471,6 +474,57 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [apiAvailable]);
 
+  // Lazy load all sessions and groups - only when explicitly needed (e.g., on home page)
+  const ensureSessionsAndGroupsLoaded = useCallback(async () => {
+    if (typeof window === "undefined") return;
+    
+    // Load sessions if not already loaded
+    if (allSessions.length === 0 && apiAvailable) {
+      try {
+        const sessions = await ApiClient.getAllSessions();
+        setAllSessions(sessions);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(sessions));
+        }
+      } catch (error) {
+        console.warn('[SessionContext] Failed to load sessions:', error);
+        // Try localStorage fallback
+        const saved = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setAllSessions(parsed.map((s: any) => ({ ...s, date: new Date(s.date) })));
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+    
+    // Load groups if not already loaded
+    if (groups.length === 0 && apiAvailable) {
+      try {
+        const fetchedGroups = await ApiClient.getAllGroups();
+        setGroups(fetchedGroups);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(fetchedGroups));
+        }
+      } catch (error) {
+        console.warn('[SessionContext] Failed to load groups:', error);
+        // Try localStorage fallback
+        const saved = localStorage.getItem(STORAGE_KEY_GROUPS);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            setGroups(parsed);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+  }, [apiAvailable, allSessions.length, groups.length]);
+
   return (
     <SessionContext.Provider
       value={{
@@ -486,6 +540,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         clearSession,
         loadSession,
         refreshGroups,
+        ensureSessionsAndGroupsLoaded,
       }}
     >
       {children}
