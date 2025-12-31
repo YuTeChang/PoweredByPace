@@ -10,7 +10,10 @@
  *   node scripts/run-migration.js
  * 
  * Environment variables needed:
- *   POSTGRES_URL or POSTGRES_URL_NON_POOLING or DATABASE_URL
+ *   POSTGRES_URL, POSTGRES_URL_NON_POOLING, DATABASE_URL, or VERCEL_POSTGRES_URL
+ * 
+ * Note: On Vercel, this runs during build but may not have DB access.
+ * The migration will also run automatically on first API request via /api/migrate
  */
 
 const { readFileSync } = require('fs');
@@ -19,19 +22,25 @@ const { join } = require('path');
 async function runMigration() {
   try {
     // Get Postgres connection string
+    // Check multiple possible environment variable names (including Vercel-specific)
     const connectionString = 
       process.env.POSTGRES_URL || 
       process.env.POSTGRES_URL_NON_POOLING ||
-      process.env.DATABASE_URL;
+      process.env.DATABASE_URL ||
+      process.env.VERCEL_POSTGRES_URL ||
+      process.env.VERCEL_POSTGRES_URL_NON_POOLING;
 
     if (!connectionString) {
       console.error('❌ Postgres connection string not found');
-      console.error('Please set one of: POSTGRES_URL, POSTGRES_URL_NON_POOLING, or DATABASE_URL');
-      console.log('ℹ️  Skipping migration (this is OK if running locally without DB access)');
+      console.error('Checked for: POSTGRES_URL, POSTGRES_URL_NON_POOLING, DATABASE_URL, VERCEL_POSTGRES_URL');
+      console.log('ℹ️  Skipping migration during build (this is OK)');
+      console.log('ℹ️  Migration will run automatically on first API request via /api/migrate');
       process.exit(0); // Exit with 0 to not fail the build
     }
 
     console.log('🔄 Starting database migration...');
+    console.log(`   Environment: ${process.env.VERCEL ? 'Vercel' : 'Local'}`);
+    console.log(`   Connection string: ${connectionString.substring(0, 20)}...`);
 
     // Read migration SQL file
     const migrationPath = join(process.cwd(), 'scripts', 'migrate-add-groups.sql');
@@ -43,7 +52,9 @@ async function runMigration() {
     // Connect to database
     const pool = new Pool({
       connectionString,
-      ssl: connectionString.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+      ssl: connectionString.includes('supabase') || connectionString.includes('vercel')
+        ? { rejectUnauthorized: false } 
+        : undefined,
     });
 
     try {
@@ -57,6 +68,7 @@ async function runMigration() {
       const client = await pool.connect();
       
       try {
+        console.log(`   Executing ${statements.length} SQL statements...`);
         for (const statement of statements) {
           if (statement.trim()) {
             await client.query(statement);
@@ -90,9 +102,11 @@ async function runMigration() {
 
   } catch (error) {
     console.error('❌ Migration failed:', error.message || error);
+    console.error('   Stack:', error.stack);
     // Don't fail the build if migration fails - just log the error
     // The migration can be run manually or via the API endpoint
-    console.log('ℹ️  You can run the migration manually via /api/migrate POST endpoint');
+    console.log('ℹ️  Migration will run automatically on first API request via /api/migrate');
+    console.log('ℹ️  Or run manually: POST to /api/migrate or run scripts/migrate-add-groups.sql');
     process.exit(0); // Exit with 0 to not fail the build
   }
 }

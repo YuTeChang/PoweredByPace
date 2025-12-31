@@ -1,36 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GroupService } from '@/lib/services/groupService';
 import { createSupabaseClient } from '@/lib/supabase';
+import { runMigration } from '@/lib/migration';
+
+// Helper to check if groups table exists
+async function checkGroupsTableExists(): Promise<boolean> {
+  try {
+    const supabase = createSupabaseClient();
+    const { error } = await supabase.from('groups').select('id').limit(1);
+    
+    // Table exists if no error or error is just "no rows" (PGRST116)
+    // Table doesn't exist if error indicates missing relation
+    return !error || 
+      (error.code === 'PGRST116') ||
+      (!error.message?.toLowerCase().includes('does not exist') && 
+       !error.message?.toLowerCase().includes('relation') &&
+       error.code !== '42P01');
+  } catch {
+    return false;
+  }
+}
 
 // GET /api/groups - Get all groups
 export async function GET() {
   try {
-    // Check if groups table exists
-    const supabase = createSupabaseClient();
-    const { error: tableError } = await supabase.from('groups').select('id').limit(1);
+    // Check if groups table exists, auto-migrate if needed
+    const tableExists = await checkGroupsTableExists();
     
-    // Check if table doesn't exist (not just "no rows")
-    const tableMissing = tableError && 
-      (tableError.code === '42P01' ||
-       tableError.message?.toLowerCase().includes('does not exist') ||
-       tableError.message?.toLowerCase().includes('relation') && 
-       !tableError.message?.toLowerCase().includes('permission'));
-    
-    if (tableMissing) {
-      return NextResponse.json(
-        { 
-          error: 'Groups table does not exist',
-          message: 'Database migration needed',
-          instructions: [
-            '1. Go to your Supabase project dashboard',
-            '2. Navigate to SQL Editor',
-            '3. Copy the contents of scripts/migrate-add-groups.sql',
-            '4. Paste and run in SQL Editor',
-            '5. Refresh this page'
-          ]
-        },
-        { status: 503 }
-      );
+    if (!tableExists) {
+      // Try to run migration automatically
+      console.log('[Groups API] Groups table missing, attempting auto-migration...');
+      const migrationResult = await runMigration();
+      
+      if (!migrationResult.success) {
+        return NextResponse.json(
+          { 
+            error: 'Groups table does not exist',
+            message: 'Database migration needed',
+            autoMigrationAttempted: true,
+            autoMigrationResult: migrationResult,
+            instructions: [
+              'Automatic migration failed. Please run manually:',
+              '1. Go to your Supabase project dashboard',
+              '2. Navigate to SQL Editor',
+              '3. Copy the contents of scripts/migrate-add-groups.sql',
+              '4. Paste and run in SQL Editor',
+              '5. Refresh this page'
+            ]
+          },
+          { status: 503 }
+        );
+      }
+      
+      console.log('[Groups API] Auto-migration successful:', migrationResult.message);
     }
     
     const groups = await GroupService.getAllGroups();
@@ -76,41 +98,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if groups table exists before trying to create
-    const supabase = createSupabaseClient();
-    const { error: tableError } = await supabase.from('groups').select('id').limit(1);
+    // Check if groups table exists, auto-migrate if needed
+    const tableExists = await checkGroupsTableExists();
     
-    // Check if table doesn't exist (not just "no rows")
-    const tableMissing = tableError && 
-      (tableError.code === '42P01' ||
-       tableError.message?.toLowerCase().includes('does not exist') ||
-       (tableError.message?.toLowerCase().includes('relation') && 
-        !tableError.message?.toLowerCase().includes('permission')));
-    
-    if (tableMissing) {
-      return NextResponse.json(
-        { 
-          error: 'Groups table does not exist',
-          message: 'Database migration needed',
-          automaticMigration: {
-            available: !!process.env.POSTGRES_URL || !!process.env.POSTGRES_URL_NON_POOLING,
-            endpoint: '/api/migrate',
-            method: 'POST',
-            note: 'If POSTGRES_URL is set, POST to /api/migrate to run automatically'
+    if (!tableExists) {
+      // Try to run migration automatically
+      console.log('[Groups API] Groups table missing, attempting auto-migration...');
+      const migrationResult = await runMigration();
+      
+      if (!migrationResult.success) {
+        return NextResponse.json(
+          { 
+            error: 'Groups table does not exist',
+            message: 'Database migration needed',
+            autoMigrationAttempted: true,
+            autoMigrationResult: migrationResult,
+            manualMigration: {
+              instructions: [
+                'Automatic migration failed. Please run manually:',
+                '1. Go to your Supabase project dashboard',
+                '2. Navigate to SQL Editor',
+                '3. Copy the contents of scripts/migrate-add-groups.sql',
+                '4. Paste and run in SQL Editor',
+                '5. Try creating the group again'
+              ],
+              sqlFile: 'scripts/migrate-add-groups.sql'
+            }
           },
-          manualMigration: {
-            instructions: [
-              '1. Go to your Supabase project dashboard',
-              '2. Navigate to SQL Editor',
-              '3. Copy the contents of scripts/migrate-add-groups.sql',
-              '4. Paste and run in SQL Editor',
-              '5. Try creating the group again'
-            ],
-            sqlFile: 'scripts/migrate-add-groups.sql'
-          }
-        },
-        { status: 503 }
-      );
+          { status: 503 }
+        );
+      }
+      
+      console.log('[Groups API] Auto-migration successful:', migrationResult.message);
     }
 
     const group = await GroupService.createGroup(name);

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { runMigration } from '@/lib/migration';
 
 /**
  * Automatic database migration endpoint
@@ -9,26 +8,22 @@ import { join } from 'path';
  * 
  * To use this, you need to provide a Postgres connection string in your environment:
  * - POSTGRES_URL or POSTGRES_URL_NON_POOLING (from Supabase dashboard)
+ * - VERCEL_POSTGRES_URL (if using Vercel Postgres)
  * 
  * Or you can run migrations manually in Supabase SQL Editor.
  */
 export async function POST() {
   try {
-    // Get Postgres connection string
-    // Supabase provides this in Settings → Database → Connection string
-    const connectionString = 
-      process.env.POSTGRES_URL || 
-      process.env.POSTGRES_URL_NON_POOLING ||
-      process.env.DATABASE_URL;
+    const result = await runMigration();
 
-    if (!connectionString) {
+    if (!result.success) {
       return NextResponse.json({
-        success: false,
-        message: 'Postgres connection string not found',
+        ...result,
         instructions: [
-          'To enable automatic migrations, add one of these to your .env.local:',
+          'To enable automatic migrations, add one of these environment variables:',
           '- POSTGRES_URL (from Supabase Settings → Database → Connection string)',
           '- POSTGRES_URL_NON_POOLING (direct connection)',
+          '- VERCEL_POSTGRES_URL (if using Vercel Postgres)',
           '',
           'Or run the migration manually:',
           '1. Go to Supabase SQL Editor',
@@ -39,77 +34,17 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Read migration SQL file
-    const migrationPath = join(process.cwd(), 'scripts', 'migrate-add-groups.sql');
-    const migrationSQL = readFileSync(migrationPath, 'utf-8');
-
-    // Dynamically import pg to avoid bundling issues
-    const { Pool } = await import('pg');
-
-    // Connect to database and run migration
-    const pool = new Pool({
-      connectionString,
-      ssl: connectionString.includes('supabase') ? { rejectUnauthorized: false } : undefined,
-    });
-
-    try {
-      // Split SQL by semicolons and execute each statement
-      // Remove comments and empty lines
-      const statements = migrationSQL
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'))
-        .filter(s => !s.match(/^\s*$/));
-
-      const client = await pool.connect();
-      
-      try {
-        for (const statement of statements) {
-          if (statement.trim()) {
-            await client.query(statement);
-          }
-        }
-      } finally {
-        client.release();
-      }
-
-      await pool.end();
-
-      return NextResponse.json({
-        success: true,
-        message: 'Migration completed successfully',
-        tablesCreated: ['groups', 'group_players'],
-        columnsAdded: [
-          'sessions.group_id',
-          'sessions.betting_enabled',
-          'players.group_player_id'
-        ]
-      });
-
-    } catch (dbError: any) {
-      await pool.end();
-      
-      // Check if tables already exist (not an error)
-      if (dbError.message?.includes('already exists') || 
-          dbError.message?.includes('duplicate') ||
-          dbError.code === '42P07') {
-        return NextResponse.json({
-          success: true,
-          message: 'Migration already applied (tables/columns already exist)',
-          note: 'This is not an error - your database is up to date'
-        });
-      }
-
-      throw dbError;
-    }
+    return NextResponse.json(result);
 
   } catch (error: any) {
-    console.error('[Migrate] Error:', error);
+    console.error('[Migrate API] Unexpected error:', error);
     
     return NextResponse.json({
       success: false,
       error: error.message || 'Unknown error',
+      errorCode: error.code,
       message: 'Migration failed',
+      errorDetails: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       instructions: [
         'Automatic migration failed. Please run manually:',
         '1. Go to Supabase SQL Editor',

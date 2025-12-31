@@ -180,6 +180,32 @@ export default function MigratePage() {
             <p className={`text-sm mb-3 ${migrationResult.success ? 'text-green-700' : 'text-red-700'}`}>
               {migrationResult.message || migrationResult.error}
             </p>
+            
+            {!migrationResult.success && migrationResult.error && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-card">
+                <p className="text-xs font-medium text-red-800 mb-1">Error Details:</p>
+                <p className="text-xs text-red-700 font-mono break-all">{migrationResult.error}</p>
+                {migrationResult.errorCode && (
+                  <p className="text-xs text-red-600 mt-1">Error Code: {migrationResult.errorCode}</p>
+                )}
+                {migrationResult.errorDetails && (
+                  <details className="mt-2">
+                    <summary className="text-xs text-red-600 cursor-pointer">Show Stack Trace</summary>
+                    <pre className="text-xs text-red-700 mt-2 overflow-auto">{migrationResult.errorDetails}</pre>
+                  </details>
+                )}
+                {migrationResult.instructions && (
+                  <div className="mt-3">
+                    <p className="text-xs font-medium text-red-800 mb-1">Manual Migration Steps:</p>
+                    <ol className="text-xs text-red-700 list-decimal list-inside space-y-1">
+                      {migrationResult.instructions.map((step: string, idx: number) => (
+                        <li key={idx}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
 
             {migrationResult.success && (
               <div className="mt-4 space-y-2">
