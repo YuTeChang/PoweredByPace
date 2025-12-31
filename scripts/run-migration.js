@@ -50,14 +50,25 @@ async function runMigration() {
     const { Pool } = require('pg');
 
     // Connect to database
-    // For cloud Postgres (Supabase, Vercel, etc.), we need SSL with self-signed cert support
-    // Check if it's a local connection (not localhost)
+    // For Supabase and cloud Postgres, we need SSL with self-signed cert support
+    // Always use SSL for remote connections (not localhost)
     const isLocalhost = connectionString.includes('localhost') || 
                        connectionString.includes('127.0.0.1');
     
+    // Parse connection string to ensure SSL is properly configured
+    // Remove any existing sslmode parameters and add our own
+    let finalConnectionString = connectionString;
+    if (!isLocalhost) {
+      // Remove existing sslmode if present
+      finalConnectionString = finalConnectionString.replace(/[?&]sslmode=[^&]*/g, '');
+      // Add sslmode=require
+      const separator = finalConnectionString.includes('?') ? '&' : '?';
+      finalConnectionString = `${finalConnectionString}${separator}sslmode=require`;
+    }
+    
     // Use SSL for all remote connections, allow self-signed certs
     const pool = new Pool({
-      connectionString,
+      connectionString: finalConnectionString,
       ssl: !isLocalhost ? { rejectUnauthorized: false } : undefined,
     });
 
