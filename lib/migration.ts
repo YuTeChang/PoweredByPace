@@ -1,28 +1,220 @@
 /**
- * Migration utility functions
- * Used by both the API endpoint and the build script
+ * Migration utility functions with versioning support
+ * Scans for migration files and tracks applied migrations
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 export interface MigrationResult {
   success: boolean;
   message: string;
-  tablesCreated?: string[];
-  columnsAdded?: string[];
+  migrationsRun?: string[];
+  migrationsSkipped?: string[];
   error?: string;
   errorCode?: string;
   errorDetails?: string;
-  alreadyApplied?: boolean;
+}
+
+interface MigrationFile {
+  version: string;
+  filename: string;
+  name: string;
+  path: string;
 }
 
 /**
- * Run the database migration
+ * Get all migration files from scripts/migrations directory
+ * Files should be named: 001-description.sql, 002-description.sql, etc.
+ */
+function getMigrationFiles(): MigrationFile[] {
+  const migrationsDir = join(process.cwd(), 'scripts', 'migrations');
+  
+  try {
+    const files = readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .map(file => {
+        // Extract version from filename (e.g., "001-add-groups.sql" -> "001")
+        const match = file.match(/^(\d+)-(.+)\.sql$/);
+        if (!match) {
+          console.warn(`[Migration] Skipping invalid migration file: ${file}`);
+          return null;
+        }
+        
+        const [, version, name] = match;
+        return {
+          version,
+          filename: file,
+          name: name.replace(/-/g, ' '),
+          path: join(migrationsDir, file)
+        };
+      })
+      .filter((f): f is MigrationFile => f !== null)
+      .sort((a, b) => a.version.localeCompare(b.version, undefined, { numeric: true }));
+    
+    return files;
+  } catch (error) {
+    // Migrations directory doesn't exist - no migrations to run
+    return [];
+  }
+}
+
+/**
+ * Ensure migrations table exists
+ */
+async function ensureMigrationsTable(client: any): Promise<void> {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS migrations (
+      id SERIAL PRIMARY KEY,
+      version VARCHAR(50) UNIQUE NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      filename VARCHAR(255) NOT NULL,
+      applied_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+}
+
+/**
+ * Get list of applied migration versions
+ */
+async function getAppliedMigrations(client: any): Promise<string[]> {
+  try {
+    const result = await client.query(`
+      SELECT version FROM migrations ORDER BY version
+    `);
+    return result.rows.map((row: any) => row.version);
+  } catch (error) {
+    // Table doesn't exist yet - return empty array
+    return [];
+  }
+}
+
+/**
+ * Record that a migration has been applied
+ */
+async function recordMigrationApplied(
+  client: any,
+  version: string,
+  name: string,
+  filename: string
+): Promise<void> {
+  await client.query(`
+    INSERT INTO migrations (version, name, filename)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (version) DO NOTHING
+  `, [version, name, filename]);
+}
+
+/**
+ * Parse and execute SQL statements from a migration file
+ */
+async function executeMigrationSQL(client: any, sql: string, migrationName: string): Promise<void> {
+  // Split SQL by semicolons and execute each statement
+  let statements = sql
+    .split(';')
+    .map(s => {
+      // Remove comment lines (lines starting with --)
+      const lines = s.split('\n');
+      const cleanedLines = lines.filter(line => {
+        const trimmed = line.trim();
+        return trimmed.length > 0 && !trimmed.startsWith('--');
+      });
+      return cleanedLines.join('\n').trim();
+    })
+    .filter(s => {
+      // Remove empty statements
+      if (s.length === 0) return false;
+      if (s.match(/^\s*$/)) return false;
+      // Remove statements that are only comments
+      const nonCommentLines = s.split('\n').filter(line => {
+        const trimmed = line.trim();
+        return trimmed.length > 0 && !trimmed.startsWith('--');
+      });
+      return nonCommentLines.length > 0;
+    });
+
+  // Helper to verify column exists before creating index
+  const verifyColumnBeforeIndex = async (table: string, column: string): Promise<boolean> => {
+    try {
+      const checkResult = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = $1 
+        AND column_name = $2
+      `, [table, column]);
+      
+      return checkResult.rows.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i].trim();
+    if (statement) {
+      try {
+        // Before creating indexes, verify the column exists
+        if (statement.toUpperCase().includes('CREATE INDEX')) {
+          // Check for common index patterns
+          const matchGroupPlayerId = statement.match(/ON\s+players\s*\([^)]*group_player_id/);
+          const matchGroupId = statement.match(/ON\s+sessions\s*\([^)]*group_id/);
+          
+          if (matchGroupPlayerId) {
+            const columnExists = await verifyColumnBeforeIndex('players', 'group_player_id');
+            if (!columnExists) {
+              console.log(`[Migration] ⏭️  Skipping index on players.group_player_id - column doesn't exist yet`);
+              continue;
+            }
+          }
+          if (matchGroupId) {
+            const columnExists = await verifyColumnBeforeIndex('sessions', 'group_id');
+            if (!columnExists) {
+              console.log(`[Migration] ⏭️  Skipping index on sessions.group_id - column doesn't exist yet`);
+              continue;
+            }
+          }
+        }
+        
+        await client.query(statement);
+        console.log(`[Migration] ✓ ${migrationName} - Statement ${i + 1}/${statements.length}: ${statement.substring(0, 60).replace(/\n/g, ' ')}...`);
+      } catch (stmtError: any) {
+        console.error(`[Migration] ✗ ${migrationName} - Statement ${i + 1}/${statements.length} FAILED:`);
+        console.error(`[Migration]   SQL: ${statement.substring(0, 200).replace(/\n/g, ' ')}`);
+        console.error(`[Migration]   Error: ${stmtError.message}`);
+        
+        // If policy already exists, that's OK - continue
+        if (stmtError.message?.includes('already exists') && 
+            statement.toUpperCase().includes('CREATE POLICY')) {
+          console.log(`[Migration] Policy already exists, skipping: ${statement.substring(0, 50)}...`);
+          continue;
+        }
+        // If table/column/index already exists, that's OK - continue
+        if (stmtError.message?.includes('already exists') || 
+            stmtError.code === '42P07' ||  // duplicate_table
+            stmtError.code === '42710' ||   // duplicate_object
+            stmtError.code === '42P16') {   // invalid_table_definition (constraint already exists)
+          console.log(`[Migration] Already exists, skipping: ${statement.substring(0, 50)}...`);
+          continue;
+        }
+        // If constraint already exists (different error message)
+        if (stmtError.message?.includes('constraint') && 
+            (stmtError.message?.includes('already exists') || 
+             stmtError.message?.includes('duplicate'))) {
+          console.log(`[Migration] Constraint already exists, skipping: ${statement.substring(0, 50)}...`);
+          continue;
+        }
+        // Otherwise, rethrow the error
+        throw new Error(`Statement ${i + 1} failed: ${stmtError.message}\nSQL: ${statement.substring(0, 100)}`);
+      }
+    }
+  }
+}
+
+/**
+ * Run all pending database migrations
  */
 export async function runMigration(): Promise<MigrationResult> {
-  // Get Postgres connection string (declare outside try for error logging)
-  // Prefer NON_POOLING for migrations as they need direct connections
   const connectionString = 
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.VERCEL_POSTGRES_URL_NON_POOLING ||
@@ -39,36 +231,36 @@ export async function runMigration(): Promise<MigrationResult> {
       };
     }
 
-    // Read migration SQL file
-    const migrationPath = join(process.cwd(), 'scripts', 'migrate-add-groups.sql');
-    const migrationSQL = readFileSync(migrationPath, 'utf-8');
+    // Get all migration files
+    const migrationFiles = getMigrationFiles();
+    
+    if (migrationFiles.length === 0) {
+      return {
+        success: true,
+        message: 'No migration files found - nothing to migrate',
+        migrationsSkipped: []
+      };
+    }
 
     // Dynamically import pg to avoid bundling issues
     const { Pool } = await import('pg');
 
     // Connect to database
-    // For Supabase and cloud Postgres, we need SSL with self-signed cert support
     const isLocalhost = connectionString.includes('localhost') || 
                        connectionString.includes('127.0.0.1');
     
-    // Remove any existing SSL parameters from connection string to avoid conflicts
-    // We'll handle SSL via the Pool's ssl option instead
-    // This is critical: sslmode=require in the connection string enforces cert validation
-    // which conflicts with rejectUnauthorized: false
+    // Clean connection string
     let cleanConnectionString = connectionString
-      .replace(/[?&]sslmode=[^&]*/gi, '')  // Case insensitive
+      .replace(/[?&]sslmode=[^&]*/gi, '')
       .replace(/[?&]ssl=[^&]*/gi, '')
       .replace(/[?&]sslcert=[^&]*/gi, '')
       .replace(/[?&]sslkey=[^&]*/gi, '')
       .replace(/[?&]sslrootcert=[^&]*/gi, '')
-      .replace(/[?&]supa=[^&]*/gi, '')  // Remove Supabase pooler params
-      .replace(/[?&]pgbouncer=[^&]*/gi, '');  // Remove pgbouncer params
+      .replace(/[?&]supa=[^&]*/gi, '')
+      .replace(/[?&]pgbouncer=[^&]*/gi, '');
     
-    // Clean up any trailing ? or & after removing params
     cleanConnectionString = cleanConnectionString.replace(/[?&]$/, '');
     
-    // Use SSL for all remote connections (not localhost)
-    // Allow self-signed certificates for Supabase and other cloud providers
     const sslConfig = !isLocalhost 
       ? { rejectUnauthorized: false } 
       : undefined;
@@ -78,138 +270,76 @@ export async function runMigration(): Promise<MigrationResult> {
       ssl: sslConfig,
     });
 
+    const client = await pool.connect();
+    
     try {
-      // Split SQL by semicolons and execute each statement
-      // Handle multi-line statements and comments properly
-      // Important: Preserve order and handle multi-line statements correctly
-      let statements = migrationSQL
-        .split(';')
-        .map(s => {
-          // Remove comment lines (lines starting with --)
-          const lines = s.split('\n');
-          const cleanedLines = lines.filter(line => {
-            const trimmed = line.trim();
-            return trimmed.length > 0 && !trimmed.startsWith('--');
-          });
-          return cleanedLines.join('\n').trim();
-        })
-        .filter(s => {
-          // Remove empty statements
-          if (s.length === 0) return false;
-          if (s.match(/^\s*$/)) return false;
-          // Remove statements that are only comments
-          const nonCommentLines = s.split('\n').filter(line => {
-            const trimmed = line.trim();
-            return trimmed.length > 0 && !trimmed.startsWith('--');
-          });
-          return nonCommentLines.length > 0;
-        });
-      const client = await pool.connect();
+      // Ensure migrations table exists
+      await ensureMigrationsTable(client);
       
-      // Helper to verify column exists before creating index
-      const verifyColumnBeforeIndex = async (table: string, column: string): Promise<boolean> => {
+      // Get list of applied migrations
+      const appliedVersions = await getAppliedMigrations(client);
+      
+      // Filter to only unapplied migrations
+      const pendingMigrations = migrationFiles.filter(
+        m => !appliedVersions.includes(m.version)
+      );
+      
+      if (pendingMigrations.length === 0) {
+        await pool.end();
+        return {
+          success: true,
+          message: `All migrations already applied (${migrationFiles.length} total)`,
+          migrationsSkipped: migrationFiles.map(m => m.version)
+        };
+      }
+
+      console.log(`[Migration] Found ${pendingMigrations.length} pending migration(s) out of ${migrationFiles.length} total`);
+      
+      const migrationsRun: string[] = [];
+      const migrationsSkipped: string[] = [];
+
+      // Run each pending migration
+      for (const migration of pendingMigrations) {
         try {
-          const checkResult = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_schema = 'public' 
-            AND table_name = $1 
-            AND column_name = $2
-          `, [table, column]);
+          console.log(`[Migration] 🔄 Running migration ${migration.version}: ${migration.name}...`);
           
-          return checkResult.rows.length > 0;
-        } catch {
-          return false;
+          // Read migration SQL file
+          const migrationSQL = readFileSync(migration.path, 'utf-8');
+          
+          // Execute the migration
+          await executeMigrationSQL(client, migrationSQL, migration.name);
+          
+          // Record that it was applied
+          await recordMigrationApplied(client, migration.version, migration.name, migration.filename);
+          
+          migrationsRun.push(migration.version);
+          console.log(`[Migration] ✅ Migration ${migration.version} completed successfully`);
+          
+        } catch (migrationError: any) {
+          await pool.end();
+          return {
+            success: false,
+            message: `Migration ${migration.version} (${migration.name}) failed`,
+            error: migrationError.message || 'Unknown error',
+            errorCode: migrationError.code,
+            errorDetails: process.env.NODE_ENV === 'development' ? migrationError.stack : undefined,
+            migrationsRun,
+            migrationsSkipped: [...appliedVersions, ...migrationsSkipped]
+          };
         }
-      };
-      
-      try {
-        for (let i = 0; i < statements.length; i++) {
-          const statement = statements[i].trim();
-          if (statement) {
-            try {
-              // Before creating indexes, verify the column exists
-              if (statement.toUpperCase().includes('CREATE INDEX')) {
-                if (statement.includes('group_player_id') && statement.includes('players')) {
-                  const columnExists = await verifyColumnBeforeIndex('players', 'group_player_id');
-                  if (!columnExists) {
-                    console.log(`[Migration] ⏭️  Skipping index on players.group_player_id - column doesn't exist yet`);
-                    continue;
-                  }
-                }
-                if (statement.includes('group_id') && statement.includes('sessions')) {
-                  const columnExists = await verifyColumnBeforeIndex('sessions', 'group_id');
-                  if (!columnExists) {
-                    console.log(`[Migration] ⏭️  Skipping index on sessions.group_id - column doesn't exist yet`);
-                    continue;
-                  }
-                }
-              }
-              
-              await client.query(statement);
-              console.log(`[Migration] ✓ Statement ${i + 1}/${statements.length}: ${statement.substring(0, 60).replace(/\n/g, ' ')}...`);
-            } catch (stmtError: any) {
-              console.error(`[Migration] ✗ Statement ${i + 1}/${statements.length} FAILED:`);
-              console.error(`[Migration]   SQL: ${statement.substring(0, 200).replace(/\n/g, ' ')}`);
-              console.error(`[Migration]   Error: ${stmtError.message}`);
-              // If policy already exists, that's OK - continue
-              if (stmtError.message?.includes('already exists') && 
-                  statement.toUpperCase().includes('CREATE POLICY')) {
-                console.log(`[Migration] Policy already exists, skipping: ${statement.substring(0, 50)}...`);
-                continue;
-              }
-              // If table/column/index already exists, that's OK - continue
-              if (stmtError.message?.includes('already exists') || 
-                  stmtError.code === '42P07' ||  // duplicate_table
-                  stmtError.code === '42710' ||   // duplicate_object
-                  stmtError.code === '42P16') {   // invalid_table_definition (constraint already exists)
-                console.log(`[Migration] Already exists, skipping: ${statement.substring(0, 50)}...`);
-                continue;
-              }
-              // If constraint already exists (different error message)
-              if (stmtError.message?.includes('constraint') && 
-                  (stmtError.message?.includes('already exists') || 
-                   stmtError.message?.includes('duplicate'))) {
-                console.log(`[Migration] Constraint already exists, skipping: ${statement.substring(0, 50)}...`);
-                continue;
-              }
-              // Otherwise, rethrow the error
-              throw new Error(`Statement ${i + 1} failed: ${stmtError.message}\nSQL: ${statement.substring(0, 100)}`);
-            }
-          }
-        }
-      } finally {
-        client.release();
       }
 
       await pool.end();
 
       return {
         success: true,
-        message: 'Migration completed successfully',
-        tablesCreated: ['groups', 'group_players'],
-        columnsAdded: [
-          'sessions.group_id',
-          'sessions.betting_enabled',
-          'players.group_player_id'
-        ]
+        message: `Successfully applied ${migrationsRun.length} migration(s)`,
+        migrationsRun,
+        migrationsSkipped: appliedVersions
       };
 
-    } catch (dbError: any) {
-      await pool.end();
-      
-      // Check if tables already exist (not an error)
-      if (dbError.message?.includes('already exists') || 
-          dbError.message?.includes('duplicate') ||
-          dbError.code === '42P07') {
-        return {
-          success: true,
-          message: 'Migration already applied (tables/columns already exist)',
-          alreadyApplied: true
-        };
-      }
-
-      throw dbError;
+    } finally {
+      client.release();
     }
 
   } catch (error: any) {
@@ -229,4 +359,3 @@ export async function runMigration(): Promise<MigrationResult> {
     };
   }
 }
-

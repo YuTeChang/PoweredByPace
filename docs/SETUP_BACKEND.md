@@ -31,6 +31,11 @@ See [docs/engineering/architecture.md](engineering/architecture.md) for detailed
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - **service_role key** (under "Project API keys") → `SUPABASE_SERVICE_ROLE_KEY`
 
+**For Automatic Migrations (Vercel):**
+4. Navigate to **Settings** → **Database**
+5. Copy the **Connection string** (use "Direct connection" or "Connection pooling" with `?pgbouncer=true` removed)
+6. Add as `POSTGRES_URL` or `POSTGRES_URL_NON_POOLING` in Vercel environment variables
+
 ### 3. Set Environment Variables
 
 Create a `.env.local` file in the project root:
@@ -38,6 +43,9 @@ Create a `.env.local` file in the project root:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Optional: For local migration testing
+POSTGRES_URL_NON_POOLING=postgresql://postgres:[password]@[host]:5432/postgres
 ```
 
 **Important**: Never commit `.env.local` to git. It's already in `.gitignore`.
@@ -80,17 +88,57 @@ This creates:
 4. Refresh Browser B
 5. You should see the session you just created!
 
-## Migration (Upgrading Existing Database)
+## Automatic Migrations
 
-If you have an existing database without groups support:
+### How It Works
 
-1. Go to Supabase SQL Editor
-2. Run `scripts/migrate-add-groups.sql`
-3. This adds:
-   - `groups` and `group_players` tables
-   - `group_id` and `betting_enabled` columns to `sessions`
-   - `group_player_id` column to `players`
-   - All necessary indexes and policies
+Migrations run automatically during Vercel builds via the `postbuild` script. The migration system is **versioned and smart**:
+
+1. **Scans Migration Files**: Looks for SQL files in `scripts/migrations/` directory
+2. **Tracks Applied Migrations**: Uses a `migrations` table to track which migrations have been applied
+3. **Runs Only Pending Migrations**: Only executes migrations that haven't been applied yet
+4. **Skips If Up-to-Date**: If all migrations are applied, exits quickly (~50ms)
+
+This means:
+- ✅ **No unnecessary work** - migrations don't run on every deployment
+- ✅ **Fast builds** - skips migration if already applied
+- ✅ **Safe** - idempotent, can run multiple times without issues
+- ✅ **Automatic** - no manual intervention needed
+- ✅ **Versioned** - tracks which migrations have been applied
+
+### Migration Files
+
+Migration files are stored in `scripts/migrations/` with naming:
+- `001-add-groups.sql`
+- `002-add-notifications.sql`
+- `003-update-sessions.sql`
+- etc.
+
+See [Migration Guide](../../scripts/migrations/README.md) for complete details on creating and managing migrations.
+
+### Manual Migration (if needed)
+
+If automatic migration doesn't work or you need to run it manually:
+
+1. **Via Script** (requires connection string):
+   ```bash
+   npm run migrate:run
+   ```
+
+2. **Via Supabase SQL Editor**:
+   - Go to Supabase SQL Editor
+   - Copy contents of migration files from `scripts/migrations/`
+   - Run them in order (001, 002, 003, etc.)
+   - Manually record in migrations table:
+     ```sql
+     INSERT INTO migrations (version, name, filename)
+     VALUES ('001', 'add groups', '001-add-groups.sql');
+     ```
+
+3. **Via API** (if deployed):
+   ```bash
+   curl -X POST https://your-app.vercel.app/api/migrate
+   ```
 
 ## How It Works
 
@@ -186,9 +234,11 @@ If you see permission errors, make sure the RLS policies were created:
 3. Add environment variables in hosting platform:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - `POSTGRES_URL` or `POSTGRES_URL_NON_POOLING` (for automatic migrations)
 4. Deploy
-5. Verify database is initialized (run schema if needed)
-6. Test!
+5. Check build logs to confirm migration status
+6. Verify database is initialized (migrations run automatically)
+7. Test!
 
 ## Security Notes
 

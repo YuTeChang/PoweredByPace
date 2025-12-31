@@ -77,10 +77,12 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 3. Initialize database:
    - **New database**: Run the SQL schema from `scripts/init-db-schema.sql` in your Supabase SQL Editor
-   - **Existing database**: Run the migration script `scripts/migrate-add-groups.sql` in Supabase SQL Editor
    - **Automatic migration**: On Vercel deployments, migrations run automatically via `postbuild` script
+     - Migration system scans `scripts/migrations/` for versioned SQL files (e.g., `001-add-groups.sql`)
+     - Only runs pending migrations (tracks applied migrations in `migrations` table)
      - Ensure `POSTGRES_URL` or `POSTGRES_URL_NON_POOLING` is set in Vercel environment variables
      - Or run manually: `npm run migrate:run` (requires connection string in environment)
+   - See [Migration Guide](scripts/migrations/README.md) for details on creating and managing migrations
 
 4. Run the development server:
 ```bash
@@ -116,10 +118,13 @@ PoweredByPace/
 ├── lib/                   # Utilities and services
 │   ├── services/         # Database service layer
 │   ├── calculations.ts   # Money and stats calculations
+│   ├── migration.ts     # Migration system with versioning
 │   └── roundRobin.ts     # Round robin scheduling
 ├── types/                # TypeScript type definitions
 ├── docs/                 # Documentation
-└── scripts/              # Database migration scripts
+└── scripts/              # Scripts and migrations
+    ├── migrations/      # Versioned migration files (001-*.sql, 002-*.sql, etc.)
+    └── init-db-schema.sql  # Initial database schema
 ```
 
 ## Documentation
@@ -131,6 +136,7 @@ PoweredByPace/
 - [Features Log](docs/FEATURES_LOG.md) - Complete feature history
 - [Testing Checklist](docs/TESTING_CHECKLIST.md) - Test guide
 - [Backend Setup](docs/SETUP_BACKEND.md) - Database setup instructions
+- [Migration Guide](scripts/migrations/README.md) - Database migration system and best practices
 
 All documentation is organized for easy navigation. The main README has everything essential; detailed reference docs are in `docs/`.
 
