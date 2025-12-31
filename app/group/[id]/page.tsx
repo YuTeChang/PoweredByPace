@@ -58,6 +58,27 @@ export default function GroupPage() {
     loadGroupData();
   }, [loadGroupData]);
 
+  // Refresh data when page becomes visible (e.g., when navigating back from creating a session)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadGroupData();
+      }
+    };
+
+    const handleFocus = () => {
+      loadGroupData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadGroupData]);
+
   const handleAddPlayer = async () => {
     if (!newPlayerName.trim()) return;
 
@@ -164,7 +185,10 @@ export default function GroupPage() {
       <div className="bg-japandi-background-card border-b border-japandi-border-light">
         <div className="max-w-2xl mx-auto px-4 flex">
           <button
-            onClick={() => setActiveTab("sessions")}
+            onClick={() => {
+              setActiveTab("sessions");
+              loadGroupData(); // Refresh when switching to sessions tab
+            }}
             className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "sessions"
                 ? "border-japandi-accent-primary text-japandi-accent-primary"
