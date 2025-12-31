@@ -345,15 +345,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [allSessions, apiAvailable]);
 
-  const clearSession = useCallback(() => {
+  const clearSession = useCallback(async () => {
+    const currentSessionId = session?.id;
+    
+    // Clear local state first
     setSessionState(null);
     setGames([]);
+    
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY_SESSION);
       localStorage.removeItem(STORAGE_KEY_GAMES);
       // Also remove current session from all sessions list
       setAllSessions((prev) => {
-        const currentSessionId = session?.id;
         if (currentSessionId) {
           const updated = prev.filter((s) => s.id !== currentSessionId);
           localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(updated));
@@ -362,7 +365,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         return prev;
       });
     }
-  }, [session]);
+    
+    // Delete from database if API is available
+    if (apiAvailable && currentSessionId) {
+      try {
+        await ApiClient.deleteSession(currentSessionId);
+      } catch (error) {
+        console.error('[SessionContext] Failed to delete session from API:', error);
+      }
+    }
+  }, [session, apiAvailable]);
 
   return (
     <SessionContext.Provider
