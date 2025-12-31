@@ -33,8 +33,17 @@ export async function POST(request: NextRequest) {
     const initialGames: Omit<Game, 'id' | 'sessionId' | 'gameNumber'>[] = body.initialGames || [];
     const roundRobinCount = body.roundRobinCount || null;
 
+    console.log('[API /sessions POST] Creating session:', {
+      id: session.id,
+      name: session.name,
+      groupId: session.groupId,
+      hasGroupId: !!session.groupId,
+    });
+
     // Create session
     await SessionService.createSession(session, roundRobinCount);
+    
+    console.log('[API /sessions POST] Session created successfully');
 
     // Create initial games if provided
     if (initialGames.length > 0) {

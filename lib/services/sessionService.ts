@@ -108,25 +108,49 @@ export class SessionService {
     try {
       const supabase = createSupabaseClient();
       
+      console.log('[SessionService.createSession] Saving session:', {
+        id: session.id,
+        name: session.name,
+        groupId: session.groupId,
+        groupIdType: typeof session.groupId,
+        hasGroupId: !!session.groupId,
+      });
+
       // Upsert session (insert or update if exists)
-      const { error: sessionError } = await supabase
+      const sessionData = {
+        id: session.id,
+        name: session.name || null,
+        date: session.date.toISOString(),
+        organizer_id: session.organizerId,
+        court_cost_type: session.courtCostType,
+        court_cost_value: session.courtCostValue,
+        bird_cost_total: session.birdCostTotal,
+        bet_per_player: session.betPerPlayer,
+        game_mode: session.gameMode,
+        round_robin_count: roundRobinCount || null,
+        group_id: session.groupId || null,
+        betting_enabled: session.bettingEnabled ?? true,
+      };
+      
+      console.log('[SessionService.createSession] Session data to save:', {
+        ...sessionData,
+        group_id: sessionData.group_id,
+        has_group_id: !!sessionData.group_id,
+      });
+
+      const { error: sessionError, data: savedData } = await supabase
         .from('sessions')
-        .upsert({
-          id: session.id,
-          name: session.name || null,
-          date: session.date.toISOString(),
-          organizer_id: session.organizerId,
-          court_cost_type: session.courtCostType,
-          court_cost_value: session.courtCostValue,
-          bird_cost_total: session.birdCostTotal,
-          bet_per_player: session.betPerPlayer,
-          game_mode: session.gameMode,
-          round_robin_count: roundRobinCount || null,
-          group_id: session.groupId || null,
-          betting_enabled: session.bettingEnabled ?? true,
-        }, {
+        .upsert(sessionData, {
           onConflict: 'id',
+        })
+        .select();
+      
+      if (savedData) {
+        console.log('[SessionService.createSession] Session saved:', {
+          id: savedData[0]?.id,
+          group_id: savedData[0]?.group_id,
         });
+      }
 
       if (sessionError) {
         throw sessionError;

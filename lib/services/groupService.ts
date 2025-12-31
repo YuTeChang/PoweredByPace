@@ -255,6 +255,7 @@ export class GroupService {
    */
   static async getGroupSessions(groupId: string): Promise<Session[]> {
     try {
+      console.log('[GroupService.getGroupSessions] Fetching sessions for group:', groupId);
       const supabase = createSupabaseClient();
       
       const { data: sessionsData, error: sessionsError } = await supabase
@@ -262,6 +263,13 @@ export class GroupService {
         .select('*')
         .eq('group_id', groupId)
         .order('date', { ascending: false });
+      
+      console.log('[GroupService.getGroupSessions] Query result:', {
+        groupId,
+        sessionsFound: sessionsData?.length || 0,
+        sessions: sessionsData?.map(s => ({ id: s.id, name: s.name, group_id: s.group_id })),
+        error: sessionsError?.message,
+      });
 
       if (sessionsError) {
         throw sessionsError;

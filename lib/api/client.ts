@@ -95,7 +95,13 @@ export class ApiClient {
    * Group Sessions API
    */
   static async getGroupSessions(groupId: string): Promise<Session[]> {
-    return this.fetch<Session[]>(`/groups/${groupId}/sessions`);
+    console.log('[ApiClient.getGroupSessions] Fetching sessions for group:', groupId);
+    const result = await this.fetch<Session[]>(`/groups/${groupId}/sessions`);
+    console.log('[ApiClient.getGroupSessions] Received sessions:', {
+      count: result.length,
+      sessions: result.map(s => ({ id: s.id, name: s.name, groupId: s.groupId })),
+    });
+    return result;
   }
 
   /**

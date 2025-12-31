@@ -37,14 +37,37 @@ export default function GroupPage() {
   const loadGroupData = useCallback(async () => {
     try {
       setIsLoading(true);
+      setError(null);
+      console.log('[GroupPage] Loading group data for groupId:', groupId);
+      
       const [fetchedGroup, fetchedPlayers, fetchedSessions] = await Promise.all([
-        ApiClient.getGroup(groupId),
-        ApiClient.getGroupPlayers(groupId),
-        ApiClient.getGroupSessions(groupId),
+        ApiClient.getGroup(groupId).catch(err => {
+          console.error('[GroupPage] Error fetching group:', err);
+          throw err;
+        }),
+        ApiClient.getGroupPlayers(groupId).catch(err => {
+          console.error('[GroupPage] Error fetching players:', err);
+          return [];
+        }),
+        ApiClient.getGroupSessions(groupId).catch(err => {
+          console.error('[GroupPage] Error fetching sessions:', err);
+          console.error('[GroupPage] Error details:', err.message, err.stack);
+          return [];
+        }),
       ]);
+      
+      console.log('[GroupPage] Loaded data:', {
+        group: fetchedGroup?.name,
+        playersCount: fetchedPlayers?.length,
+        sessionsCount: fetchedSessions?.length,
+        sessions: fetchedSessions?.map(s => ({ id: s.id, name: s.name, groupId: s.groupId })),
+      });
+      
       setGroup(fetchedGroup);
-      setPlayers(fetchedPlayers);
-      setSessions(fetchedSessions);
+      setPlayers(fetchedPlayers || []);
+      setSessions(fetchedSessions || []);
+      
+      console.log('[GroupPage] State updated. Sessions state:', fetchedSessions?.length || 0);
 
       // Calculate simple stats for now (statsService is server-side only)
       // We'll calculate client-side stats from the sessions data

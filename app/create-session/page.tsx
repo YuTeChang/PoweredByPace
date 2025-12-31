@@ -226,6 +226,14 @@ function CreateSessionContent() {
       groupId: selectedGroupId || undefined,
       bettingEnabled,
     };
+    
+    console.log('[CreateSession] Creating session:', {
+      id: session.id,
+      name: session.name,
+      selectedGroupId,
+      groupId: session.groupId,
+      hasGroupId: !!session.groupId,
+    });
 
     // If round robin is enabled, generate games first
     let roundRobinGamesToAdd: Omit<Game, "id" | "sessionId" | "gameNumber">[] = [];
