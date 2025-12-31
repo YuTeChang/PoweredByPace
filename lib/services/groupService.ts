@@ -275,10 +275,43 @@ export class GroupService {
       // Get all sessions - order in JavaScript to avoid Supabase ordering bug with duplicate dates
       // Filter by group_id (must match exactly and not be null)
       console.log('[GroupService.getGroupSessions] Executing query with groupId:', groupId, 'type:', typeof groupId);
+      
+      // Query sessions with group_id filter
       let { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
         .eq('group_id', groupId);
+      
+      // If no results, try a more explicit query to check for replication lag
+      if ((!sessionsData || sessionsData.length === 0) && !sessionsError) {
+        console.log('[GroupService.getGroupSessions] Main query returned empty, trying alternative query...');
+        // Try querying all sessions and filtering in memory (to check if it's a query issue)
+        const { data: allSessionsCheck, error: allError } = await supabase
+          .from('sessions')
+          .select('id, group_id, name, date, created_at')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        
+        if (allSessionsCheck) {
+          const matchingSessions = allSessionsCheck.filter(s => s.group_id === groupId);
+          console.log('[GroupService.getGroupSessions] Alternative query found', matchingSessions.length, 'matching sessions:', matchingSessions);
+          
+          if (matchingSessions.length > 0) {
+            // If we found sessions with the alternative query, fetch full data for them
+            const sessionIds = matchingSessions.map(s => s.id);
+            const { data: fullSessions, error: fullError } = await supabase
+              .from('sessions')
+              .select('*')
+              .in('id', sessionIds);
+            
+            if (fullSessions && fullSessions.length > 0) {
+              console.log('[GroupService.getGroupSessions] Using sessions from alternative query');
+              sessionsData = fullSessions;
+              sessionsError = fullError;
+            }
+          }
+        }
+      }
       
       console.log('[GroupService.getGroupSessions] Raw query response:', {
         dataLength: sessionsData?.length || 0,
