@@ -7,45 +7,27 @@ set -e
 DEPLOYMENT="${1:-}"
 
 if [ -z "$DEPLOYMENT" ]; then
-  echo "📋 Getting latest deployment..."
+  echo "📋 Listing recent deployments..."
+  echo ""
   
-  # Try to get deployment ID or URL
-  if command -v jq &> /dev/null; then
-    DEPLOYMENT_ID=$(vercel ls --json 2>/dev/null | jq -r '.[0].uid' 2>/dev/null || echo "")
-    DEPLOYMENT_URL=$(vercel ls --json 2>/dev/null | jq -r '.[0].url' 2>/dev/null || echo "")
-  else
-    # Fallback: try to parse without jq
-    DEPLOYMENT_LIST=$(vercel ls 2>/dev/null | head -5 || echo "")
-    if [ -n "$DEPLOYMENT_LIST" ]; then
-      echo "Available deployments:"
-      echo "$DEPLOYMENT_LIST"
-      echo ""
-      echo "Please provide deployment URL or ID:"
-      echo "  ./scripts/check-migration-logs.sh https://your-app.vercel.app"
-      echo "  or"
-      echo "  ./scripts/check-migration-logs.sh deployment-id"
-      exit 1
-    fi
+  # Show recent deployments
+  DEPLOYMENT_LIST=$(vercel ls 2>/dev/null | head -10 || echo "")
+  
+  if [ -n "$DEPLOYMENT_LIST" ]; then
+    echo "Recent deployments:"
+    echo "$DEPLOYMENT_LIST"
+    echo ""
   fi
   
-  if [ -n "$DEPLOYMENT_ID" ]; then
-    DEPLOYMENT="$DEPLOYMENT_ID"
-    echo "   Using deployment ID: $DEPLOYMENT_ID"
-  elif [ -n "$DEPLOYMENT_URL" ]; then
-    DEPLOYMENT="$DEPLOYMENT_URL"
-    echo "   Using deployment URL: $DEPLOYMENT_URL"
-  else
-    echo "❌ Could not auto-detect deployment"
-    echo ""
-    echo "Please provide deployment URL or ID:"
-    echo "  ./scripts/check-migration-logs.sh https://your-app.vercel.app"
-    echo "  or"
-    echo "  ./scripts/check-migration-logs.sh deployment-id"
-    echo ""
-    echo "To see available deployments:"
-    echo "  vercel ls"
-    exit 1
-  fi
+  echo "❌ Please provide deployment URL or ID"
+  echo ""
+  echo "Usage:"
+  echo "  npm run migrate:check https://your-app.vercel.app"
+  echo "  or"
+  echo "  ./scripts/check-migration-logs.sh https://your-app.vercel.app"
+  echo ""
+  echo "You can also use your production URL from Vercel dashboard"
+  exit 1
 fi
 
 echo ""
