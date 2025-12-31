@@ -22,7 +22,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const session: Session = body.session;
+    const sessionData = body.session;
+    // Parse date string back to Date object
+    const session: Session = {
+      ...sessionData,
+      date: new Date(sessionData.date),
+    };
     const initialGames: Omit<Game, 'id' | 'sessionId' | 'gameNumber'>[] = body.initialGames || [];
     const roundRobinCount = body.roundRobinCount || null;
 
