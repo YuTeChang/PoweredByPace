@@ -1,0 +1,5 @@
+{
+  "buildCommand": "npm ci --prefer-offline=false || npm install",
+  "installCommand": "npm ci --prefer-offline=false || npm install"
+}
+
