@@ -4,35 +4,32 @@ import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Group } from "@/types";
 import { ApiClient } from "@/lib/api/client";
 
 export default function Home() {
   const router = useRouter();
-  const { session, games, allSessions, loadSession } = useSession();
+  const { session, games, allSessions, loadSession, groups } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [groupSessionCounts, setGroupSessionCounts] = useState<Record<string, number>>({});
   const [sessionGameCounts, setSessionGameCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Load groups from API
-        const fetchedGroups = await ApiClient.getAllGroups();
-        setGroups(fetchedGroups);
-        
-        // Load session counts for each group
-        const counts: Record<string, number> = {};
-        for (const group of fetchedGroups) {
-          try {
-            const sessions = await ApiClient.getGroupSessions(group.id);
-            counts[group.id] = sessions.length;
-          } catch {
-            counts[group.id] = 0;
+        // Use groups from context (already loaded by SessionContext)
+        if (groups && groups.length > 0) {
+          // Load session counts for each group
+          const counts: Record<string, number> = {};
+          for (const group of groups) {
+            try {
+              const sessions = await ApiClient.getGroupSessions(group.id);
+              counts[group.id] = sessions.length;
+            } catch {
+              counts[group.id] = 0;
+            }
           }
+          setGroupSessionCounts(counts);
         }
-        setGroupSessionCounts(counts);
       } catch (error) {
         console.warn('[Home] Failed to load groups:', error);
       }
@@ -57,8 +54,12 @@ export default function Home() {
       setIsLoaded(true);
     };
 
-    loadData();
-  }, []);
+    // Only load when groups are available from context
+    // This ensures we don't run before SessionContext has loaded groups
+    if (groups !== undefined) {
+      loadData();
+    }
+  }, [groups]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("en-US", {
