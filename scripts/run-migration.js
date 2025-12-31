@@ -16,6 +16,13 @@
  * The migration will also run automatically on first API request via /api/migrate
  */
 
+// Load environment variables from .env.local if it exists
+try {
+  require('dotenv').config({ path: '.env.local' });
+} catch (e) {
+  // dotenv not available, that's OK
+}
+
 const { readFileSync } = require('fs');
 const { join } = require('path');
 

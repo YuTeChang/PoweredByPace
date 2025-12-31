@@ -109,11 +109,19 @@ export async function runMigration(): Promise<MigrationResult> {
                 console.log(`[Migration] Policy already exists, skipping: ${statement.substring(0, 50)}...`);
                 continue;
               }
-              // If table/column already exists, that's OK - continue
+              // If table/column/index already exists, that's OK - continue
               if (stmtError.message?.includes('already exists') || 
-                  stmtError.code === '42P07' ||
-                  stmtError.code === '42710') {
+                  stmtError.code === '42P07' ||  // duplicate_table
+                  stmtError.code === '42710' ||   // duplicate_object
+                  stmtError.code === '42P16') {   // invalid_table_definition (constraint already exists)
                 console.log(`[Migration] Already exists, skipping: ${statement.substring(0, 50)}...`);
+                continue;
+              }
+              // If constraint already exists (different error message)
+              if (stmtError.message?.includes('constraint') && 
+                  (stmtError.message?.includes('already exists') || 
+                   stmtError.message?.includes('duplicate'))) {
+                console.log(`[Migration] Constraint already exists, skipping: ${statement.substring(0, 50)}...`);
                 continue;
               }
               // Otherwise, rethrow the error

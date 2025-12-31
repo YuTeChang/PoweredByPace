@@ -23,35 +23,16 @@ CREATE TABLE IF NOT EXISTS group_players (
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS group_id VARCHAR(255);
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS betting_enabled BOOLEAN NOT NULL DEFAULT true;
 
--- Add foreign key constraint for group_id (only if it doesn't exist)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'sessions_group_id_fkey'
-  ) THEN
-    ALTER TABLE sessions 
-    ADD CONSTRAINT sessions_group_id_fkey 
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE;
-  END IF;
-END $$;
-
 -- Add new column to players table
 -- First add the column without foreign key constraint
 ALTER TABLE players ADD COLUMN IF NOT EXISTS group_player_id VARCHAR(255);
 
--- Add foreign key constraint for group_player_id (only if it doesn't exist)
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'players_group_player_id_fkey'
-  ) THEN
-    ALTER TABLE players 
-    ADD CONSTRAINT players_group_player_id_fkey 
-    FOREIGN KEY (group_player_id) REFERENCES group_players(id);
-  END IF;
-END $$;
+-- Add foreign key constraints (will fail gracefully if they already exist)
+ALTER TABLE sessions ADD CONSTRAINT sessions_group_id_fkey 
+  FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE;
+
+ALTER TABLE players ADD CONSTRAINT players_group_player_id_fkey 
+  FOREIGN KEY (group_player_id) REFERENCES group_players(id);
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_group_players_group_id ON group_players(group_id);
@@ -73,5 +54,29 @@ CREATE POLICY "Allow public read access" ON group_players FOR SELECT USING (true
 CREATE POLICY "Allow public insert access" ON group_players FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access" ON group_players FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete access" ON group_players FOR DELETE USING (true);
+
+-- Ensure RLS is enabled on existing tables (if not already)
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for sessions table (if they don't exist)
+-- Note: CREATE POLICY IF NOT EXISTS is not supported, so we'll catch errors if they exist
+CREATE POLICY "Allow public read access" ON sessions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON sessions FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON sessions FOR DELETE USING (true);
+
+-- Create policies for players table (if they don't exist)
+CREATE POLICY "Allow public read access" ON players FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON players FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON players FOR DELETE USING (true);
+
+-- Create policies for games table (if they don't exist)
+CREATE POLICY "Allow public read access" ON games FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON games FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON games FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON games FOR DELETE USING (true);
 
 
