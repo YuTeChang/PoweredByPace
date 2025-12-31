@@ -13,7 +13,7 @@ function CreateSessionContent() {
   const searchParams = useSearchParams();
   const initialGroupId = searchParams.get("groupId");
   
-  const { setSession } = useSession();
+  const { setSession, groups } = useSession();
   
   // Helper to format date and time for default session name
   const getDefaultSessionName = (date: Date) => {
@@ -47,24 +47,10 @@ function CreateSessionContent() {
   ]);
   
   // Group and betting state
-  const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>(initialGroupId || "");
   const [groupPlayers, setGroupPlayers] = useState<GroupPlayer[]>([]);
   const [selectedGroupPlayerIds, setSelectedGroupPlayerIds] = useState<Set<string>>(new Set());
   const [bettingEnabled, setBettingEnabled] = useState(true);
-  
-  // Load groups on mount
-  useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        const fetchedGroups = await ApiClient.getAllGroups();
-        setGroups(fetchedGroups);
-      } catch (error) {
-        console.warn('[CreateSession] Failed to load groups:', error);
-      }
-    };
-    loadGroups();
-  }, []);
   
   // Load group players when group is selected
   useEffect(() => {

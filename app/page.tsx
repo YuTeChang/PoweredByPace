@@ -18,16 +18,22 @@ export default function Home() {
       try {
         // Use groups from context (already loaded by SessionContext)
         if (groups && groups.length > 0) {
-          // Load session counts for each group
+          // Load session counts for each group in parallel (batch API calls)
           const counts: Record<string, number> = {};
-          for (const group of groups) {
+          const sessionPromises = groups.map(async (group) => {
             try {
               const sessions = await ApiClient.getGroupSessions(group.id);
-              counts[group.id] = sessions.length;
+              return { groupId: group.id, count: sessions.length };
             } catch {
-              counts[group.id] = 0;
+              return { groupId: group.id, count: 0 };
             }
-          }
+          });
+          
+          const results = await Promise.all(sessionPromises);
+          results.forEach(({ groupId, count }) => {
+            counts[groupId] = count;
+          });
+          
           setGroupSessionCounts(counts);
         }
       } catch (error) {
