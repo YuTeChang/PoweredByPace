@@ -69,24 +69,39 @@ export function generateRoundRobinGames(players: Player[], maxGames?: number, ga
   } else if (playerIds.length === 5) {
     // For 5 players, rotate who sits out
     // Each player sits out once, generating 3 games per rotation (15 games total)
-    const allRotations: RoundRobinGame[] = [];
+    // We interleave the rotations to balance breaks
+    const rotationsBySittingOut: RoundRobinGame[][] = [];
+    
+    // Generate games for each rotation (who sits out)
     for (let i = 0; i < playerIds.length; i++) {
       const sittingOut = playerIds[i];
       const playing = playerIds.filter((id) => id !== sittingOut);
       
       // Generate all pairings of the 4 playing players
-      allRotations.push(
+      rotationsBySittingOut.push([
         { teamA: [playing[0], playing[1]] as [string, string], teamB: [playing[2], playing[3]] as [string, string] },
         { teamA: [playing[0], playing[2]] as [string, string], teamB: [playing[1], playing[3]] as [string, string] },
         { teamA: [playing[0], playing[3]] as [string, string], teamB: [playing[1], playing[2]] as [string, string] }
-      );
+      ]);
+    }
+    
+    // Interleave games to balance breaks - take one game from each rotation in round-robin fashion
+    const interleavedGames: RoundRobinGame[] = [];
+    const maxGamesPerRotation = 3;
+    
+    for (let gameIndex = 0; gameIndex < maxGamesPerRotation; gameIndex++) {
+      for (let rotationIndex = 0; rotationIndex < rotationsBySittingOut.length; rotationIndex++) {
+        if (gameIndex < rotationsBySittingOut[rotationIndex].length) {
+          interleavedGames.push(rotationsBySittingOut[rotationIndex][gameIndex]);
+        }
+      }
     }
     
     // Apply maxGames limit if specified
     if (maxGames !== undefined) {
-      games = allRotations.slice(0, maxGames);
+      games = interleavedGames.slice(0, maxGames);
     } else {
-      games = allRotations;
+      games = interleavedGames;
     }
   } else if (playerIds.length === 6) {
     // For 6 players, generate balanced round robin
