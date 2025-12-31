@@ -263,29 +263,33 @@ export class GroupService {
         .select('*')
         .eq('group_id', groupId);
       
-      // If no results, try alternative query to handle potential replication lag
-      if ((!sessionsData || sessionsData.length === 0) && !sessionsError) {
-        // Try querying all sessions and filtering in memory
-        const { data: allSessionsCheck, error: allError } = await supabase
-          .from('sessions')
-          .select('id, group_id, name, date, created_at')
-          .order('created_at', { ascending: false })
-          .limit(100);
+      // Always run fallback query to catch any sessions missed due to replication lag
+      // This ensures newly created sessions are found even if the main query misses them
+      const { data: allSessionsCheck, error: allError } = await supabase
+        .from('sessions')
+        .select('id, group_id, name, date, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      
+      if (allSessionsCheck && !allError) {
+        const matchingSessions = allSessionsCheck.filter(s => s.group_id === groupId);
         
-        if (allSessionsCheck && !allError) {
-          const matchingSessions = allSessionsCheck.filter(s => s.group_id === groupId);
+        // If fallback found sessions that main query missed, merge them
+        if (matchingSessions.length > 0) {
+          const mainSessionIds = new Set((sessionsData || []).map(s => s.id));
+          const missingSessions = matchingSessions.filter(s => !mainSessionIds.has(s.id));
           
-          if (matchingSessions.length > 0) {
-            // Fetch full data for matching sessions
-            const sessionIds = matchingSessions.map(s => s.id);
+          if (missingSessions.length > 0) {
+            // Fetch full data for missing sessions
+            const missingSessionIds = missingSessions.map(s => s.id);
             const { data: fullSessions, error: fullError } = await supabase
               .from('sessions')
               .select('*')
-              .in('id', sessionIds);
+              .in('id', missingSessionIds);
             
             if (fullSessions && fullSessions.length > 0 && !fullError) {
-              sessionsData = fullSessions;
-              sessionsError = fullError;
+              // Merge with existing sessions
+              sessionsData = [...(sessionsData || []), ...fullSessions];
             }
           }
         }
