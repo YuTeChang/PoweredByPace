@@ -40,6 +40,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const loadingGamesRef = useRef<Set<string>>(new Set());
   const isLoadingSessionsRef = useRef(false);
   const isLoadingGroupsRef = useRef(false);
+  const hasLoadedSessionsRef = useRef(false);
+  const hasLoadedGroupsRef = useRef(false);
 
   // Initialize API availability and load saved session on mount (don't load all sessions/groups yet)
   useEffect(() => {
@@ -505,17 +507,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const ensureSessionsAndGroupsLoaded = useCallback(async () => {
     if (typeof window === "undefined") return;
     
-    // Prevent duplicate calls
-    if (isLoadingSessionsRef.current && isLoadingGroupsRef.current) {
-      return;
-    }
-    
-    // Load sessions if not already loaded or loading
-    if (!isLoadingSessionsRef.current && allSessions.length === 0 && apiAvailable) {
+    // Prevent duplicate calls - use refs instead of state length to avoid dependency issues
+    if (isLoadingSessionsRef.current || hasLoadedSessionsRef.current) {
+      // Already loading or loaded, skip
+    } else if (apiAvailable) {
       isLoadingSessionsRef.current = true;
       try {
         const sessions = await ApiClient.getAllSessions();
         setAllSessions(sessions);
+        hasLoadedSessionsRef.current = true;
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(sessions));
         }
@@ -527,6 +527,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           try {
             const parsed = JSON.parse(saved);
             setAllSessions(parsed.map((s: any) => ({ ...s, date: new Date(s.date) })));
+            hasLoadedSessionsRef.current = true;
           } catch {
             // Ignore parse errors
           }
@@ -537,11 +538,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     
     // Load groups if not already loaded or loading
-    if (!isLoadingGroupsRef.current && groups.length === 0 && apiAvailable) {
+    if (isLoadingGroupsRef.current || hasLoadedGroupsRef.current) {
+      // Already loading or loaded, skip
+    } else if (apiAvailable) {
       isLoadingGroupsRef.current = true;
       try {
         const fetchedGroups = await ApiClient.getAllGroups();
         setGroups(fetchedGroups);
+        hasLoadedGroupsRef.current = true;
         if (typeof window !== "undefined") {
           localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(fetchedGroups));
         }
@@ -553,6 +557,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           try {
             const parsed = JSON.parse(saved);
             setGroups(parsed);
+            hasLoadedGroupsRef.current = true;
           } catch {
             // Ignore parse errors
           }
@@ -561,7 +566,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         isLoadingGroupsRef.current = false;
       }
     }
-  }, [apiAvailable, allSessions.length, groups.length]);
+  }, [apiAvailable]); // Only depend on apiAvailable, not on state lengths
 
   return (
     <SessionContext.Provider
