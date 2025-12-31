@@ -49,16 +49,24 @@ export async function POST() {
       // Existing database without groups - need migration
       return NextResponse.json({
         success: false,
-        message: 'Groups feature not set up. Please run the migration.',
-        instructions: [
-          '1. Go to your Supabase project dashboard',
-          '2. Navigate to SQL Editor',
-          '3. Copy the contents of scripts/migrate-add-groups.sql',
-          '4. Paste and run in SQL Editor',
-          '5. Then try creating a group again'
-        ],
-        sqlFile: 'scripts/migrate-add-groups.sql',
-        migrationNeeded: true
+        message: 'Groups feature not set up. Migration needed.',
+        migrationNeeded: true,
+        automaticMigration: {
+          available: !!process.env.POSTGRES_URL || !!process.env.POSTGRES_URL_NON_POOLING,
+          endpoint: '/api/migrate',
+          method: 'POST',
+          note: 'If POSTGRES_URL is set in .env.local, you can POST to /api/migrate to run automatically'
+        },
+        manualMigration: {
+          instructions: [
+            '1. Go to your Supabase project dashboard',
+            '2. Navigate to SQL Editor',
+            '3. Copy the contents of scripts/migrate-add-groups.sql',
+            '4. Paste and run in SQL Editor',
+            '5. Then try creating a group again'
+          ],
+          sqlFile: 'scripts/migrate-add-groups.sql'
+        }
       }, { status: 400 });
     }
     

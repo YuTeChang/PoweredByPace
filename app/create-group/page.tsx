@@ -13,6 +13,8 @@ export default function CreateGroup() {
   const [error, setError] = useState<string | null>(null);
   const [createdGroup, setCreatedGroup] = useState<Group | null>(null);
   const [copied, setCopied] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationAvailable, setMigrationAvailable] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,15 +29,55 @@ export default function CreateGroup() {
     } catch (err: any) {
       // Check if it's a migration needed error
       if (err.message?.includes('migration') || err.message?.includes('does not exist') || err.message?.includes('Groups table')) {
-        setError(
-          "Database migration needed. Please run the migration SQL in your Supabase SQL Editor. " +
-          "See scripts/migrate-add-groups.sql for the SQL to run."
-        );
+        // Check if automatic migration is available
+        const errorData = err.response?.data || err;
+        if (errorData?.automaticMigration?.available) {
+          setMigrationAvailable(true);
+          setError(
+            "Database migration needed. Click 'Run Migration' below to automatically set up the database, or run the SQL manually in Supabase SQL Editor."
+          );
+        } else {
+          setError(
+            "Database migration needed. Please run the migration SQL in your Supabase SQL Editor. " +
+            "See scripts/migrate-add-groups.sql for the SQL to run."
+          );
+        }
       } else {
         setError(err instanceof Error ? err.message : "Failed to create group");
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRunMigration = async () => {
+    setMigrating(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/migrate', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setError(null);
+        setMigrationAvailable(false);
+        // Retry creating the group
+        const groupNameToCreate = groupName.trim();
+        if (groupNameToCreate) {
+          const createResult = await ApiClient.createGroup(groupNameToCreate);
+          setCreatedGroup(createResult.group);
+        }
+      } else {
+        setError(result.message || 'Migration failed. Please run the SQL manually in Supabase SQL Editor.');
+        setMigrationAvailable(false);
+      }
+    } catch (err) {
+      setError('Migration failed. Please run the SQL manually in Supabase SQL Editor.');
+      setMigrationAvailable(false);
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -99,9 +141,22 @@ export default function CreateGroup() {
               <div className="bg-red-50 border border-red-200 rounded-card p-4 text-sm">
                 <div className="text-red-800 font-semibold mb-2">Error: {error}</div>
                 {error.includes('migration') && (
-                  <div className="text-red-700 mt-3 space-y-2">
-                    <p className="font-medium">To fix this:</p>
-                    <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <div className="text-red-700 mt-3 space-y-3">
+                    {migrationAvailable ? (
+                      <>
+                        <button
+                          onClick={handleRunMigration}
+                          disabled={migrating}
+                          className="w-full px-4 py-2 bg-japandi-accent-primary hover:bg-japandi-accent-hover disabled:bg-japandi-text-muted text-white font-semibold rounded-full transition-all"
+                        >
+                          {migrating ? 'Running Migration...' : 'Run Migration Automatically'}
+                        </button>
+                        <p className="text-xs text-red-600 mt-2">Or run manually:</p>
+                      </>
+                    ) : (
+                      <p className="font-medium">To fix this manually:</p>
+                    )}
+                    <ol className="list-decimal list-inside space-y-1 ml-2 text-xs">
                       <li>Go to your Supabase project dashboard</li>
                       <li>Navigate to SQL Editor</li>
                       <li>Copy the contents of <code className="bg-red-100 px-1 rounded">scripts/migrate-add-groups.sql</code></li>

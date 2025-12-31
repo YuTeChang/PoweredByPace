@@ -78,14 +78,22 @@ export async function POST(request: NextRequest) {
         { 
           error: 'Groups table does not exist',
           message: 'Database migration needed',
-          instructions: [
-            '1. Go to your Supabase project dashboard',
-            '2. Navigate to SQL Editor',
-            '3. Copy the contents of scripts/migrate-add-groups.sql',
-            '4. Paste and run in SQL Editor',
-            '5. Try creating the group again'
-          ],
-          sqlFile: 'scripts/migrate-add-groups.sql'
+          automaticMigration: {
+            available: !!process.env.POSTGRES_URL || !!process.env.POSTGRES_URL_NON_POOLING,
+            endpoint: '/api/migrate',
+            method: 'POST',
+            note: 'If POSTGRES_URL is set, POST to /api/migrate to run automatically'
+          },
+          manualMigration: {
+            instructions: [
+              '1. Go to your Supabase project dashboard',
+              '2. Navigate to SQL Editor',
+              '3. Copy the contents of scripts/migrate-add-groups.sql',
+              '4. Paste and run in SQL Editor',
+              '5. Try creating the group again'
+            ],
+            sqlFile: 'scripts/migrate-add-groups.sql'
+          }
         },
         { status: 503 }
       );
