@@ -44,14 +44,11 @@ export default function SummaryPage() {
       // Check if session exists in allSessions (already fetched)
       const existingSession = allSessions.find(s => s.id === sessionId);
       if (existingSession) {
-        loadSession(sessionId);
+        // loadSession will fetch both session and games
+        await loadSession(sessionId);
         setLocalSession(existingSession);
-        try {
-          const apiGames = await ApiClient.getGames(sessionId);
-          setLocalGames(apiGames);
-        } catch {
-          setLocalGames([]);
-        }
+        // Use games from context (loaded by loadSession)
+        setLocalGames(games);
         setIsLoading(false);
         return;
       }

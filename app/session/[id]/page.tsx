@@ -47,16 +47,11 @@ export default function SessionPage() {
       // Check if session exists in allSessions (already fetched)
       const existingSession = allSessions.find(s => s.id === sessionId);
       if (existingSession) {
-        loadSession(sessionId);
+        // loadSession will fetch both session and games, so wait for it
+        await loadSession(sessionId);
         setLocalSession(existingSession);
-        // Games will be loaded by loadSession, but we need to wait
-        try {
-          const apiGames = await ApiClient.getGames(sessionId);
-          setLocalGames(apiGames);
-        } catch {
-          // Games might not be loaded yet, use empty array
-          setLocalGames([]);
-        }
+        // Use games from context (loaded by loadSession)
+        setLocalGames(games);
         setIsLoading(false);
         return;
       }

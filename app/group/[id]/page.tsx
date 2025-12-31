@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Group, GroupPlayer, Session } from "@/types";
@@ -78,37 +78,59 @@ export default function GroupPage() {
     }
   }, [groupId]);
 
-  useEffect(() => {
-    loadGroupData();
-  }, [loadGroupData]);
+  // Track last load time to prevent duplicate calls
+  const lastLoadRef = useRef<number>(0);
+  const REFRESH_DEBOUNCE_MS = 500; // Don't refresh more than once per 500ms
 
-  // Refresh data when pathname changes (e.g., when navigating back to this page)
+  // Single effect to load data on mount and when groupId changes
   useEffect(() => {
-    if (pathname === `/group/${groupId}`) {
-      console.log('[GroupPage] Pathname changed, refreshing data...');
-      loadGroupData();
+    const now = Date.now();
+    if (now - lastLoadRef.current < REFRESH_DEBOUNCE_MS) {
+      console.log('[GroupPage] Skipping duplicate load (too soon after last load)');
+      return;
+    }
+    lastLoadRef.current = now;
+    console.log('[GroupPage] Loading data (mount or groupId change)');
+    loadGroupData();
+  }, [groupId, loadGroupData]);
+
+  // Refresh data when pathname changes (only if different from initial load)
+  const prevPathnameRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (pathname === `/group/${groupId}` && prevPathnameRef.current !== pathname) {
+      const now = Date.now();
+      if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
+        console.log('[GroupPage] Pathname changed, refreshing data...');
+        lastLoadRef.current = now;
+        const timer = setTimeout(() => {
+          loadGroupData();
+        }, 100);
+        prevPathnameRef.current = pathname;
+        return () => clearTimeout(timer);
+      }
     }
   }, [pathname, groupId, loadGroupData]);
-  
-  // Also refresh when component mounts (in case we navigated here from create-session)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('[GroupPage] Component mounted, loading data...');
-      loadGroupData();
-    }, 100); // Small delay to ensure navigation is complete
-    return () => clearTimeout(timer);
-  }, [groupId]); // Only depend on groupId, not loadGroupData to avoid loops
 
-  // Refresh data when page becomes visible (e.g., when navigating back from creating a session)
+  // Refresh data when page becomes visible (with debounce)
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        loadGroupData();
+        const now = Date.now();
+        if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
+          console.log('[GroupPage] Page became visible, refreshing data...');
+          lastLoadRef.current = now;
+          loadGroupData();
+        }
       }
     };
 
     const handleFocus = () => {
-      loadGroupData();
+      const now = Date.now();
+      if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
+        console.log('[GroupPage] Window focused, refreshing data...');
+        lastLoadRef.current = now;
+        loadGroupData();
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);

@@ -265,6 +265,7 @@ export class GroupService {
       });
 
       // Get all sessions - order in JavaScript to avoid Supabase ordering bug with duplicate dates
+      // Filter by group_id (must match exactly and not be null)
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
@@ -298,10 +299,37 @@ export class GroupService {
       console.log('[GroupService.getGroupSessions] Count query result:', count);
 
       if (sessionsError) {
+        console.error('[GroupService.getGroupSessions] Supabase query error:', {
+          message: sessionsError.message,
+          code: sessionsError.code,
+          details: sessionsError.details,
+          hint: sessionsError.hint,
+        });
         throw sessionsError;
       }
 
       if (!sessionsData || sessionsData.length === 0) {
+        console.log('[GroupService.getGroupSessions] No sessions found for groupId:', groupId);
+        // Double-check with a simpler query to debug
+        const { data: checkData, error: checkError } = await supabase
+          .from('sessions')
+          .select('id, group_id')
+          .eq('group_id', groupId)
+          .limit(1);
+        console.log('[GroupService.getGroupSessions] Debug query result:', {
+          found: checkData?.length || 0,
+          error: checkError?.message,
+        });
+        
+        // Also check all sessions to see what group_ids exist
+        const { data: allSessionsSample } = await supabase
+          .from('sessions')
+          .select('id, group_id')
+          .limit(10);
+        console.log('[GroupService.getGroupSessions] Sample sessions with group_ids:', 
+          allSessionsSample?.map(s => ({ id: s.id, group_id: s.group_id, group_id_type: typeof s.group_id }))
+        );
+        
         return [];
       }
 
