@@ -89,7 +89,7 @@ async function testAllFeatures() {
     const players = ['Alice', 'Bob', 'Charlie', 'Diana'];
     for (let i = 0; i < Math.min(playerInputs.length, players.length); i++) {
       try {
-        await playerInputs[i].fill(players[i]);
+      await playerInputs[i].fill(players[i]);
         await page.waitForTimeout(200);
       } catch (e) {
         console.log(`⚠️  Could not fill player ${i + 1}`);
@@ -99,11 +99,11 @@ async function testAllFeatures() {
     // Select organizer (wait for dropdown to populate)
     await page.waitForTimeout(1000);
     try {
-      const organizerSelect = page.locator('select').first();
+    const organizerSelect = page.locator('select').first();
       await organizerSelect.waitFor({ timeout: 5000 });
       const optionCount = await organizerSelect.locator('option').count();
       if (optionCount > 1) {
-        await organizerSelect.selectOption({ index: 1 }); // Select first non-empty option
+    await organizerSelect.selectOption({ index: 1 }); // Select first non-empty option
       }
     } catch (e) {
       console.log('⚠️  Could not select organizer');
@@ -118,20 +118,20 @@ async function testAllFeatures() {
       const numberInputs = await page.locator('input[type="number"]').all();
       if (numberInputs.length > 0) {
         await numberInputs[0].fill('14.40');
-        await page.waitForTimeout(300);
+    await page.waitForTimeout(300);
       }
-      
-      // Bird cost input (second number input)
-      await page.evaluate(() => window.scrollTo(0, 800));
-      await page.waitForTimeout(300);
+    
+    // Bird cost input (second number input)
+    await page.evaluate(() => window.scrollTo(0, 800));
+    await page.waitForTimeout(300);
       if (numberInputs.length > 1) {
         await numberInputs[1].fill('3.00');
-        await page.waitForTimeout(300);
+    await page.waitForTimeout(300);
       }
-      
-      // Bet per player input (third number input)
-      await page.evaluate(() => window.scrollTo(0, 1000));
-      await page.waitForTimeout(300);
+    
+    // Bet per player input (third number input)
+    await page.evaluate(() => window.scrollTo(0, 1000));
+    await page.waitForTimeout(300);
       if (numberInputs.length > 2) {
         await numberInputs[2].fill('2.00');
         await page.waitForTimeout(300);
@@ -190,9 +190,9 @@ async function testAllFeatures() {
         await page.waitForTimeout(1000);
       } else {
         // Fallback: find any checkbox
-        const checkbox = page.locator('input[type="checkbox"]').first();
+    const checkbox = page.locator('input[type="checkbox"]').first();
         if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-          await checkbox.check();
+    await checkbox.check();
           await page.waitForTimeout(1000);
         }
       }
@@ -315,9 +315,9 @@ async function testAllFeatures() {
       }
       
       await page.waitForTimeout(500);
-      await page.click('button[type="submit"]:not([disabled])');
-      await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
-      await waitForPageLoad(page);
+    await page.click('button[type="submit"]:not([disabled])');
+    await page.waitForURL(/\/session\/.*/, { timeout: 10000 });
+    await waitForPageLoad(page);
       await page.waitForTimeout(1000);
       
       // Go back to home to show multiple sessions
@@ -395,8 +395,8 @@ async function testAllFeatures() {
     try {
       const recordTab = page.locator('button[aria-label*="Record"], button[aria-label*="record"]').first();
       await recordTab.waitFor({ timeout: 5000 });
-      await recordTab.click();
-      await waitForPageLoad(page);
+    await recordTab.click();
+    await waitForPageLoad(page);
       await page.waitForTimeout(1500);
     } catch (e) {
       // Try by text
@@ -506,8 +506,8 @@ async function testAllFeatures() {
     try {
       const statsTab = page.locator('button').filter({ hasText: /^Stats$/i }).first();
       await statsTab.waitFor({ timeout: 5000 });
-      await statsTab.click();
-      await waitForPageLoad(page);
+    await statsTab.click();
+    await waitForPageLoad(page);
       await page.waitForTimeout(1000);
     } catch (e) {
       const statsTabAlt = page.locator('button[aria-label*="stats"], button[aria-label*="Stats"]').first();
@@ -525,8 +525,8 @@ async function testAllFeatures() {
     try {
       const historyTab = page.locator('button').filter({ hasText: /^History$/i }).first();
       await historyTab.waitFor({ timeout: 5000 });
-      await historyTab.click();
-      await waitForPageLoad(page);
+    await historyTab.click();
+    await waitForPageLoad(page);
       await page.waitForTimeout(1000);
     } catch (e) {
       const historyTabAlt = page.locator('button[aria-label*="history"], button[aria-label*="History"]').first();
@@ -545,9 +545,9 @@ async function testAllFeatures() {
     try {
       const summaryLink = page.locator('a').filter({ hasText: /View Summary/i }).first();
       await summaryLink.waitFor({ timeout: 5000 });
-      await summaryLink.click();
-      await page.waitForURL(/\/session\/.*\/summary/, { timeout: 10000 });
-      await waitForPageLoad(page);
+    await summaryLink.click();
+    await page.waitForURL(/\/session\/.*\/summary/, { timeout: 10000 });
+    await waitForPageLoad(page);
       await page.waitForTimeout(2000); // Wait for summary calculations
       await page.evaluate(() => window.scrollTo(0, 0));
       await takeScreenshot(page, '06-summary-page.png', 'Summary Page');
@@ -561,8 +561,8 @@ async function testAllFeatures() {
         await page.goto(`${BASE_URL}/session/${sessionId}/summary`);
         await waitForPageLoad(page);
         await page.waitForTimeout(2000);
-        await page.evaluate(() => window.scrollTo(0, 0));
-        await takeScreenshot(page, '06-summary-page.png', 'Summary Page');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await takeScreenshot(page, '06-summary-page.png', 'Summary Page');
       }
     }
 

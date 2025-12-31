@@ -114,9 +114,9 @@ export default function SessionPage() {
                           </>
                         ) : (
                           <>
-                            {session.players.find(p => p.id === nextUnplayedGame.teamA[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamA[1])?.name}
-                            {" vs "}
-                            {session.players.find(p => p.id === nextUnplayedGame.teamB[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamB[1])?.name}
+                        {session.players.find(p => p.id === nextUnplayedGame.teamA[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamA[1])?.name}
+                        {" vs "}
+                        {session.players.find(p => p.id === nextUnplayedGame.teamB[0])?.name} & {session.players.find(p => p.id === nextUnplayedGame.teamB[1])?.name}
                           </>
                         )}
                       </div>

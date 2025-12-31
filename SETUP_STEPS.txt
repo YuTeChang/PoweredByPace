@@ -1,0 +1,146 @@
+═══════════════════════════════════════════════════════════════════
+  VibeBadminton - Supabase Setup Instructions
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Create Database Tables
+────────────────────────────────────────────────────────────────────
+
+A Supabase SQL Editor tab should now be open in your browser.
+If not, go to: https://supabase.com/dashboard/project/mcqnzuurqhiatpizzfnw/editor
+
+Then:
+  1. Click "SQL Editor" in the left sidebar
+  2. Click "+ New query"
+  3. Copy ALL the SQL below (scroll to see all of it)
+  4. Paste into the SQL Editor
+  5. Click "Run" or press Cmd/Ctrl + Enter
+
+────────────────────────────────────────────────────────────────────
+-- VibeBadminton Database Schema
+-- Run this in Supabase SQL Editor
+
+-- Create sessions table
+CREATE TABLE IF NOT EXISTS sessions (
+  id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255),
+  date TIMESTAMP NOT NULL,
+  organizer_id VARCHAR(255) NOT NULL,
+  court_cost_type VARCHAR(20) NOT NULL,
+  court_cost_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+  bird_cost_total DECIMAL(10,2) NOT NULL DEFAULT 0,
+  bet_per_player DECIMAL(10,2) NOT NULL DEFAULT 0,
+  game_mode VARCHAR(10) NOT NULL DEFAULT 'doubles',
+  round_robin_count INTEGER,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create players table
+CREATE TABLE IF NOT EXISTS players (
+  id VARCHAR(255) PRIMARY KEY,
+  session_id VARCHAR(255) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create games table
+CREATE TABLE IF NOT EXISTS games (
+  id VARCHAR(255) PRIMARY KEY,
+  session_id VARCHAR(255) NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  game_number INTEGER NOT NULL,
+  team_a JSONB NOT NULL,
+  team_b JSONB NOT NULL,
+  winning_team VARCHAR(1),
+  team_a_score INTEGER,
+  team_b_score INTEGER,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_players_session_id ON players(session_id);
+CREATE INDEX IF NOT EXISTS idx_games_session_id ON games(session_id);
+
+-- Enable Row Level Security
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+
+-- Create policies to allow public read/write (for shared sessions)
+-- ⚠️ WARNING: These policies allow anyone to read/write/delete data
+-- This is intentional for the "visible to everyone" requirement
+-- You can make this more secure later with authentication
+
+-- Sessions policies
+CREATE POLICY "Allow public read access" ON sessions FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON sessions FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON sessions FOR DELETE USING (true);
+
+-- Players policies
+CREATE POLICY "Allow public read access" ON players FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON players FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON players FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON players FOR DELETE USING (true);
+
+-- Games policies
+CREATE POLICY "Allow public read access" ON games FOR SELECT USING (true);
+CREATE POLICY "Allow public insert access" ON games FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access" ON games FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete access" ON games FOR DELETE USING (true);
+────────────────────────────────────────────────────────────────────
+
+After running the SQL, you should see:
+  ✅ Success messages in the output panel
+  ✅ Three new tables in "Table Editor": sessions, players, games
+
+
+STEP 2: Verify Database Connection
+────────────────────────────────────────────────────────────────────
+
+After the tables are created, test the connection:
+
+  1. Make sure your Next.js dev server is running
+     If not running: npm run dev
+
+  2. Open in browser: http://localhost:3002/api/health/db
+     (Or whatever port Next.js prints - might be 3000 or 3001)
+
+You should see JSON like:
+  {
+    "ok": true,
+    "db": "connected",
+    "sessionsCount": 0
+  }
+
+If you see this, ✅ YOUR DATABASE IS WORKING!
+
+
+STEP 3: Test Shared Sessions
+────────────────────────────────────────────────────────────────────
+
+Now test that sessions are visible across devices:
+
+  1. Open the app in Browser A: http://localhost:3002
+  2. Create a new badminton session
+  3. Open the app in Browser B (or another device on same network)
+  4. Refresh Browser B
+  5. You should see the session you just created!
+
+The sessions are now stored in Supabase and visible to everyone.
+
+
+TROUBLESHOOTING
+────────────────────────────────────────────────────────────────────
+
+If /api/health/db returns an error:
+  • Check .env.local has POSTGRES_URL or POSTGRES_URL_NON_POOLING
+  • Make sure you ran the SQL schema in Supabase Dashboard
+  • Check Supabase project is active (not paused)
+
+If sessions don't sync:
+  • Check browser console for API errors
+  • Check Network tab for failed /api/sessions requests
+  • Verify RLS policies were created (run the SQL again)
+
+═══════════════════════════════════════════════════════════════════

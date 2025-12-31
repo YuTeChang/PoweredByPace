@@ -5,8 +5,8 @@ export interface GameRow {
   id: string;
   session_id: string;
   game_number: number;
-  team_a: string; // JSON string
-  team_b: string; // JSON string
+  team_a: unknown; // jsonb can come back as object or string
+  team_b: unknown; // jsonb can come back as object or string
   winning_team: string | null;
   team_a_score: number | null;
   team_b_score: number | null;
@@ -216,12 +216,19 @@ export class GameService {
    * Map database row to Game type
    */
   private static mapRowToGame(row: GameRow): Game {
+    const parseJson = <T,>(value: unknown): T => {
+      if (typeof value === 'string') {
+        return JSON.parse(value) as T;
+      }
+      return value as T;
+    };
+
     return {
       id: row.id,
       sessionId: row.session_id,
       gameNumber: row.game_number,
-      teamA: JSON.parse(row.team_a) as [string, string] | [string],
-      teamB: JSON.parse(row.team_b) as [string, string] | [string],
+      teamA: parseJson<[string, string] | [string]>(row.team_a),
+      teamB: parseJson<[string, string] | [string]>(row.team_b),
       winningTeam: row.winning_team as 'A' | 'B' | null,
       teamAScore: row.team_a_score || undefined,
       teamBScore: row.team_b_score || undefined,

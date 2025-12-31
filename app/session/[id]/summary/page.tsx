@@ -47,7 +47,7 @@ export default function SummaryPage() {
       clearSession();
       // Use setTimeout to ensure state updates before navigation
       setTimeout(() => {
-        router.push("/");
+      router.push("/");
       }, 100);
     }
   };
@@ -73,58 +73,58 @@ export default function SummaryPage() {
         {/* Stats Table */}
         <div className="bg-japandi-background-card rounded-card border border-japandi-border-light overflow-hidden mb-6 shadow-soft">
           <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-japandi-background-primary">
-                <tr>
+              <table className="min-w-full">
+                <thead className="bg-japandi-background-primary">
+                  <tr>
                   <th className="px-4 sm:px-5 py-3 sm:py-4 text-left text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                    Player
-                  </th>
+                      Player
+                    </th>
                   <th className="px-4 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                    W/L
-                  </th>
+                      W/L
+                    </th>
                   <th className="px-4 sm:px-5 py-3 sm:py-4 text-center text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                    Net
-                  </th>
+                      Net
+                    </th>
                   <th className="px-4 sm:px-5 py-3 sm:py-4 text-right text-xs font-semibold text-japandi-text-primary uppercase tracking-wider">
-                    Pay Organizer
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-japandi-border-light">
-                {settlement.map((s) => (
-                  <tr key={s.playerId}>
-                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base font-medium text-japandi-text-primary">
-                      <div className="flex flex-col sm:block">
-                        <span className="break-words">{s.playerName}</span>
-                        {s.playerId === session.organizerId && (
-                          <span className="ml-0 sm:ml-2 text-xs text-japandi-accent-primary font-medium block sm:inline whitespace-nowrap">
-                            (Organizer)
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center text-japandi-text-secondary">
-                      {s.wins}-{s.losses}
-                    </td>
-                    <td
-                      className={`px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center font-semibold ${
-                        s.gamblingNet > 0
-                          ? "text-green-700"
-                          : s.gamblingNet < 0
-                          ? "text-japandi-text-secondary"
-                          : "text-japandi-text-muted"
-                      }`}
-                    >
-                      {s.gamblingNet > 0 && "+"}
-                      {formatCurrency(s.gamblingNet)}
-                    </td>
-                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-right font-semibold text-japandi-text-primary">
-                      {formatCurrency(s.amountToPayOrganizer)}
-                    </td>
+                      Pay Organizer
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-japandi-border-light">
+                  {settlement.map((s) => (
+                    <tr key={s.playerId}>
+                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base font-medium text-japandi-text-primary">
+                        <div className="flex flex-col sm:block">
+                        <span className="break-words">{s.playerName}</span>
+                          {s.playerId === session.organizerId && (
+                          <span className="ml-0 sm:ml-2 text-xs text-japandi-accent-primary font-medium block sm:inline whitespace-nowrap">
+                              (Organizer)
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center text-japandi-text-secondary">
+                        {s.wins}-{s.losses}
+                      </td>
+                      <td
+                      className={`px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-center font-semibold ${
+                          s.gamblingNet > 0
+                          ? "text-green-700"
+                            : s.gamblingNet < 0
+                            ? "text-japandi-text-secondary"
+                            : "text-japandi-text-muted"
+                        }`}
+                      >
+                        {s.gamblingNet > 0 && "+"}
+                        {formatCurrency(s.gamblingNet)}
+                      </td>
+                    <td className="px-4 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-right font-semibold text-japandi-text-primary">
+                        {formatCurrency(s.amountToPayOrganizer)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
           </div>
         </div>
 

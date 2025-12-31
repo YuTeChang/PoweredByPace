@@ -42,9 +42,9 @@ export default function QuickGameForm({
         setTeamA([initialTeamA[0]]);
         setTeamB([initialTeamB[0]]);
       } else {
-        setTeamA(initialTeamA);
-        setTeamB(initialTeamB);
-      }
+      setTeamA(initialTeamA);
+      setTeamB(initialTeamB);
+    }
     }
   }, [initialTeamA, initialTeamB, isSingles]);
   const [winningTeam, setWinningTeam] = useState<"A" | "B" | null>(null);
@@ -66,15 +66,15 @@ export default function QuickGameForm({
       }
     } else {
       // Doubles mode
-      if (team === "A") {
+    if (team === "A") {
         const newTeamA: [string | null, string | null] = [...(teamA as [string | null, string | null])];
-        newTeamA[position] = newTeamA[position] === playerId ? null : playerId;
-        setTeamA(newTeamA);
-      } else {
+      newTeamA[position] = newTeamA[position] === playerId ? null : playerId;
+      setTeamA(newTeamA);
+    } else {
         const newTeamB: [string | null, string | null] = [...(teamB as [string | null, string | null])];
-        newTeamB[position] = newTeamB[position] === playerId ? null : playerId;
-        setTeamB(newTeamB);
-      }
+      newTeamB[position] = newTeamB[position] === playerId ? null : playerId;
+      setTeamB(newTeamB);
+    }
     }
   };
 
@@ -150,13 +150,13 @@ export default function QuickGameForm({
             teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
           });
         } else {
-          addGame({
+        addGame({
             teamA: [(teamA as [string | null, string | null])[0]!, (teamA as [string | null, string | null])[1]!],
             teamB: [(teamB as [string | null, string | null])[0]!, (teamB as [string | null, string | null])[1]!],
-            winningTeam: winningTeam!,
-            teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
-            teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
-          });
+          winningTeam: winningTeam!,
+          teamAScore: teamAScore ? parseInt(teamAScore) : undefined,
+          teamBScore: teamBScore ? parseInt(teamBScore) : undefined,
+        });
         }
       }
 
@@ -165,8 +165,8 @@ export default function QuickGameForm({
         setTeamA([null]);
         setTeamB([null]);
       } else {
-        setTeamA([null, null]);
-        setTeamB([null, null]);
+      setTeamA([null, null]);
+      setTeamB([null, null]);
       }
       setWinningTeam(null);
       setTeamAScore("");
@@ -190,9 +190,9 @@ export default function QuickGameForm({
           {(isSingles ? [0] : [0, 1]).map((position) => (
             <div key={position}>
               {!isSingles && (
-                <div className="text-sm text-japandi-text-muted mb-2">
-                  Player {position + 1}
-                </div>
+              <div className="text-sm text-japandi-text-muted mb-2">
+                Player {position + 1}
+              </div>
               )}
               <div className="flex flex-wrap gap-2">
                 {players.map((player) => {
@@ -237,9 +237,9 @@ export default function QuickGameForm({
           {(isSingles ? [0] : [0, 1]).map((position) => (
             <div key={position}>
               {!isSingles && (
-                <div className="text-sm text-japandi-text-muted mb-2">
-                  Player {position + 1}
-                </div>
+              <div className="text-sm text-japandi-text-muted mb-2">
+                Player {position + 1}
+              </div>
               )}
               <div className="flex flex-wrap gap-2">
                 {players.map((player) => {

@@ -26,7 +26,7 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
       clearSession();
       // Use setTimeout to ensure state updates before navigation
       setTimeout(() => {
-        router.push("/");
+      router.push("/");
       }, 100);
     }
   };

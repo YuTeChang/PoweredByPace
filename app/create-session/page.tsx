@@ -136,7 +136,7 @@ export default function CreateSession() {
       year: "numeric",
     });
     const finalSessionName = sessionName.trim() || formattedDate;
-
+    
     const session: Session = {
       id: `session-${Date.now()}`,
       name: finalSessionName,

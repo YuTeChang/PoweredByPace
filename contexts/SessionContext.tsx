@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { Session, Game, Player } from "@/types";
+import { ApiClient, isApiAvailable } from "@/lib/api/client";
 
 interface SessionContextType {
   session: Session | null;
@@ -27,96 +28,173 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [games, setGames] = useState<Game[]>([]);
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [apiAvailable, setApiAvailable] = useState<boolean | null>(null);
 
-  // Load session and games from localStorage on mount
+  // Load sessions from API (primary) or localStorage (fallback) on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        // Load all sessions
-        const savedAllSessions = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
-        if (savedAllSessions) {
-          const parsedAllSessions = JSON.parse(savedAllSessions);
-          const sessionsWithDates = parsedAllSessions.map((s: Session) => ({
-            ...s,
-            date: new Date(s.date),
-            gameMode: s.gameMode || "doubles", // backward compatibility
-          }));
-          setAllSessions(sessionsWithDates);
-        }
+    const loadData = async () => {
+      if (typeof window === "undefined") return;
 
-        const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
-        const savedGames = localStorage.getItem(STORAGE_KEY_GAMES);
-        
-        if (savedSession) {
-          const parsedSession = JSON.parse(savedSession);
-          // Convert date string back to Date object
-          parsedSession.date = new Date(parsedSession.date);
-          // Add default gameMode for backward compatibility
-          if (!parsedSession.gameMode) {
-            parsedSession.gameMode = "doubles";
+      try {
+        // Check if API is available
+        const apiReady = await isApiAvailable();
+        setApiAvailable(apiReady);
+
+        if (apiReady) {
+          // Load all sessions from database
+          try {
+            const sessions = await ApiClient.getAllSessions();
+            setAllSessions(sessions);
+            
+            // Try to load the active session from localStorage first (for immediate UI)
+            const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+            if (savedSession) {
+              const parsedSession = JSON.parse(savedSession);
+              parsedSession.date = new Date(parsedSession.date);
+              if (!parsedSession.gameMode) {
+                parsedSession.gameMode = "doubles";
+              }
+              
+              // Verify session exists in database, or use the one from localStorage
+              const dbSession = sessions.find(s => s.id === parsedSession.id);
+              if (dbSession) {
+                setSessionState(dbSession);
+                // Load games from API
+                try {
+                  const dbGames = await ApiClient.getGames(dbSession.id);
+                  setGames(dbGames);
+                } catch (error) {
+                  console.warn('[SessionContext] Failed to load games from API, using localStorage fallback');
+                  loadGamesFromLocalStorage(dbSession.id);
+                }
+              } else {
+                // Session not in database, use localStorage version
+                setSessionState(parsedSession);
+                loadGamesFromLocalStorage(parsedSession.id);
+              }
+            }
+          } catch (error) {
+            console.warn('[SessionContext] Failed to load sessions from API, using localStorage fallback');
+            loadFromLocalStorage();
           }
-          setSessionState(parsedSession);
-          
-          // Only load games if they belong to this session
-          if (savedGames) {
-            const parsedGames = JSON.parse(savedGames);
-            // Filter games to only include those belonging to the loaded session
-            const filteredGames = parsedGames.filter(
-              (game: Game) => game.sessionId === parsedSession.id
-            );
-            setGames(filteredGames);
-          }
-        } else if (savedGames) {
-          // If no session but games exist, clear games
-          localStorage.removeItem(STORAGE_KEY_GAMES);
+        } else {
+          // API not available, use localStorage
+          loadFromLocalStorage();
         }
       } catch (error) {
-        // Silently handle localStorage errors - may occur in private browsing mode
-        // Session will start fresh if localStorage is unavailable
+        console.error('[SessionContext] Error loading data:', error);
+        loadFromLocalStorage();
       } finally {
         setIsLoaded(true);
       }
-    }
+    };
+
+    loadData();
   }, []);
 
-  // Save session to localStorage whenever it changes
-  useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
-      if (session) {
-        localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
+  const loadFromLocalStorage = () => {
+    try {
+      const savedAllSessions = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
+      if (savedAllSessions) {
+        const parsedAllSessions = JSON.parse(savedAllSessions);
+        const sessionsWithDates = parsedAllSessions.map((s: Session) => ({
+          ...s,
+          date: new Date(s.date),
+          gameMode: s.gameMode || "doubles",
+        }));
+        setAllSessions(sessionsWithDates);
+      }
+
+      const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+      const savedGames = localStorage.getItem(STORAGE_KEY_GAMES);
+      
+      if (savedSession) {
+        const parsedSession = JSON.parse(savedSession);
+        parsedSession.date = new Date(parsedSession.date);
+        if (!parsedSession.gameMode) {
+          parsedSession.gameMode = "doubles";
+        }
+        setSessionState(parsedSession);
         
-        // Also save to all sessions list
-        setAllSessions((prev) => {
-          const existingIndex = prev.findIndex((s) => s.id === session.id);
-          let updated: Session[];
-          if (existingIndex >= 0) {
-            updated = [...prev];
-            updated[existingIndex] = session;
-          } else {
-            updated = [...prev, session];
-          }
-          localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(updated));
-          return updated;
-        });
-      } else {
-        localStorage.removeItem(STORAGE_KEY_SESSION);
+        if (savedGames) {
+          const parsedGames = JSON.parse(savedGames);
+          const filteredGames = parsedGames.filter(
+            (game: Game) => game.sessionId === parsedSession.id
+          );
+          setGames(filteredGames);
+        }
       }
+    } catch (error) {
+      // Silently handle localStorage errors
     }
-  }, [session, isLoaded]);
+  };
 
-  // Save games to localStorage whenever they change
+  const loadGamesFromLocalStorage = (sessionId: string) => {
+    try {
+      const savedGames = localStorage.getItem(STORAGE_KEY_GAMES);
+      if (savedGames) {
+        const parsedGames = JSON.parse(savedGames);
+        const filteredGames = parsedGames.filter(
+          (game: Game) => game.sessionId === sessionId
+        );
+        setGames(filteredGames);
+      }
+    } catch (error) {
+      // Silently handle localStorage errors
+    }
+  };
+
+  // Sync session to API and localStorage whenever it changes
   useEffect(() => {
-    if (isLoaded && typeof window !== "undefined") {
-      if (games.length > 0) {
-        localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(games));
-      } else {
-        localStorage.removeItem(STORAGE_KEY_GAMES);
-      }
-    }
-  }, [games, isLoaded]);
+    if (!isLoaded || typeof window === "undefined" || !session) return;
 
-  const setSession = useCallback((newSession: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => {
+    // Always save to localStorage for offline support
+    localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
+    
+    // Update all sessions list
+    setAllSessions((prev) => {
+      const existingIndex = prev.findIndex((s) => s.id === session.id);
+      let updated: Session[];
+      if (existingIndex >= 0) {
+        updated = [...prev];
+        updated[existingIndex] = session;
+      } else {
+        updated = [...prev, session];
+      }
+      localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(updated));
+      return updated;
+    });
+
+    // Sync to API if available (don't await to avoid blocking UI)
+    if (apiAvailable) {
+      ApiClient.createSession(session).catch((error) => {
+        console.warn('[SessionContext] Failed to sync session to API:', error);
+      });
+    }
+  }, [session, isLoaded, apiAvailable]);
+
+  // Sync games to API and localStorage whenever they change
+  useEffect(() => {
+    if (!isLoaded || typeof window === "undefined" || !session) return;
+
+    // Always save to localStorage for offline support
+    if (games.length > 0) {
+      localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(games));
+    } else {
+      localStorage.removeItem(STORAGE_KEY_GAMES);
+    }
+
+    // Sync to API if available (don't await to avoid blocking UI)
+    if (apiAvailable && session) {
+      // Note: Game sync happens in addGame/updateGame callbacks for better control
+    }
+  }, [games, isLoaded, session, apiAvailable]);
+
+  const setSession = useCallback(async (newSession: Session, initialGames?: Omit<Game, "id" | "sessionId" | "gameNumber">[]) => {
+    // Optimistically update UI
     setSessionState(newSession);
+    
+    // Handle games
     setGames((prev) => {
       // If games belong to a different session, replace them with initial games (or clear if no initial games)
       if (prev.length > 0 && prev[0]?.sessionId !== newSession.id) {
@@ -144,23 +222,57 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Keep existing games (same session, no initial games provided)
       return prev;
     });
-  }, []);
+
+    // Sync to API if available
+    if (apiAvailable) {
+      try {
+        // Determine roundRobinCount from initialGames length if applicable
+        const roundRobinCount = initialGames && initialGames.length > 0 ? initialGames.length : null;
+        await ApiClient.createSession(newSession, initialGames, roundRobinCount);
+        
+        // If we created initial games, reload them from API to get proper IDs
+        if (initialGames && initialGames.length > 0) {
+          try {
+            const dbGames = await ApiClient.getGames(newSession.id);
+            setGames(dbGames);
+          } catch (error) {
+            console.warn('[SessionContext] Failed to reload games from API');
+          }
+        }
+      } catch (error) {
+        console.error('[SessionContext] Failed to sync session to API:', error);
+        // Continue with local state - user can retry later
+      }
+    }
+  }, [apiAvailable]);
 
   const addGame = useCallback(
-    (gameData: Omit<Game, "id" | "sessionId" | "gameNumber">) => {
+    async (gameData: Omit<Game, "id" | "sessionId" | "gameNumber">) => {
       if (!session) return;
 
-      setGames((prev) => {
-        const newGame: Game = {
-          id: `game-${Date.now()}-${Math.random()}`,
-          sessionId: session.id,
-          gameNumber: prev.length + 1,
-          ...gameData,
-        };
-        return [...prev, newGame];
-      });
+      // Optimistically update UI
+      const tempId = `game-${Date.now()}-${Math.random()}`;
+      const newGame: Game = {
+        id: tempId,
+        sessionId: session.id,
+        gameNumber: games.length + 1,
+        ...gameData,
+      };
+      setGames((prev) => [...prev, newGame]);
+
+      // Sync to API if available
+      if (apiAvailable) {
+        try {
+          const createdGame = await ApiClient.createGame(session.id, gameData);
+          // Replace temp game with real one from API
+          setGames((prev) => prev.map(g => g.id === tempId ? createdGame : g));
+        } catch (error) {
+          console.error('[SessionContext] Failed to sync game to API:', error);
+          // Keep the optimistic update - user can retry later
+        }
+      }
     },
-    [session]
+    [session, games.length, apiAvailable]
   );
 
   const addGames = useCallback(

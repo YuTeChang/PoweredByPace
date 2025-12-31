@@ -2,7 +2,11 @@
 
 ## Overview
 
-VibeBadminton uses **Vercel Postgres** for shared session storage. This allows multiple users to see and edit the same sessions in real-time.
+VibeBadminton uses **Postgres** for shared session storage. This allows multiple users to see and edit the same sessions.
+
+This works with:
+- **Vercel Postgres** (original target)
+- **Supabase Postgres** (supported)
 
 ## Architecture
 
@@ -59,7 +63,7 @@ This will:
 - Ask if you want to link to an existing project or create a new one
 - Create a `.vercel` directory with project configuration
 
-### 4. Create Vercel Postgres Database
+### 4. Create a Postgres Database
 
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Select your project
@@ -67,15 +71,15 @@ This will:
 4. Choose a name and region
 5. Click **Create**
 
-### 5. Pull Environment Variables
+### 5. Set Environment Variables
 
-Vercel CLI can automatically pull environment variables:
+If you're using Vercel Postgres, Vercel CLI can automatically pull environment variables:
 
 ```bash
 vercel env pull .env.local
 ```
 
-This will create `.env.local` with all the Postgres connection strings:
+This will create `.env.local` with the Postgres connection strings:
 - `POSTGRES_URL`
 - `POSTGRES_PRISMA_URL`
 - `POSTGRES_URL_NON_POOLING`
@@ -88,7 +92,11 @@ This will create `.env.local` with all the Postgres connection strings:
 
 ### 6. Initialize Database Schema
 
-After setting up environment variables, initialize the database:
+After setting up environment variables, initialize the database.
+
+If you're using Supabase and the script cannot connect (common due to pooler settings), run the SQL manually:
+- Copy from `npm run init:db:sql`
+- Paste into Supabase Dashboard → SQL Editor → Run
 
 #### Option A: Using npm script (Easiest)
 
