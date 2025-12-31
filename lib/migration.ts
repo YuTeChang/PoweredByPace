@@ -47,25 +47,30 @@ export async function runMigration(): Promise<MigrationResult> {
 
     // Connect to database
     // For Supabase and cloud Postgres, we need SSL with self-signed cert support
-    // Always use SSL for remote connections (not localhost)
     const isLocalhost = connectionString.includes('localhost') || 
                        connectionString.includes('127.0.0.1');
     
-    // Parse connection string to ensure SSL is properly configured
-    // Remove any existing sslmode parameters and add our own
-    let finalConnectionString = connectionString;
-    if (!isLocalhost) {
-      // Remove existing sslmode if present
-      finalConnectionString = finalConnectionString.replace(/[?&]sslmode=[^&]*/g, '');
-      // Add sslmode=require
-      const separator = finalConnectionString.includes('?') ? '&' : '?';
-      finalConnectionString = `${finalConnectionString}${separator}sslmode=require`;
-    }
+    // Remove any existing SSL parameters from connection string to avoid conflicts
+    // We'll handle SSL via the Pool's ssl option instead
+    let cleanConnectionString = connectionString
+      .replace(/[?&]sslmode=[^&]*/g, '')
+      .replace(/[?&]ssl=[^&]*/g, '')
+      .replace(/[?&]sslcert=[^&]*/g, '')
+      .replace(/[?&]sslkey=[^&]*/g, '')
+      .replace(/[?&]sslrootcert=[^&]*/g, '');
     
-    // Use SSL for all remote connections, allow self-signed certs
+    // Clean up any trailing ? or & after removing params
+    cleanConnectionString = cleanConnectionString.replace(/[?&]$/, '');
+    
+    // Use SSL for all remote connections (not localhost)
+    // Allow self-signed certificates for Supabase and other cloud providers
+    const sslConfig = !isLocalhost 
+      ? { rejectUnauthorized: false } 
+      : undefined;
+    
     const pool = new Pool({
-      connectionString: finalConnectionString,
-      ssl: !isLocalhost ? { rejectUnauthorized: false } : undefined,
+      connectionString: cleanConnectionString,
+      ssl: sslConfig,
     });
 
     try {

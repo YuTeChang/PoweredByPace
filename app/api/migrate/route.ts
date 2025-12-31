@@ -74,9 +74,12 @@ export async function GET() {
       // Use direct Postgres query to check if table exists
       try {
         const { Pool } = await import('pg');
+        // Use SSL for all remote connections (not localhost)
+        const isLocalhost = connectionString.includes('localhost') || 
+                           connectionString.includes('127.0.0.1');
         const pool = new Pool({
           connectionString,
-          ssl: connectionString.includes('supabase') ? { rejectUnauthorized: false } : undefined,
+          ssl: !isLocalhost ? { rejectUnauthorized: false } : undefined,
         });
 
         try {
