@@ -204,13 +204,9 @@ function CreateSessionContent() {
       ? parseFloat(betPerPlayer) || DEFAULT_BET_PER_PLAYER 
       : DEFAULT_BET_PER_PLAYER;
     
-    // Default session name to formatted date if not provided
-    const formattedDate = new Date(sessionDate).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-    const finalSessionName = sessionName.trim() || formattedDate;
+    // Default session name to current date (YYYY-MM-DD format) if not provided
+    const defaultSessionName = new Date(sessionDate).toISOString().split('T')[0]; // YYYY-MM-DD
+    const finalSessionName = sessionName.trim() || defaultSessionName;
     
     const session: Session = {
       id: `session-${Date.now()}`,

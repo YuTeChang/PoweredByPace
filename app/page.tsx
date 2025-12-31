@@ -68,6 +68,21 @@ export default function Home() {
     });
   };
 
+  const formatDateWithTime = (date: Date) => {
+    const d = new Date(date);
+    const dateStr = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeStr = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr} ${timeStr}`;
+  };
+
   const handleSessionClick = (sessionId: string) => {
     loadSession(sessionId);
     router.push(`/session/${sessionId}`);
@@ -136,7 +151,7 @@ export default function Home() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-base font-semibold text-japandi-text-primary">
-                        {s.name || formatDate(s.date)}
+                        {s.name || formatDateWithTime(s.date)}
                       </h3>
                       {isActive && (
                         <span className="text-xs text-japandi-accent-primary bg-japandi-background-primary px-2 py-1 rounded-full">
@@ -145,7 +160,7 @@ export default function Home() {
                       )}
                     </div>
                     <div className="text-sm text-japandi-text-muted mb-3">
-                      {formatDate(s.date)} • {s.players.length} players • {s.gameMode === "singles" ? "Singles" : "Doubles"}
+                      {formatDateWithTime(s.date)} • {s.players.length} players • {s.gameMode === "singles" ? "Singles" : "Doubles"}
                     </div>
                     {gameCount > 0 && (
                       <div className="text-xs text-japandi-text-muted mb-3">

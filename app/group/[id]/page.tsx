@@ -158,6 +158,21 @@ export default function GroupPage() {
     });
   };
 
+  const formatDateWithTime = (date: Date) => {
+    const d = new Date(date);
+    const dateStr = d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    const timeStr = d.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+    return `${dateStr} ${timeStr}`;
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-japandi-background-primary flex items-center justify-center">
@@ -284,14 +299,14 @@ export default function GroupPage() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-base font-semibold text-japandi-text-primary">
-                        {session.name || formatDate(session.date)}
+                        {session.name || formatDateWithTime(session.date)}
                       </h3>
                       <span className="text-xs text-japandi-accent-primary bg-japandi-background-primary px-2 py-1 rounded-full">
                         {session.players.length} players
                       </span>
                     </div>
                     <div className="text-sm text-japandi-text-muted">
-                      {formatDate(session.date)} • {session.gameMode === "singles" ? "Singles" : "Doubles"}
+                      {formatDateWithTime(session.date)} • {session.gameMode === "singles" ? "Singles" : "Doubles"}
                       {session.bettingEnabled && " • Betting"}
                     </div>
                   </Link>
