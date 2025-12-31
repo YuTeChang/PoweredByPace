@@ -5,6 +5,9 @@ import { SessionProvider } from "@/contexts/SessionContext";
 export const metadata: Metadata = {
   title: "PoweredByPace - Track Your Games & Settle Up",
   description: "Track badminton doubles games and automatically calculate who owes what",
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
