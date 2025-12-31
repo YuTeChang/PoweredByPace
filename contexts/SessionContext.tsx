@@ -118,8 +118,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       if (savedGroups) {
         const parsedGroups = JSON.parse(savedGroups);
         setGroups(parsedGroups);
+        hasLoadedGroupsRef.current = true; // Mark as loaded from localStorage
       }
 
+      // Load sessions
       const savedAllSessions = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
       if (savedAllSessions) {
         const parsedAllSessions = JSON.parse(savedAllSessions);
@@ -130,6 +132,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           bettingEnabled: s.bettingEnabled ?? true,
         }));
         setAllSessions(sessionsWithDates);
+        hasLoadedSessionsRef.current = true; // Mark as loaded from localStorage
       }
 
       const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
