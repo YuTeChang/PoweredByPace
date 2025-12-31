@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { Pool } from 'pg';
 
 /**
  * Automatic database migration endpoint
@@ -43,6 +42,9 @@ export async function POST() {
     // Read migration SQL file
     const migrationPath = join(process.cwd(), 'scripts', 'migrate-add-groups.sql');
     const migrationSQL = readFileSync(migrationPath, 'utf-8');
+
+    // Dynamically import pg to avoid bundling issues
+    const { Pool } = await import('pg');
 
     // Connect to database and run migration
     const pool = new Pool({
