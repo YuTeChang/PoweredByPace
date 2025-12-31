@@ -101,7 +101,7 @@ export class GameService {
   }
 
   /**
-   * Create multiple games in batch
+   * Create multiple games in batch (upsert to handle duplicates)
    */
   static async createGames(
     sessionId: string,
@@ -127,7 +127,9 @@ export class GameService {
 
       const { data: insertedGames, error: insertError } = await supabase
         .from('games')
-        .insert(gamesData)
+        .upsert(gamesData, {
+          onConflict: 'id',
+        })
         .select();
 
       if (insertError) {

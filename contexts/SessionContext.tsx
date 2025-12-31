@@ -293,11 +293,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [session]
   );
 
-  const updateGame = useCallback((gameId: string, updates: Partial<Game>) => {
+  const updateGame = useCallback(async (gameId: string, updates: Partial<Game>) => {
+    // Optimistically update UI
     setGames((prev) =>
       prev.map((game) => (game.id === gameId ? { ...game, ...updates } : game))
     );
-  }, []);
+    
+    // Sync to API if available
+    if (apiAvailable && session) {
+      try {
+        await ApiClient.updateGame(session.id, gameId, updates);
+      } catch (error) {
+        console.error('[SessionContext] Failed to sync game update to API:', error);
+        // Keep the optimistic update - user can retry later
+      }
+    }
+  }, [apiAvailable, session]);
 
   const removeLastGame = useCallback(() => {
     setGames((prev) => {
@@ -306,27 +317,33 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const loadSession = useCallback((sessionId: string) => {
+  const loadSession = useCallback(async (sessionId: string) => {
     const sessionToLoad = allSessions.find((s) => s.id === sessionId);
     if (sessionToLoad) {
       setSessionState(sessionToLoad);
       // Save as active session
       if (typeof window !== "undefined") {
         localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(sessionToLoad));
-        // Load games for this session
-        const savedGames = localStorage.getItem(STORAGE_KEY_GAMES);
-        if (savedGames) {
-          const parsedGames = JSON.parse(savedGames);
-          const filteredGames = parsedGames.filter(
-            (game: Game) => game.sessionId === sessionId
-          );
-          setGames(filteredGames);
-        } else {
-          setGames([]);
+      }
+      
+      // Load games from API if available, otherwise from localStorage
+      if (apiAvailable) {
+        try {
+          const dbGames = await ApiClient.getGames(sessionId);
+          setGames(dbGames);
+          // Also save to localStorage for offline support
+          if (typeof window !== "undefined") {
+            localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(dbGames));
+          }
+        } catch (error) {
+          console.warn('[SessionContext] Failed to load games from API, using localStorage fallback');
+          loadGamesFromLocalStorage(sessionId);
         }
+      } else {
+        loadGamesFromLocalStorage(sessionId);
       }
     }
-  }, [allSessions]);
+  }, [allSessions, apiAvailable]);
 
   const clearSession = useCallback(() => {
     setSessionState(null);

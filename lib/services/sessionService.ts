@@ -96,7 +96,7 @@ export class SessionService {
   }
 
   /**
-   * Create a new session with players
+   * Create or update a session with players (upsert)
    */
   static async createSession(
     session: Session,
@@ -105,10 +105,10 @@ export class SessionService {
     try {
       const supabase = createSupabaseClient();
       
-      // Insert session
+      // Upsert session (insert or update if exists)
       const { error: sessionError } = await supabase
         .from('sessions')
-        .insert({
+        .upsert({
           id: session.id,
           name: session.name || null,
           date: session.date.toISOString(),
@@ -119,13 +119,15 @@ export class SessionService {
           bet_per_player: session.betPerPlayer,
           game_mode: session.gameMode,
           round_robin_count: roundRobinCount || null,
+        }, {
+          onConflict: 'id',
         });
 
       if (sessionError) {
         throw sessionError;
       }
 
-      // Insert players in batch
+      // Upsert players (insert or update if exists)
       if (session.players.length > 0) {
         const playersData = session.players.map(player => ({
           id: player.id,
@@ -135,7 +137,9 @@ export class SessionService {
 
         const { error: playersError } = await supabase
           .from('players')
-          .insert(playersData);
+          .upsert(playersData, {
+            onConflict: 'id',
+          });
 
         if (playersError) {
           throw playersError;
