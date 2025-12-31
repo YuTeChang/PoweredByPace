@@ -258,18 +258,44 @@ export class GroupService {
       console.log('[GroupService.getGroupSessions] Fetching sessions for group:', groupId);
       const supabase = createSupabaseClient();
       
+      console.log('[GroupService.getGroupSessions] Supabase client config:', {
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'set' : 'missing',
+        serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'missing',
+        anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'set' : 'missing',
+      });
+
+      // Get all sessions - order in JavaScript to avoid Supabase ordering bug with duplicate dates
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select('*')
-        .eq('group_id', groupId)
-        .order('date', { ascending: false });
+        .eq('group_id', groupId);
+      
+      // Sort by date descending, then by created_at descending as tiebreaker
+      if (sessionsData) {
+        sessionsData.sort((a, b) => {
+          const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+          if (dateDiff !== 0) return dateDiff;
+          // If dates are equal, sort by created_at
+          const createdDiff = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+          return createdDiff;
+        });
+      }
       
       console.log('[GroupService.getGroupSessions] Query result:', {
         groupId,
         sessionsFound: sessionsData?.length || 0,
-        sessions: sessionsData?.map(s => ({ id: s.id, name: s.name, group_id: s.group_id })),
+        sessions: sessionsData?.map(s => ({ id: s.id, name: s.name, group_id: s.group_id, date: s.date })),
         error: sessionsError?.message,
+        errorCode: sessionsError?.code,
+        errorDetails: sessionsError?.details,
       });
+      
+      // Also try a count query to see total
+      const { count } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId);
+      console.log('[GroupService.getGroupSessions] Count query result:', count);
 
       if (sessionsError) {
         throw sessionsError;
