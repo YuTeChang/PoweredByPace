@@ -12,6 +12,8 @@ export interface MigrationResult {
   tablesCreated?: string[];
   columnsAdded?: string[];
   error?: string;
+  errorCode?: string;
+  errorDetails?: string;
   alreadyApplied?: boolean;
 }
 
