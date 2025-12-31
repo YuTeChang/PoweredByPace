@@ -84,14 +84,25 @@ export async function runMigration(): Promise<MigrationResult> {
       // Important: Preserve order and handle multi-line statements correctly
       let statements = migrationSQL
         .split(';')
-        .map(s => s.trim())
+        .map(s => {
+          // Remove comment lines (lines starting with --)
+          const lines = s.split('\n');
+          const cleanedLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed.length > 0 && !trimmed.startsWith('--');
+          });
+          return cleanedLines.join('\n').trim();
+        })
         .filter(s => {
-          // Remove empty lines and comments
+          // Remove empty statements
           if (s.length === 0) return false;
-          if (s.startsWith('--')) return false;
-          // Remove lines that are only whitespace
           if (s.match(/^\s*$/)) return false;
-          return true;
+          // Remove statements that are only comments
+          const nonCommentLines = s.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return trimmed.length > 0 && !trimmed.startsWith('--');
+          });
+          return nonCommentLines.length > 0;
         });
       const client = await pool.connect();
       

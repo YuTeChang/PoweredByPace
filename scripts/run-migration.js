@@ -93,9 +93,26 @@ async function runMigration() {
       // Important: Preserve order and handle multi-line statements correctly
       let statements = migrationSQL
         .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'))
-        .filter(s => !s.match(/^\s*$/));
+        .map(s => {
+          // Remove comment lines (lines starting with --)
+          const lines = s.split('\n');
+          const cleanedLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed.length > 0 && !trimmed.startsWith('--');
+          });
+          return cleanedLines.join('\n').trim();
+        })
+        .filter(s => {
+          // Remove empty statements
+          if (s.length === 0) return false;
+          if (s.match(/^\s*$/)) return false;
+          // Remove statements that are only comments
+          const nonCommentLines = s.split('\n').filter(line => {
+            const trimmed = line.trim();
+            return trimmed.length > 0 && !trimmed.startsWith('--');
+          });
+          return nonCommentLines.length > 0;
+        });
       
       // Verify critical columns exist before creating indexes
       const verifyColumnBeforeIndex = async (table, column, indexStatement) => {
