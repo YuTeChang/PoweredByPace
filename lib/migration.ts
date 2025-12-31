@@ -81,7 +81,8 @@ export async function runMigration(): Promise<MigrationResult> {
     try {
       // Split SQL by semicolons and execute each statement
       // Handle multi-line statements and comments properly
-      const statements = migrationSQL
+      // Important: Preserve order and handle multi-line statements correctly
+      let statements = migrationSQL
         .split(';')
         .map(s => s.trim())
         .filter(s => {
@@ -92,14 +93,71 @@ export async function runMigration(): Promise<MigrationResult> {
           if (s.match(/^\s*$/)) return false;
           return true;
         });
+      
+      // Verify critical columns exist before creating indexes
+      // This prevents "column does not exist" errors
+      const verifyColumnBeforeIndex = async (table: string, column: string, indexStatement: string) => {
+        try {
+          const checkResult = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = $1 
+            AND column_name = $2
+          `, [table, column]);
+          
+          if (checkResult.rows.length === 0) {
+            console.log(`[Migration] ⚠️  Column ${table}.${column} does not exist yet, skipping index creation`);
+            return false;
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       const client = await pool.connect();
+      
+      // Helper to verify column exists before creating index
+      const verifyColumnBeforeIndex = async (table: string, column: string): Promise<boolean> => {
+        try {
+          const checkResult = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = $1 
+            AND column_name = $2
+          `, [table, column]);
+          
+          return checkResult.rows.length > 0;
+        } catch {
+          return false;
+        }
+      };
       
       try {
         for (let i = 0; i < statements.length; i++) {
           const statement = statements[i].trim();
           if (statement) {
             try {
+              // Before creating indexes, verify the column exists
+              if (statement.toUpperCase().includes('CREATE INDEX')) {
+                if (statement.includes('group_player_id') && statement.includes('players')) {
+                  const columnExists = await verifyColumnBeforeIndex('players', 'group_player_id');
+                  if (!columnExists) {
+                    console.log(`[Migration] ⏭️  Skipping index on players.group_player_id - column doesn't exist yet`);
+                    continue;
+                  }
+                }
+                if (statement.includes('group_id') && statement.includes('sessions')) {
+                  const columnExists = await verifyColumnBeforeIndex('sessions', 'group_id');
+                  if (!columnExists) {
+                    console.log(`[Migration] ⏭️  Skipping index on sessions.group_id - column doesn't exist yet`);
+                    continue;
+                  }
+                }
+              }
+              
               await client.query(statement);
               console.log(`[Migration] ✓ Statement ${i + 1}/${statements.length}: ${statement.substring(0, 60).replace(/\n/g, ' ')}...`);
             } catch (stmtError: any) {

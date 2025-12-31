@@ -90,11 +90,33 @@ async function runMigration() {
 
     try {
       // Split SQL by semicolons and execute each statement
-      const statements = migrationSQL
+      // Important: Preserve order and handle multi-line statements correctly
+      let statements = migrationSQL
         .split(';')
         .map(s => s.trim())
         .filter(s => s.length > 0 && !s.startsWith('--'))
         .filter(s => !s.match(/^\s*$/));
+      
+      // Verify critical columns exist before creating indexes
+      const verifyColumnBeforeIndex = async (table, column, indexStatement) => {
+        try {
+          const checkResult = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = $1 
+            AND column_name = $2
+          `, [table, column]);
+          
+          if (checkResult.rows.length === 0) {
+            console.log(`[Migration] ⚠️  Column ${table}.${column} does not exist yet, skipping index creation`);
+            return false;
+          }
+          return true;
+        } catch {
+          return false;
+        }
+      };
 
       const client = await pool.connect();
       
@@ -104,6 +126,24 @@ async function runMigration() {
           const statement = statements[i].trim();
           if (statement) {
             try {
+              // Before creating indexes, verify the column exists
+              if (statement.toUpperCase().includes('CREATE INDEX') && 
+                  statement.includes('group_player_id')) {
+                const columnExists = await verifyColumnBeforeIndex('players', 'group_player_id', statement);
+                if (!columnExists) {
+                  console.log(`[Migration] ⏭️  Skipping index creation - column doesn't exist yet`);
+                  continue;
+                }
+              }
+              if (statement.toUpperCase().includes('CREATE INDEX') && 
+                  statement.includes('sessions') && statement.includes('group_id')) {
+                const columnExists = await verifyColumnBeforeIndex('sessions', 'group_id', statement);
+                if (!columnExists) {
+                  console.log(`[Migration] ⏭️  Skipping index creation - column doesn't exist yet`);
+                  continue;
+                }
+              }
+              
               await client.query(statement);
               console.log(`[Migration] ✓ Statement ${i + 1}/${statements.length}: ${statement.substring(0, 60).replace(/\n/g, ' ')}...`);
             } catch (stmtError) {
