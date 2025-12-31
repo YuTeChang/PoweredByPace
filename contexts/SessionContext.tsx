@@ -409,36 +409,69 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    // First check if session is already in allSessions
-    let sessionToLoad = allSessions.find((s) => s.id === sessionId);
+    // Always fetch fresh session data from API to ensure we have complete data (including players)
+    // Don't rely on allSessions cache which might be stale or incomplete
+    let sessionToLoad: Session | null = null;
     
-    // If not in allSessions, fetch it from API
-    if (!sessionToLoad && apiAvailable) {
+    if (apiAvailable) {
       try {
         sessionToLoad = await ApiClient.getSession(sessionId);
-        // Add to allSessions cache for future use
+        // Update allSessions cache with fresh data
         if (sessionToLoad) {
           setAllSessions(prev => {
-            // Avoid duplicates
-            if (prev.find(s => s.id === sessionId)) return prev;
-            return [sessionToLoad!, ...prev];
+            const existingIndex = prev.findIndex(s => s.id === sessionId);
+            if (existingIndex >= 0) {
+              // Update existing session with fresh data
+              const updated = [...prev];
+              updated[existingIndex] = sessionToLoad!;
+              return updated;
+            } else {
+              // Add new session to cache
+              return [sessionToLoad!, ...prev];
+            }
           });
         }
       } catch (error) {
         console.warn('[SessionContext] Failed to fetch session from API:', error);
-        // Try localStorage as fallback
-        if (typeof window !== "undefined") {
-          const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
-          if (savedSession) {
-            try {
-              const parsed = JSON.parse(savedSession);
-              if (parsed.id === sessionId) {
-                parsed.date = new Date(parsed.date);
-                sessionToLoad = parsed;
+        // Fallback: Try to use cached session from allSessions if available
+        const cachedSession = allSessions.find((s) => s.id === sessionId);
+        if (cachedSession) {
+          sessionToLoad = cachedSession;
+          console.warn('[SessionContext] Using cached session from allSessions');
+        } else {
+          // Last resort: Try localStorage
+          if (typeof window !== "undefined") {
+            const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+            if (savedSession) {
+              try {
+                const parsed = JSON.parse(savedSession);
+                if (parsed.id === sessionId) {
+                  parsed.date = new Date(parsed.date);
+                  sessionToLoad = parsed;
+                }
+              } catch {
+                // Ignore parse errors
               }
-            } catch {
-              // Ignore parse errors
             }
+          }
+        }
+      }
+    } else {
+      // API not available, try cache or localStorage
+      const cachedSession = allSessions.find((s) => s.id === sessionId);
+      if (cachedSession) {
+        sessionToLoad = cachedSession;
+      } else if (typeof window !== "undefined") {
+        const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+        if (savedSession) {
+          try {
+            const parsed = JSON.parse(savedSession);
+            if (parsed.id === sessionId) {
+              parsed.date = new Date(parsed.date);
+              sessionToLoad = parsed;
+            }
+          } catch {
+            // Ignore parse errors
           }
         }
       }
