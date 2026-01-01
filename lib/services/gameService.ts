@@ -221,10 +221,21 @@ export class GameService {
 
       const game = this.mapRowToGame(updatedGame as any);
 
-      // Update ELO if winning team is being set for the first time
-      // (only when going from null to a value, not when changing existing result)
-      if (updates.winningTeam && !previousWinningTeam) {
-        await this.updateEloForGame(sessionId, game);
+      // Handle ELO and stats updates based on winning team changes
+      if (updates.winningTeam !== undefined) {
+        if (!previousWinningTeam && updates.winningTeam) {
+          // New result: apply stats
+          await this.updateEloForGame(sessionId, game);
+        } else if (previousWinningTeam && !updates.winningTeam) {
+          // Result cleared: reverse stats
+          const previousGame = this.mapRowToGame(currentGame as any);
+          await this.reverseStatsForGame(sessionId, previousGame);
+        } else if (previousWinningTeam && updates.winningTeam && previousWinningTeam !== updates.winningTeam) {
+          // Result changed: reverse old, apply new
+          const previousGame = this.mapRowToGame(currentGame as any);
+          await this.reverseStatsForGame(sessionId, previousGame);
+          await this.updateEloForGame(sessionId, game);
+        }
       }
 
       return game;
@@ -241,6 +252,23 @@ export class GameService {
     try {
       const supabase = createSupabaseClient();
       
+      // First, get the game to reverse stats if it had a result
+      const { data: game, error: fetchError } = await supabase
+        .from('games')
+        .select('*')
+        .eq('id', gameId)
+        .eq('session_id', sessionId)
+        .single();
+
+      if (fetchError) {
+        console.error('[GameService] Error fetching game for deletion:', fetchError);
+      }
+
+      // Reverse stats if game had a winner
+      if (game?.winning_team) {
+        await this.reverseStatsForGame(sessionId, this.mapRowToGame(game as any));
+      }
+
       const { error: deleteError } = await supabase
         .from('games')
         .delete()
@@ -253,6 +281,63 @@ export class GameService {
     } catch (error) {
       console.error('[GameService] Error deleting game:', error);
       throw new Error('Failed to delete game');
+    }
+  }
+
+  /**
+   * Reverse ELO and stats for a game (when deleting or changing result)
+   */
+  private static async reverseStatsForGame(sessionId: string, game: Game): Promise<void> {
+    try {
+      if (!game.winningTeam) return;
+
+      const supabase = createSupabaseClient();
+
+      // Check if this session belongs to a group
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('group_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !session?.group_id) {
+        // Not a group session, no stats to reverse
+        return;
+      }
+
+      // Get player mappings (session player ID -> group player ID)
+      const allPlayerIds = [...game.teamA, ...game.teamB];
+      const { data: players, error: playersError } = await supabase
+        .from('players')
+        .select('id, group_player_id')
+        .in('id', allPlayerIds);
+
+      if (playersError || !players) {
+        console.error('[GameService] Error fetching player mappings for reversal:', playersError);
+        return;
+      }
+
+      const playerToGroupPlayer = new Map<string, string>();
+      players.forEach(p => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+        }
+      });
+
+      // Map team player IDs to group player IDs
+      const teamAGroupIds = game.teamA
+        .map(id => playerToGroupPlayer.get(id))
+        .filter(Boolean) as string[];
+      const teamBGroupIds = game.teamB
+        .map(id => playerToGroupPlayer.get(id))
+        .filter(Boolean) as string[];
+
+      // Reverse stats
+      if (teamAGroupIds.length > 0 || teamBGroupIds.length > 0) {
+        await EloService.reverseGameResult(teamAGroupIds, teamBGroupIds, game.winningTeam);
+      }
+    } catch (error) {
+      console.error('[GameService] Error reversing stats:', error);
     }
   }
 

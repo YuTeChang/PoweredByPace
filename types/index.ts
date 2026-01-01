@@ -10,6 +10,9 @@ export interface GroupPlayer {
   groupId: string;
   name: string;
   eloRating?: number; // ELO rating, defaults to 1500
+  wins?: number; // Total wins across all sessions
+  losses?: number; // Total losses across all sessions
+  totalGames?: number; // Total games played (wins + losses)
   createdAt?: Date;
 }
 

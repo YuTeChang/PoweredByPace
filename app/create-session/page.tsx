@@ -218,6 +218,31 @@ function CreateSessionContent() {
   const updatePlayerName = (index: number, name: string) => {
     const updated = [...players];
     updated[index].name = name;
+    
+    // Auto-link to group player if name matches (case-insensitive)
+    if (selectedGroupId && groupPlayers.length > 0) {
+      const matchingGroupPlayer = groupPlayers.find(
+        gp => gp.name.toLowerCase().trim() === name.toLowerCase().trim()
+      );
+      if (matchingGroupPlayer) {
+        updated[index].groupPlayerId = matchingGroupPlayer.id;
+        // Add to selected set if not already there
+        if (!selectedGroupPlayerIds.has(matchingGroupPlayer.id)) {
+          setSelectedGroupPlayerIds(new Set([...Array.from(selectedGroupPlayerIds), matchingGroupPlayer.id]));
+        }
+      } else {
+        // Clear groupPlayerId if name no longer matches
+        if (updated[index].groupPlayerId) {
+          const wasGroupPlayerId = updated[index].groupPlayerId;
+          updated[index].groupPlayerId = undefined;
+          // Remove from selected set
+          const newSelected = new Set(selectedGroupPlayerIds);
+          newSelected.delete(wasGroupPlayerId!);
+          setSelectedGroupPlayerIds(newSelected);
+        }
+      }
+    }
+    
     setPlayers(updated);
   };
   
@@ -541,13 +566,24 @@ function CreateSessionContent() {
             <div className="space-y-3">
               {players.map((player, index) => (
                 <div key={player.id} className="flex gap-3">
-                  <input
-                    type="text"
-                    value={player.name}
-                    onChange={(e) => updatePlayerName(index, e.target.value)}
-                    placeholder={`Player ${index + 1}`}
-                    className="flex-1 px-4 py-3 border border-japandi-border-light rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all"
-                  />
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={player.name}
+                      onChange={(e) => updatePlayerName(index, e.target.value)}
+                      placeholder={`Player ${index + 1}`}
+                      className={`w-full px-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
+                        player.groupPlayerId 
+                          ? "border-green-300 bg-green-50/30" 
+                          : "border-japandi-border-light"
+                      }`}
+                    />
+                    {player.groupPlayerId && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm">
+                        ✓ Linked
+                      </span>
+                    )}
+                  </div>
                   {players.length > (gameMode === "singles" ? 2 : 4) && (
                     <button
                       type="button"
@@ -563,6 +599,11 @@ function CreateSessionContent() {
             {!hasEnoughPlayers && (
               <p className="mt-2 text-sm text-red-600">
                 At least {minPlayersRequired} players are required for {gameMode} mode
+              </p>
+            )}
+            {selectedGroupId && groupPlayers.length > 0 && (
+              <p className="mt-2 text-sm text-japandi-text-muted">
+                💡 Type a name that matches a group player to automatically link their stats
               </p>
             )}
           </div>

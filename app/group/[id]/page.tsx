@@ -176,7 +176,14 @@ export default function GroupPage() {
     setIsAddingPlayer(true);
     try {
       const result = await ApiClient.addGroupPlayer(groupId, newPlayerName.trim());
-      setPlayers([...players, result.player]);
+      // Add player with default stats
+      const newPlayer = {
+        ...result.player,
+        wins: 0,
+        losses: 0,
+        totalGames: 0,
+      };
+      setPlayers([...players, newPlayer]);
       setNewPlayerName("");
       // Reset leaderboard cache so it reloads with new player
       leaderboardLoadedRef.current = false;
@@ -550,12 +557,16 @@ export default function GroupPage() {
                     key={player.id}
                     className="flex items-center justify-between bg-japandi-background-card border border-japandi-border-light rounded-card p-3"
                   >
-                    <div>
-                      <span className="text-japandi-text-primary">{player.name}</span>
-                      {player.eloRating && (
-                        <span className="text-xs text-japandi-text-muted ml-2">
-                          ELO: {player.eloRating}
+                    <div className="flex items-center gap-3">
+                      <span className="text-japandi-text-primary font-medium">{player.name}</span>
+                      {(player.totalGames ?? 0) > 0 ? (
+                        <span className="text-sm text-japandi-text-muted">
+                          <span className="text-green-600">{player.wins ?? 0}W</span>
+                          {" - "}
+                          <span className="text-red-500">{player.losses ?? 0}L</span>
                         </span>
+                      ) : (
+                        <span className="text-xs text-japandi-text-muted">No games yet</span>
                       )}
                     </div>
                     <button

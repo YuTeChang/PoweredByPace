@@ -120,6 +120,7 @@ export class EloService {
 
   /**
    * Process ELO changes after a game
+   * Also updates win/loss stats for each player
    * 
    * @param teamAGroupPlayerIds - Group player IDs for team A
    * @param teamBGroupPlayerIds - Group player IDs for team B
@@ -189,26 +190,130 @@ export class EloService {
       });
     }
 
-    // Apply the updates
-    await this.updatePlayerRatings(updates.map(u => ({
+    // Apply the ELO updates and win/loss stats
+    await this.updatePlayerRatingsAndStats(updates.map(u => ({
       groupPlayerId: u.groupPlayerId,
       newRating: u.newRating,
-    })));
+      won: u.change > 0 || (u.change === 0 && validTeamA.includes(u.groupPlayerId) ? winningTeam === 'A' : winningTeam === 'B'),
+    })), winningTeam, validTeamA, validTeamB);
 
     return { updates };
   }
 
   /**
-   * Recalculate all ELO ratings for a group from game history
+   * Update ELO ratings AND win/loss stats for multiple players
+   */
+  static async updatePlayerRatingsAndStats(
+    updates: { groupPlayerId: string; newRating: number; won: boolean }[],
+    winningTeam: 'A' | 'B',
+    teamAIds: string[],
+    teamBIds: string[]
+  ): Promise<void> {
+    const supabase = createSupabaseClient();
+
+    for (const update of updates) {
+      const isTeamA = teamAIds.includes(update.groupPlayerId);
+      const won = isTeamA ? winningTeam === 'A' : winningTeam === 'B';
+
+      // Get current stats
+      const { data: player } = await supabase
+        .from('group_players')
+        .select('wins, losses, total_games')
+        .eq('id', update.groupPlayerId)
+        .single();
+
+      const currentWins = player?.wins || 0;
+      const currentLosses = player?.losses || 0;
+
+      const { error } = await supabase
+        .from('group_players')
+        .update({ 
+          elo_rating: update.newRating,
+          wins: won ? currentWins + 1 : currentWins,
+          losses: won ? currentLosses : currentLosses + 1,
+          total_games: currentWins + currentLosses + 1,
+        })
+        .eq('id', update.groupPlayerId);
+
+      if (error) {
+        console.error('[EloService] Error updating rating/stats for', update.groupPlayerId, error);
+      }
+    }
+  }
+
+  /**
+   * Reverse ELO and stats changes when a game is deleted or result changes
+   */
+  static async reverseGameResult(
+    teamAGroupPlayerIds: string[],
+    teamBGroupPlayerIds: string[],
+    wasWinningTeam: 'A' | 'B'
+  ): Promise<void> {
+    const supabase = createSupabaseClient();
+
+    // Filter out null/undefined IDs
+    const validTeamA = teamAGroupPlayerIds.filter(id => id != null);
+    const validTeamB = teamBGroupPlayerIds.filter(id => id != null);
+
+    // Reverse stats for team A
+    for (const playerId of validTeamA) {
+      const { data: player } = await supabase
+        .from('group_players')
+        .select('wins, losses, total_games')
+        .eq('id', playerId)
+        .single();
+
+      if (player) {
+        const wasWin = wasWinningTeam === 'A';
+        await supabase
+          .from('group_players')
+          .update({
+            wins: wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0,
+            losses: wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1),
+            total_games: Math.max(0, (player.total_games || 0) - 1),
+          })
+          .eq('id', playerId);
+      }
+    }
+
+    // Reverse stats for team B
+    for (const playerId of validTeamB) {
+      const { data: player } = await supabase
+        .from('group_players')
+        .select('wins, losses, total_games')
+        .eq('id', playerId)
+        .single();
+
+      if (player) {
+        const wasWin = wasWinningTeam === 'B';
+        await supabase
+          .from('group_players')
+          .update({
+            wins: wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0,
+            losses: wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1),
+            total_games: Math.max(0, (player.total_games || 0) - 1),
+          })
+          .eq('id', playerId);
+      }
+    }
+  }
+
+  /**
+   * Recalculate all ELO ratings and stats for a group from game history
    * Useful for fixing data or retroactive calculations
    */
   static async recalculateGroupElo(groupId: string): Promise<void> {
     const supabase = createSupabaseClient();
 
-    // Reset all players to default ELO
+    // Reset all players to default ELO and zero stats
     await supabase
       .from('group_players')
-      .update({ elo_rating: this.DEFAULT_ELO })
+      .update({ 
+        elo_rating: this.DEFAULT_ELO,
+        wins: 0,
+        losses: 0,
+        total_games: 0,
+      })
       .eq('group_id', groupId);
 
     // Get all sessions in the group ordered by date

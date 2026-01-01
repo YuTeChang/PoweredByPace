@@ -30,114 +30,94 @@ interface GameData {
 export class StatsService {
   /**
    * Get leaderboard data for a group
+   * Uses stored wins/losses for efficiency, only calculates recentForm from games
    */
   static async getLeaderboard(groupId: string): Promise<LeaderboardEntry[]> {
     try {
       const supabase = createSupabaseClient();
       
-      // Get all group players with ELO
+      // Get all group players with stats (now stored directly on player)
       const { data: groupPlayers, error: gpError } = await supabase
         .from('group_players')
-        .select('id, name, elo_rating')
+        .select('id, name, elo_rating, wins, losses, total_games')
         .eq('group_id', groupId)
         .order('elo_rating', { ascending: false });
 
       if (gpError) throw gpError;
       if (!groupPlayers || groupPlayers.length === 0) return [];
 
-      // Get all sessions in the group
-      const { data: sessions, error: sessionsError } = await supabase
+      // Get recent games for form calculation (only need this now)
+      const { data: sessions } = await supabase
         .from('sessions')
         .select('id')
         .eq('group_id', groupId);
-
-      if (sessionsError) throw sessionsError;
       
       const sessionIds = (sessions || []).map(s => s.id);
       
-      // Get player mappings
+      // Get player mappings for recent form
       const { data: players } = await supabase
         .from('players')
-        .select('id, session_id, group_player_id')
+        .select('id, group_player_id')
         .in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__'])
         .not('group_player_id', 'is', null);
 
       const playerToGroupPlayer = new Map<string, string>();
-      const groupPlayerSessions = new Map<string, Set<string>>();
-      
       (players || []).forEach((p) => {
         if (p.group_player_id) {
           playerToGroupPlayer.set(p.id, p.group_player_id);
-          if (!groupPlayerSessions.has(p.group_player_id)) {
-            groupPlayerSessions.set(p.group_player_id, new Set());
-          }
-          groupPlayerSessions.get(p.group_player_id)!.add(p.session_id);
         }
       });
 
-      // Get all completed games
-      const { data: games } = await supabase
+      // Get recent games for form indicator (limit to last 50 for efficiency)
+      const { data: recentGames } = await supabase
         .from('games')
-        .select('*')
+        .select('team_a, team_b, winning_team')
         .in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__'])
         .not('winning_team', 'is', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-      // Build stats for each player
-      const statsMap = new Map<string, {
-        wins: number;
-        losses: number;
-        recentGames: ('W' | 'L')[];
-      }>();
+      // Build recent form for each player (last 5 games)
+      const recentFormMap = new Map<string, ('W' | 'L')[]>();
+      groupPlayers.forEach(gp => recentFormMap.set(gp.id, []));
 
-      groupPlayers.forEach(gp => {
-        statsMap.set(gp.id, { wins: 0, losses: 0, recentGames: [] });
-      });
-
-      // Process games (newest first for recent form)
-      (games || []).forEach((game) => {
+      (recentGames || []).forEach((game) => {
         const teamA = this.parseJsonArray(game.team_a);
         const teamB = this.parseJsonArray(game.team_b);
         const winningTeam = game.winning_team;
 
         teamA.forEach((playerId: string) => {
           const groupPlayerId = playerToGroupPlayer.get(playerId);
-          if (groupPlayerId && statsMap.has(groupPlayerId)) {
-            const stats = statsMap.get(groupPlayerId)!;
-            if (winningTeam === 'A') {
-              stats.wins += 1;
-              if (stats.recentGames.length < 5) stats.recentGames.push('W');
-            } else {
-              stats.losses += 1;
-              if (stats.recentGames.length < 5) stats.recentGames.push('L');
+          if (groupPlayerId && recentFormMap.has(groupPlayerId)) {
+            const form = recentFormMap.get(groupPlayerId)!;
+            if (form.length < 5) {
+              form.push(winningTeam === 'A' ? 'W' : 'L');
             }
           }
         });
 
         teamB.forEach((playerId: string) => {
           const groupPlayerId = playerToGroupPlayer.get(playerId);
-          if (groupPlayerId && statsMap.has(groupPlayerId)) {
-            const stats = statsMap.get(groupPlayerId)!;
-            if (winningTeam === 'B') {
-              stats.wins += 1;
-              if (stats.recentGames.length < 5) stats.recentGames.push('W');
-            } else {
-              stats.losses += 1;
-              if (stats.recentGames.length < 5) stats.recentGames.push('L');
+          if (groupPlayerId && recentFormMap.has(groupPlayerId)) {
+            const form = recentFormMap.get(groupPlayerId)!;
+            if (form.length < 5) {
+              form.push(winningTeam === 'B' ? 'W' : 'L');
             }
           }
         });
       });
 
-      // Build leaderboard entries
+      // Build leaderboard entries using stored stats
       const leaderboard: LeaderboardEntry[] = groupPlayers.map((gp, index) => {
-        const stats = statsMap.get(gp.id) || { wins: 0, losses: 0, recentGames: [] };
-        const totalGames = stats.wins + stats.losses;
-        const winRate = totalGames > 0 ? (stats.wins / totalGames) * 100 : 0;
+        const wins = gp.wins || 0;
+        const losses = gp.losses || 0;
+        const totalGames = gp.total_games || (wins + losses);
+        const winRate = totalGames > 0 ? (wins / totalGames) * 100 : 0;
+        const recentForm = recentFormMap.get(gp.id) || [];
         
         // Determine trend based on recent form
-        const recentWins = stats.recentGames.filter(r => r === 'W').length;
-        const recentLosses = stats.recentGames.filter(r => r === 'L').length;
+        const recentWins = recentForm.filter(r => r === 'W').length;
+        const recentLosses = recentForm.filter(r => r === 'L').length;
         let trend: 'up' | 'down' | 'stable' = 'stable';
         if (recentWins > recentLosses + 1) trend = 'up';
         else if (recentLosses > recentWins + 1) trend = 'down';
@@ -148,10 +128,10 @@ export class StatsService {
           eloRating: gp.elo_rating || 1500,
           rank: index + 1,
           totalGames,
-          wins: stats.wins,
-          losses: stats.losses,
+          wins,
+          losses,
           winRate,
-          recentForm: stats.recentGames,
+          recentForm,
           trend,
         };
       });

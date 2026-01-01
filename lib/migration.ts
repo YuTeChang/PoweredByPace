@@ -106,23 +106,47 @@ async function recordMigrationApplied(
 }
 
 /**
- * Check if a migration has already been applied by checking for key database objects
+ * Check if a migration has already been applied by parsing the SQL and checking for key objects
  * This is a fallback when the migrations table doesn't have a record
  */
-async function checkMigrationAlreadyApplied(client: any, version: string): Promise<boolean> {
+async function checkMigrationAlreadyApplied(client: any, migration: MigrationFile): Promise<boolean> {
   try {
-    // For migration 001, check if groups table exists
-    if (version === '001') {
+    const sql = readFileSync(migration.path, 'utf-8').toUpperCase();
+    
+    // Check for CREATE TABLE statements
+    const createTableMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/);
+    if (createTableMatch) {
+      const tableName = createTableMatch[1].toLowerCase();
       const result = await client.query(`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
           WHERE table_schema = 'public' 
-          AND table_name = 'groups'
+          AND table_name = $1
         );
-      `);
-      return result.rows[0]?.exists === true;
+      `, [tableName]);
+      if (result.rows[0]?.exists === true) {
+        return true;
+      }
     }
-    // For future migrations, add checks here
+    
+    // Check for ALTER TABLE ADD COLUMN statements
+    const alterTableMatch = sql.match(/ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)/);
+    if (alterTableMatch) {
+      const tableName = alterTableMatch[1].toLowerCase();
+      const columnName = alterTableMatch[2].toLowerCase();
+      const result = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.columns 
+          WHERE table_schema = 'public' 
+          AND table_name = $1
+          AND column_name = $2
+        );
+      `, [tableName, columnName]);
+      if (result.rows[0]?.exists === true) {
+        return true;
+      }
+    }
+    
     return false;
   } catch {
     return false;
@@ -331,7 +355,7 @@ export async function runMigration(): Promise<MigrationResult> {
       // by checking for key database objects (fallback for when migrations table is missing records)
       const migrationsToAutoMark: string[] = [];
       for (const migration of pendingMigrations) {
-        const alreadyApplied = await checkMigrationAlreadyApplied(client, migration.version);
+        const alreadyApplied = await checkMigrationAlreadyApplied(client, migration);
         if (alreadyApplied) {
           console.log(`[Migration] Detected migration ${migration.version} already applied (objects exist), marking as applied...`);
           await recordMigrationApplied(client, migration.version, migration.name, migration.filename);

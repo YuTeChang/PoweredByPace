@@ -401,8 +401,95 @@ export class GroupService {
       groupId: row.group_id,
       name: row.name,
       eloRating: row.elo_rating || 1500,
+      wins: row.wins || 0,
+      losses: row.losses || 0,
+      totalGames: row.total_games || 0,
       createdAt: row.created_at ? new Date(row.created_at) : undefined,
     };
+  }
+
+  /**
+   * Update a group player's stats after a game
+   */
+  static async updatePlayerStats(
+    groupPlayerId: string, 
+    won: boolean
+  ): Promise<void> {
+    try {
+      const supabase = createSupabaseClient();
+      
+      // Get current stats
+      const { data: player, error: fetchError } = await supabase
+        .from('group_players')
+        .select('wins, losses, total_games')
+        .eq('id', groupPlayerId)
+        .single();
+
+      if (fetchError) {
+        console.error('[GroupService] Error fetching player for stats update:', fetchError);
+        return;
+      }
+
+      const currentWins = player?.wins || 0;
+      const currentLosses = player?.losses || 0;
+
+      const { error: updateError } = await supabase
+        .from('group_players')
+        .update({
+          wins: won ? currentWins + 1 : currentWins,
+          losses: won ? currentLosses : currentLosses + 1,
+          total_games: currentWins + currentLosses + 1,
+        })
+        .eq('id', groupPlayerId);
+
+      if (updateError) {
+        console.error('[GroupService] Error updating player stats:', updateError);
+      }
+    } catch (error) {
+      console.error('[GroupService] Error in updatePlayerStats:', error);
+    }
+  }
+
+  /**
+   * Reverse a player's stats (when deleting or changing a game result)
+   */
+  static async reversePlayerStats(
+    groupPlayerId: string,
+    wasWin: boolean
+  ): Promise<void> {
+    try {
+      const supabase = createSupabaseClient();
+      
+      // Get current stats
+      const { data: player, error: fetchError } = await supabase
+        .from('group_players')
+        .select('wins, losses, total_games')
+        .eq('id', groupPlayerId)
+        .single();
+
+      if (fetchError) {
+        console.error('[GroupService] Error fetching player for stats reversal:', fetchError);
+        return;
+      }
+
+      const currentWins = player?.wins || 0;
+      const currentLosses = player?.losses || 0;
+
+      const { error: updateError } = await supabase
+        .from('group_players')
+        .update({
+          wins: wasWin ? Math.max(0, currentWins - 1) : currentWins,
+          losses: wasWin ? currentLosses : Math.max(0, currentLosses - 1),
+          total_games: Math.max(0, currentWins + currentLosses - 1),
+        })
+        .eq('id', groupPlayerId);
+
+      if (updateError) {
+        console.error('[GroupService] Error reversing player stats:', updateError);
+      }
+    } catch (error) {
+      console.error('[GroupService] Error in reversePlayerStats:', error);
+    }
   }
 }
 
