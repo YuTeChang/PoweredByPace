@@ -187,11 +187,27 @@ types/index.ts          # TypeScript types
 
 ## Admin Operations
 
-Some operations are admin-only and must be performed via API or Supabase dashboard.
+Some operations are admin-only and must be performed via API.
 
 See [docs/ADMIN.md](docs/ADMIN.md) for complete admin guide.
 
-**Quick Reference:**
+### Quick Method: Browser Console
+
+1. Open the app in your browser
+2. Press `F12` to open DevTools → **Console** tab
+3. Paste and run:
+
+```javascript
+// Recalculate stats (replace GROUP_ID with yours from the URL)
+fetch('/api/groups/GROUP_ID/stats', { method: 'POST' }).then(r => r.json()).then(console.log)
+
+// Recalculate pairings
+fetch('/api/groups/GROUP_ID/pairings', { method: 'POST' }).then(r => r.json()).then(console.log)
+```
+
+**Tip:** Get your Group ID from the URL: `/group/{GROUP_ID}`
+
+### API Reference
 
 | Operation | Method | Endpoint |
 |-----------|--------|----------|

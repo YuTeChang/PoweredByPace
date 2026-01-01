@@ -379,14 +379,40 @@ Some operations are intentionally admin-only (not exposed in UI) for safety:
 - **Delete groups/sessions** - Prevents accidental data loss
 - **Recalculate stats** - Expensive operation, rate-limited
 
-### Quick Reference
+### Easiest Method: Browser Console
+
+1. Open the app in your browser (e.g., https://poweredbypace.vercel.app)
+2. Press `F12` to open DevTools → go to **Console** tab
+3. Paste the command and press Enter
+
+```javascript
+// Recalculate ELO and W/L stats (replace GROUP_ID with yours from URL)
+fetch('/api/groups/GROUP_ID/stats', { method: 'POST' })
+  .then(r => r.json()).then(console.log)
+
+// Recalculate pairing stats
+fetch('/api/groups/GROUP_ID/pairings', { method: 'POST' })
+  .then(r => r.json()).then(console.log)
+
+// Delete a group (careful!)
+fetch('/api/groups/GROUP_ID', { method: 'DELETE' })
+  .then(r => r.json()).then(console.log)
+
+// Run migrations
+fetch('/api/migrate', { method: 'POST' })
+  .then(r => r.json()).then(console.log)
+```
+
+**Tip:** Get your Group ID from the URL: `https://app.vercel.app/group/{GROUP_ID}`
+
+### Alternative: curl Commands
 
 | Operation | Command |
 |-----------|---------|
-| Delete group | `curl -X DELETE https://app.vercel.app/api/groups/{ID}` |
-| Delete session | `curl -X DELETE https://app.vercel.app/api/sessions/{ID}` |
 | Recalculate ELO | `curl -X POST https://app.vercel.app/api/groups/{ID}/stats` |
 | Recalculate pairings | `curl -X POST https://app.vercel.app/api/groups/{ID}/pairings` |
+| Delete group | `curl -X DELETE https://app.vercel.app/api/groups/{ID}` |
+| Delete session | `curl -X DELETE https://app.vercel.app/api/sessions/{ID}` |
 | Run migrations | `curl -X POST https://app.vercel.app/api/migrate` |
 
 **📖 See [ADMIN.md](ADMIN.md) for complete admin guide** including:
