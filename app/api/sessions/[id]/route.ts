@@ -38,12 +38,16 @@ export async function PUT(
     const body = await request.json();
     const sessionData = body.session;
     
+    // Get existing session to preserve groupId if not provided
+    const existingSession = await SessionService.getSessionById(sessionId);
+    
     // Parse date string back to Date object
     const session: Session = {
       ...sessionData,
       id: sessionId, // Ensure ID matches
       date: new Date(sessionData.date),
-      groupId: sessionData.groupId || undefined,
+      // Preserve groupId from existing session if not provided in update
+      groupId: sessionData.groupId || existingSession?.groupId || undefined,
       bettingEnabled: sessionData.bettingEnabled ?? true,
     };
 

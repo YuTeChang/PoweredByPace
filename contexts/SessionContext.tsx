@@ -273,8 +273,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       ApiClient.getSession(session.id)
         .then((existingSession) => {
           // Session exists, sync any changes
-          console.log('[SessionContext] Session exists, syncing to API:', session.id);
-          return ApiClient.createSession(session);
+          // IMPORTANT: Preserve groupId from existing session if current session doesn't have it
+          const sessionToSync = {
+            ...session,
+            groupId: session.groupId || existingSession.groupId,
+          };
+          console.log('[SessionContext] Session exists, syncing to API:', session.id, 'groupId:', sessionToSync.groupId);
+          return ApiClient.createSession(sessionToSync);
         })
         .catch((error) => {
           // Session doesn't exist (404) - it was deleted, remove from localStorage
@@ -301,6 +306,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             hasSyncedSessionRef.current.delete(session.id);
           } else {
             // Other error - try to sync anyway (might be network issue)
+            // Note: In this case we can't preserve groupId from existing session, but we'll use what we have
             console.warn('[SessionContext] Failed to verify session, attempting sync anyway:', error);
             return ApiClient.createSession(session);
           }

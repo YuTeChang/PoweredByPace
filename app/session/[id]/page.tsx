@@ -203,6 +203,8 @@ export default function SessionPage() {
           name: p.name.trim(),
           groupPlayerId: p.groupPlayerId,
         })),
+        // Explicitly preserve groupId to prevent it from being lost
+        groupId: currentSession.groupId,
       };
       
       // Update session via API
