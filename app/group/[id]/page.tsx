@@ -94,11 +94,11 @@ export default function GroupPage() {
     if (needsRefresh) {
       // Clear the flag
       sessionStorage.removeItem(needsRefreshKey);
-      // Add a longer delay to account for database replication lag
-      // The create-session page already waits 300ms, so 700ms total should be sufficient
+      // Add a delay to account for database replication lag
+      // The create-session page already waits 500ms, so 500ms more (1000ms total) should be sufficient
       setTimeout(() => {
         loadGroupData();
-      }, 700);
+      }, 500);
       return;
     }
     

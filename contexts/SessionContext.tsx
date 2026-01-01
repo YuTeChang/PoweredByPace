@@ -361,33 +361,35 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       return prev;
     });
 
-    // Sync to API if available
-    if (apiAvailable) {
-      try {
-        // Mark this session as just created to prevent duplicate API call in useEffect
-        sessionJustCreatedRef.current = sessionWithDefaults.id;
-        // Also mark as synced to prevent duplicate calls when apiAvailable changes
-        hasSyncedSessionRef.current.add(sessionWithDefaults.id);
-        
-        // Determine roundRobinCount from initialGames length if applicable
-        const roundRobinCount = initialGames && initialGames.length > 0 ? initialGames.length : null;
-        await ApiClient.createSession(sessionWithDefaults, initialGames, roundRobinCount);
-        
-        // If we created initial games, reload them from API to get proper IDs
-        if (initialGames && initialGames.length > 0) {
-          try {
-            const dbGames = await ApiClient.getGames(sessionWithDefaults.id);
-            setGames(dbGames);
-          } catch {
-            // Silently fail - keep local games
-          }
+    // ALWAYS try to sync to API when creating a new session
+    // Don't wait for apiAvailable check - it may still be pending
+    // This ensures sessions are saved to the database even if the user submits quickly
+    try {
+      // Mark this session as just created to prevent duplicate API call in useEffect
+      sessionJustCreatedRef.current = sessionWithDefaults.id;
+      // Also mark as synced to prevent duplicate calls when apiAvailable changes
+      hasSyncedSessionRef.current.add(sessionWithDefaults.id);
+      
+      // Determine roundRobinCount from initialGames length if applicable
+      const roundRobinCount = initialGames && initialGames.length > 0 ? initialGames.length : null;
+      await ApiClient.createSession(sessionWithDefaults, initialGames, roundRobinCount);
+      
+      // If we created initial games, reload them from API to get proper IDs
+      if (initialGames && initialGames.length > 0) {
+        try {
+          const dbGames = await ApiClient.getGames(sessionWithDefaults.id);
+          setGames(dbGames);
+        } catch {
+          // Silently fail - keep local games
         }
-      } catch (error) {
-        console.error('[SessionContext] Failed to sync session to API:', error);
-        // Continue with local state - user can retry later
       }
+    } catch (error) {
+      console.error('[SessionContext] Failed to sync session to API:', error);
+      // Continue with local state - user can retry later
+      // Remove from synced set so the background sync can retry
+      hasSyncedSessionRef.current.delete(sessionWithDefaults.id);
     }
-  }, [apiAvailable]);
+  }, []);
 
   const addGame = useCallback(
     async (gameData: Omit<Game, "id" | "sessionId" | "gameNumber">) => {
@@ -502,64 +504,48 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // Always fetch fresh session data from API to ensure we have complete data (including players)
     // Don't rely on allSessions cache which might be stale or incomplete
     let sessionToLoad: Session | null = null;
+    let loadedFromLocalStorage = false; // Track if we fell back to localStorage
     
-    if (apiAvailable) {
-      try {
-        sessionToLoad = await ApiClient.getSession(sessionId);
-        // Update allSessions cache with fresh data
-        if (sessionToLoad) {
-          setAllSessions(prev => {
-            const existingIndex = prev.findIndex(s => s.id === sessionId);
-            if (existingIndex >= 0) {
-              // Update existing session with fresh data
-              const updated = [...prev];
-              updated[existingIndex] = sessionToLoad!;
-              return updated;
-            } else {
-              // Add new session to cache
-              return [sessionToLoad!, ...prev];
-            }
-          });
-        }
-      } catch {
-        // Fallback: Try to use cached session from allSessions if available
-        const cachedSession = allSessions.find((s) => s.id === sessionId);
-        if (cachedSession) {
-          sessionToLoad = cachedSession;
-        } else {
-          // Last resort: Try localStorage
-          if (typeof window !== "undefined") {
-            const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
-            if (savedSession) {
-              try {
-                const parsed = JSON.parse(savedSession);
-                if (parsed.id === sessionId) {
-                  parsed.date = new Date(parsed.date);
-                  sessionToLoad = parsed;
-                }
-              } catch {
-                // Ignore parse errors
-              }
-            }
+    // Try to get session from API first
+    try {
+      sessionToLoad = await ApiClient.getSession(sessionId);
+      // Update allSessions cache with fresh data
+      if (sessionToLoad) {
+        setAllSessions(prev => {
+          const existingIndex = prev.findIndex(s => s.id === sessionId);
+          if (existingIndex >= 0) {
+            // Update existing session with fresh data
+            const updated = [...prev];
+            updated[existingIndex] = sessionToLoad!;
+            return updated;
+          } else {
+            // Add new session to cache
+            return [sessionToLoad!, ...prev];
           }
-        }
+        });
       }
-    } else {
-      // API not available, try cache or localStorage
+    } catch {
+      // API returned error (likely 404) - try localStorage
+      // Fallback: Try to use cached session from allSessions if available
       const cachedSession = allSessions.find((s) => s.id === sessionId);
       if (cachedSession) {
         sessionToLoad = cachedSession;
-      } else if (typeof window !== "undefined") {
-        const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
-        if (savedSession) {
-          try {
-            const parsed = JSON.parse(savedSession);
-            if (parsed.id === sessionId) {
-              parsed.date = new Date(parsed.date);
-              sessionToLoad = parsed;
+        loadedFromLocalStorage = true;
+      } else {
+        // Last resort: Try localStorage
+        if (typeof window !== "undefined") {
+          const savedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+          if (savedSession) {
+            try {
+              const parsed = JSON.parse(savedSession);
+              if (parsed.id === sessionId) {
+                parsed.date = new Date(parsed.date);
+                sessionToLoad = parsed;
+                loadedFromLocalStorage = true;
+              }
+            } catch {
+              // Ignore parse errors
             }
-          } catch {
-            // Ignore parse errors
           }
         }
       }
@@ -575,6 +561,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(sessionToLoad));
       }
       
+      // If session was loaded from localStorage but not found in DB, try to save it to DB
+      // This recovers sessions that were created before the apiAvailable fix
+      if (loadedFromLocalStorage && !hasSyncedSessionRef.current.has(sessionId)) {
+        hasSyncedSessionRef.current.add(sessionId);
+        console.log('[SessionContext] Session not found in DB, attempting to sync from localStorage:', sessionId);
+        ApiClient.createSession(sessionToLoad).catch((error) => {
+          console.error('[SessionContext] Failed to sync localStorage session to DB:', error);
+          // Remove from synced set so we can retry later
+          hasSyncedSessionRef.current.delete(sessionId);
+        });
+      }
+      
       // Don't load games if we're on a group page or dashboard - not needed
       const pathname = typeof window !== "undefined" ? window.location.pathname : '';
       const isGroupPage = pathname.startsWith('/group/');
@@ -586,7 +584,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       
       // Load games from API if available, otherwise from localStorage
       // Only load if we don't already have games for this session (prevent duplicate calls)
-      if (apiAvailable && (games.length === 0 || games[0]?.sessionId !== sessionId)) {
+      if (games.length === 0 || games[0]?.sessionId !== sessionId) {
         loadingGamesRef.current.add(sessionId);
         try {
           const dbGames = await ApiClient.getGames(sessionId);
@@ -601,12 +599,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         } finally {
           loadingGamesRef.current.delete(sessionId);
         }
-      } else if (games.length === 0 || games[0]?.sessionId !== sessionId) {
-        // Only load from localStorage if we don't have games for this session
-        loadGamesFromLocalStorage(sessionId);
       }
     }
-  }, [allSessions, apiAvailable, games]);
+  }, [allSessions, games]);
 
   const clearSession = useCallback(async () => {
     const currentSessionId = session?.id;
