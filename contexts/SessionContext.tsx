@@ -576,12 +576,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const pathname = window.location.pathname;
     if (pathname !== '/' && !pathname.startsWith('/group/')) {
       // We're on a session page or other page - skip loading all sessions
+      console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on home/group page:', pathname);
       return;
     }
     
     // Skip if already loaded (prevents unnecessary calls when prefetching or navigating)
     if (hasLoadedSessionsRef.current && hasLoadedGroupsRef.current) {
+      console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - already loaded');
       return; // Already loaded, skip
+    }
+    
+    // Log for debugging (can be removed in production)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[SessionContext] Loading all sessions and groups for pathname:', pathname);
     }
     
     // Prevent duplicate simultaneous calls (but allow refresh if data was already loaded)

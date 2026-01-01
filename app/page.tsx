@@ -24,10 +24,18 @@ export default function Home() {
     // Prevent duplicate calls
     if (hasLoadedDataRef.current) return;
     
+    // Double-check we're actually on the home page (prevent prefetch calls)
+    if (typeof window !== "undefined" && window.location.pathname !== '/') {
+      return; // Not on home page, skip
+    }
+    
     const loadData = async () => {
       try {
         // Ensure sessions and groups are loaded (lazy load on home page)
-        await ensureSessionsAndGroupsLoaded();
+        // Only call if we're actually on the home page
+        if (typeof window !== "undefined" && window.location.pathname === '/') {
+          await ensureSessionsAndGroupsLoaded();
+        }
         
         // Use groups from context (now loaded)
         if (groups && groups.length > 0) {
