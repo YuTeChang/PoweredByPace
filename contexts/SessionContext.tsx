@@ -205,6 +205,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoaded || typeof window === "undefined" || !session) return;
 
+    // Don't sync session on dashboard page - dashboard loads its own data
+    const pathname = window.location.pathname;
+    if (pathname === '/dashboard') {
+      // Still save to localStorage for offline support, but don't sync to API
+      localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
+      return;
+    }
+
     // Always save to localStorage for offline support
     localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
     
