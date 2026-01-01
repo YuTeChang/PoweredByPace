@@ -277,9 +277,9 @@ export class GroupService {
           .limit(50); // Reasonable limit for in-memory filtering
         
         if (allRecentSessions && allRecentSessions.length > 0) {
-          // Filter in memory
+          // Filter in memory - explicitly exclude null/undefined group_id values
           const filtered = allRecentSessions.filter(s => 
-            s.group_id === groupId || String(s.group_id) === String(groupId)
+            s.group_id != null && (s.group_id === groupId || String(s.group_id) === String(groupId))
           );
           
           if (filtered.length > 0) {
@@ -375,8 +375,38 @@ export class GroupService {
         } as Session;
       });
 
-      // Filter out any null/undefined sessions (shouldn't happen, but safety check)
-      return sessionsWithPlayers.filter(s => s !== null && s !== undefined);
+      // Filter out any null/undefined sessions AND ensure all sessions have matching groupId
+      // This prevents standalone sessions (with null/undefined groupId) from being included
+      const filteredSessions = sessionsWithPlayers.filter(s => 
+        s !== null && 
+        s !== undefined && 
+        s.groupId != null && 
+        s.groupId === groupId
+      );
+      
+      // Log if we found any sessions with mismatched groupId (shouldn't happen)
+      const mismatched = sessionsWithPlayers.filter(s => 
+        s && s.groupId != null && s.groupId !== groupId
+      );
+      if (mismatched.length > 0) {
+        console.warn('[GroupService.getGroupSessions] Found sessions with mismatched groupId:', {
+          requestedGroupId: groupId,
+          mismatched: mismatched.map(s => ({ id: s.id, name: s.name, groupId: s.groupId }))
+        });
+      }
+      
+      // Also log if we found standalone sessions (null groupId) - these should never be included
+      const standaloneSessions = sessionsWithPlayers.filter(s => 
+        s && (s.groupId == null || s.groupId === undefined)
+      );
+      if (standaloneSessions.length > 0) {
+        console.warn('[GroupService.getGroupSessions] Found standalone sessions incorrectly included:', {
+          requestedGroupId: groupId,
+          standalone: standaloneSessions.map(s => ({ id: s.id, name: s.name, groupId: s.groupId }))
+        });
+      }
+      
+      return filteredSessions;
     } catch (error) {
       console.error('[GroupService] Error fetching group sessions:', error);
       throw new Error('Failed to fetch group sessions');

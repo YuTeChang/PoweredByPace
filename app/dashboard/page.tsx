@@ -101,7 +101,10 @@ export default function Dashboard() {
         if (fetchedGroups && fetchedGroups.length > 0 && summaries.length > 0) {
           const counts: Record<string, number> = {};
           fetchedGroups.forEach((group) => {
-            const groupSessions = summaries.filter(s => s.groupId === group.id);
+            // Explicitly filter out standalone sessions (null/undefined groupId)
+            const groupSessions = summaries.filter(s => 
+              s.groupId != null && s.groupId === group.id
+            );
             counts[group.id] = groupSessions.length;
           });
           setGroupSessionCounts(counts);
@@ -251,7 +254,10 @@ export default function Dashboard() {
         if (groups.length > 0 && summariesWithDates.length > 0) {
           const counts: Record<string, number> = {};
           groups.forEach((group) => {
-            const groupSessions = summariesWithDates.filter(s => s.groupId === group.id);
+            // Explicitly filter out standalone sessions (null/undefined groupId)
+            const groupSessions = summariesWithDates.filter(s => 
+              s.groupId != null && s.groupId === group.id
+            );
             counts[group.id] = groupSessions.length;
           });
           setGroupSessionCounts(counts);
