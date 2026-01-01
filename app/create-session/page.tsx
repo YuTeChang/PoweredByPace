@@ -282,7 +282,7 @@ function CreateSessionContent() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <div className="mb-8">
           <Link
-            href={selectedGroupId ? `/group/${selectedGroupId}` : "/dashboard"}
+            href={selectedGroupId ? `/group/${selectedGroupId}` : "/"}
             className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
             ← {selectedGroupId ? "Back to Group" : "Back to Home"}

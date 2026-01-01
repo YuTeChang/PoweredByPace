@@ -108,7 +108,7 @@ export default function CreateGroup() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6">
         <div className="mb-8">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
             ← Back to Home
@@ -242,7 +242,7 @@ export default function CreateGroup() {
                 Go to Group
               </button>
               <Link
-                href="/dashboard"
+                href="/"
                 className="flex-1 px-6 py-4 bg-japandi-background-card hover:bg-japandi-background-primary active:scale-95 text-japandi-text-primary border border-japandi-border-light font-semibold rounded-full transition-all text-center touch-manipulation"
               >
                 Back to Home

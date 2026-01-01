@@ -237,7 +237,7 @@ export default function GroupPage() {
       <div className="bg-japandi-background-card border-b border-japandi-border-light py-4 sm:py-6 px-4">
         <div className="max-w-2xl mx-auto">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
             ← Back to Home

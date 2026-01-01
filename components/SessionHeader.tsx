@@ -26,7 +26,7 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
       clearSession();
       // Use setTimeout to ensure state updates before navigation
       setTimeout(() => {
-      router.push("/dashboard");
+      router.push("/");
       }, 100);
     }
   };
@@ -39,7 +39,7 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
       await ApiClient.deleteSession(session.id);
       clearSession();
       setTimeout(() => {
-        router.push("/dashboard");
+        router.push("/");
       }, 100);
     } catch (error) {
       console.error('[SessionHeader] Failed to delete session:', error);
@@ -52,7 +52,7 @@ export default function SessionHeader({ session }: SessionHeaderProps) {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex items-start justify-between mb-3">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-japandi-accent-primary hover:text-japandi-accent-hover active:opacity-70 text-sm transition-all flex items-center gap-1 touch-manipulation"
           >
             ← Back to Home

@@ -141,7 +141,7 @@ export default function SummaryPage() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <div className="mb-8">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-japandi-accent-primary hover:text-japandi-accent-hover active:opacity-70 text-sm transition-all flex items-center gap-1 mb-4 inline-block touch-manipulation"
           >
             ← Back to Home
@@ -311,7 +311,7 @@ export default function SummaryPage() {
               Back to Session
             </Link>
             <Link
-              href="/dashboard"
+              href="/"
               className="flex-1 px-5 py-3 bg-japandi-background-card hover:bg-japandi-background-primary active:scale-95 text-japandi-text-primary border border-japandi-border-light font-semibold rounded-full transition-all text-center touch-manipulation"
             >
               Back to Home
