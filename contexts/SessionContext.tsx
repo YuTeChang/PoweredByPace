@@ -85,7 +85,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             setApiAvailable(apiReady);
             
             // If API is available and we have a saved session, sync in background
+            // BUT: Skip auto-sync on dashboard page to avoid unnecessary API calls
             if (apiReady && savedSession) {
+              const pathname = window.location.pathname;
+              // Don't auto-sync session on dashboard - dashboard loads its own data
+              if (pathname === '/dashboard') {
+                return; // Skip session sync on dashboard
+              }
+              
               try {
                 const parsedSession = JSON.parse(savedSession);
                 // Only fetch session and games if we don't already have them
