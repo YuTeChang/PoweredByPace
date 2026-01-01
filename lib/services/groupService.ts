@@ -257,6 +257,8 @@ export class GroupService {
     try {
       const supabase = createSupabaseClient();
       
+      console.log('[GroupService.getGroupSessions] Fetching sessions for groupId:', groupId);
+      
       // Query sessions with group_id filter - use order to ensure consistent results
       let { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
@@ -264,18 +266,30 @@ export class GroupService {
         .eq('group_id', groupId)
         .order('created_at', { ascending: false });
       
+      console.log('[GroupService.getGroupSessions] Main query result:', {
+        count: sessionsData?.length || 0,
+        error: sessionsError?.message,
+        sessions: sessionsData?.map(s => ({ id: s.id, name: s.name, group_id: s.group_id }))
+      });
+      
       // If main query failed or returned empty, try fallback query (for replication lag)
       if (sessionsError || !sessionsData || sessionsData.length === 0) {
-        console.warn('[GroupService] Main query returned empty or error, trying fallback query');
+        console.warn('[GroupService] Main query returned empty or error, trying fallback query after delay');
         
-        // Run a fallback query (with small delay for replication)
-        await new Promise(resolve => setTimeout(resolve, 150));
+        // Run a fallback query (with delay for replication)
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const { data: fallbackSessions, error: fallbackError } = await supabase
           .from('sessions')
           .select('*')
           .eq('group_id', groupId)
           .order('created_at', { ascending: false });
+        
+        console.log('[GroupService.getGroupSessions] Fallback query result:', {
+          count: fallbackSessions?.length || 0,
+          error: fallbackError?.message,
+          sessions: fallbackSessions?.map(s => ({ id: s.id, name: s.name, group_id: s.group_id }))
+        });
         
         if (fallbackSessions && !fallbackError) {
           sessionsData = fallbackSessions;

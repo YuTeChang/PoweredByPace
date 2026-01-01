@@ -4,12 +4,17 @@ import { GroupService } from '@/lib/services/groupService';
 // GET /api/groups/[id]/sessions - Get all sessions in a group
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const groupId = params.id;
+    // Handle both Next.js 14 (object) and Next.js 15 (Promise) params
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const groupId = resolvedParams.id;
+    
+    console.log('[API] Fetching group sessions for groupId:', groupId);
     
     if (!groupId || groupId.trim() === '') {
+      console.error('[API] Group ID is empty or invalid');
       return NextResponse.json(
         { error: 'Group ID is required' },
         { status: 400 }
@@ -17,6 +22,7 @@ export async function GET(
     }
     
     const sessions = await GroupService.getGroupSessions(groupId);
+    console.log('[API] Found', sessions.length, 'sessions for group', groupId);
     return NextResponse.json(sessions);
   } catch (error) {
     console.error('[API] Error fetching group sessions:', error);

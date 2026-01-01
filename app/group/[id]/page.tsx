@@ -64,6 +64,15 @@ export default function GroupPage() {
         sessions: fetchedSessions?.map(s => ({ id: s.id, name: s.name, groupId: s.groupId })),
       });
       
+      // Always log the raw sessions array for debugging
+      console.log('[GroupPage] Raw sessions array:', fetchedSessions);
+      console.log('[GroupPage] Sessions with groupId check:', fetchedSessions?.map(s => ({
+        id: s.id,
+        name: s.name,
+        groupId: s.groupId,
+        matchesGroup: s.groupId === groupId
+      })));
+      
       setGroup(fetchedGroup);
       setPlayers(fetchedPlayers || []);
       setSessions(fetchedSessions || []);
@@ -93,13 +102,19 @@ export default function GroupPage() {
       // Clear the flag
       sessionStorage.removeItem(needsRefreshKey);
       console.log('[GroupPage] Detected return from create-session, forcing refresh');
+      // Add a small delay to account for database replication lag
+      setTimeout(() => {
+        console.log('[GroupPage] Refreshing after delay (replication lag)');
+        loadGroupData();
+      }, 500);
+      return;
     }
     
     const now = Date.now();
-    // If we need refresh or it's been long enough, load data
-    if (needsRefresh || now - lastLoadRef.current >= REFRESH_DEBOUNCE_MS) {
+    // If it's been long enough, load data
+    if (now - lastLoadRef.current >= REFRESH_DEBOUNCE_MS) {
       lastLoadRef.current = now;
-      console.log('[GroupPage] Loading data (mount or groupId change)', { needsRefresh });
+      console.log('[GroupPage] Loading data (mount or groupId change)');
       loadGroupData();
     } else {
       console.log('[GroupPage] Skipping duplicate load (too soon after last load)');
@@ -131,7 +146,15 @@ export default function GroupPage() {
             timeSinceLastLoad
           });
           lastLoadRef.current = now;
-          loadGroupData();
+          // If returning from create-session, add delay for replication lag
+          if (isReturningFromCreateSession) {
+            setTimeout(() => {
+              console.log('[GroupPage] Refreshing after pathname change (with delay for replication)');
+              loadGroupData();
+            }, 500);
+          } else {
+            loadGroupData();
+          }
         }
       }
       prevPathnameRef.current = pathname;
