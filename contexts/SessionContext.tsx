@@ -207,7 +207,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     // Don't sync session on dashboard page - dashboard loads its own data
     const pathname = window.location.pathname;
+    console.log('[SessionContext] Session sync effect triggered, pathname:', pathname, 'session.id:', session.id);
+    
     if (pathname === '/dashboard') {
+      console.log('[SessionContext] Skipping session sync on dashboard - only saving to localStorage');
       // Still save to localStorage for offline support, but don't sync to API
       localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
       return;
@@ -236,8 +239,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (apiAvailable && 
         sessionJustCreatedRef.current !== session.id &&
         isLoadingSessionRef.current !== session.id) {
+      console.log('[SessionContext] Calling createSession to sync session:', session.id, 'pathname:', pathname);
       ApiClient.createSession(session).catch((error) => {
         console.warn('[SessionContext] Failed to sync session to API:', error);
+      });
+    } else {
+      console.log('[SessionContext] Skipping createSession sync:', {
+        apiAvailable,
+        sessionJustCreated: sessionJustCreatedRef.current === session.id,
+        isLoadingSession: isLoadingSessionRef.current === session.id,
+        pathname
       });
     }
     
