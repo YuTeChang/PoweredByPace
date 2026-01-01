@@ -267,7 +267,7 @@ export default function GroupPage() {
                 setIsDeleting(true);
                 try {
                   await ApiClient.deleteGroup(groupId);
-                  router.push("/dashboard");
+                  router.push("/");
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "Failed to delete group");
                   setIsDeleting(false);
