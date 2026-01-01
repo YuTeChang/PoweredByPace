@@ -220,7 +220,7 @@ export default function GroupPage() {
           <h1 className="text-2xl font-bold text-japandi-text-primary mb-4">Group Not Found</h1>
           <p className="text-japandi-text-secondary mb-6">{error || "This group does not exist."}</p>
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-block px-6 py-3 bg-japandi-accent-primary hover:bg-japandi-accent-hover text-white font-semibold rounded-full transition-all"
           >
             Back to Home
@@ -236,7 +236,7 @@ export default function GroupPage() {
       <div className="bg-japandi-background-card border-b border-japandi-border-light py-4 sm:py-6 px-4">
         <div className="max-w-2xl mx-auto">
           <Link
-            href="/"
+            href="/dashboard"
             className="text-japandi-accent-primary hover:text-japandi-accent-hover text-sm transition-colors"
           >
             ← Back to Home

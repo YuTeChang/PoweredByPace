@@ -571,12 +571,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const ensureSessionsAndGroupsLoaded = useCallback(async () => {
     if (typeof window === "undefined") return;
     
-    // Only load all sessions/groups if we're on the home page
-    // On session/group pages, we don't need all sessions - skip to avoid unnecessary API calls
+    // Only load all sessions/groups if we're on the dashboard page
+    // On session/group/home pages, we don't need all sessions - skip to avoid unnecessary API calls
     const pathname = window.location.pathname;
-    if (pathname !== '/' && !pathname.startsWith('/group/')) {
-      // We're on a session page or other page - skip loading all sessions
-      console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on home/group page:', pathname);
+    if (pathname !== '/dashboard' && !pathname.startsWith('/group/')) {
+      // We're on a session page, home page, or other page - skip loading all sessions
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on dashboard/group page:', pathname);
+      }
       return;
     }
     
