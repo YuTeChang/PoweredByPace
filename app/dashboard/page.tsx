@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
 import { useEffect, useState, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ApiClient } from "@/lib/api/client";
 import { Group } from "@/types";
 
@@ -17,7 +17,6 @@ type SessionSummary = {
 };
 
 export default function Dashboard() {
-  const router = useRouter();
   const pathname = usePathname();
   const { session, games, loadSession } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -37,22 +36,16 @@ export default function Dashboard() {
   const REFRESH_DEBOUNCE_MS = 500;
 
   useEffect(() => {
-    // Always log to verify code is loaded
-    console.log('[Dashboard] useEffect triggered, pathname:', typeof window !== "undefined" ? window.location.pathname : 'SSR');
-    
     // Prevent duplicate calls
     if (hasLoadedDataRef.current) {
-      console.log('[Dashboard] Already loaded, skipping');
       return;
     }
     
     // Double-check we're actually on the dashboard page (prevent prefetch calls)
     if (typeof window !== "undefined" && window.location.pathname !== '/dashboard') {
-      console.log('[Dashboard] Not on dashboard page, skipping');
-      return; // Not on dashboard, skip
+      return;
     }
     
-    console.log('[Dashboard] Starting to load data...');
     const loadData = async () => {
       try {
         // Load groups and summaries in parallel for better performance
@@ -77,10 +70,6 @@ export default function Dashboard() {
         const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
         setSessionSummaries(summariesWithDates);
         
-        // Always log (not just dev) to debug production issues
-        console.log('[Dashboard] Loaded summaries:', summariesWithDates.length, summariesWithDates);
-        console.log('[Dashboard] Standalone sessions:', summariesWithDates.filter(s => !s.groupId).length);
-        
         // Sync localStorage with API data - remove any sessions that don't exist in API
         // This prevents deleted sessions from reappearing on refresh
         if (typeof window !== "undefined") {
@@ -96,11 +85,10 @@ export default function Dashboard() {
               } else if (updated.length !== parsed.length) {
                 // Some sessions were removed, update localStorage
                 localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
-                console.log('[Dashboard] Removed', parsed.length - updated.length, 'deleted sessions from localStorage');
               }
             }
-          } catch (error) {
-            console.warn('[Dashboard] Failed to sync localStorage with API data:', error);
+          } catch {
+            // Ignore localStorage sync errors
           }
         }
         
@@ -116,8 +104,8 @@ export default function Dashboard() {
           });
           setGroupSessionCounts(counts);
         }
-      } catch (error) {
-        console.warn('[Dashboard] Failed to load data:', error);
+      } catch {
+        // Silently handle data loading errors
       }
 
       // Load game counts for all sessions from localStorage
@@ -158,9 +146,6 @@ export default function Dashboard() {
       const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
       setSessionSummaries(summariesWithDates);
       
-      console.log('[Dashboard] Refreshed summaries:', summariesWithDates.length, summariesWithDates);
-      console.log('[Dashboard] Standalone sessions after refresh:', summariesWithDates.filter(s => !s.groupId).length);
-      
       // Recalculate group session counts
       if (fetchedGroups && fetchedGroups.length > 0 && summariesWithDates.length > 0) {
         const counts: Record<string, number> = {};
@@ -172,8 +157,8 @@ export default function Dashboard() {
         });
         setGroupSessionCounts(counts);
       }
-    } catch (error) {
-      console.error('[Dashboard] Failed to refresh:', error);
+    } catch {
+      // Silently handle refresh errors
     } finally {
       setIsRefreshing(false);
       hasLoadedDataRef.current = true;
@@ -195,18 +180,11 @@ export default function Dashboard() {
         const timeSinceLastLoad = now - lastLoadRef.current;
         
         if (isReturningFromSession || timeSinceLastLoad > REFRESH_DEBOUNCE_MS) {
-          console.log('[Dashboard] Returning to dashboard, refreshing data...', {
-            prev: prevPath,
-            current: pathname,
-            isReturningFromSession,
-            timeSinceLastLoad
-          });
           lastLoadRef.current = now;
           
           // If returning from session-related page, add delay for database replication
           if (isReturningFromSession) {
             setTimeout(() => {
-              console.log('[Dashboard] Refreshing after return (with delay for replication)');
               handleRefresh();
             }, 500);
           } else {
@@ -244,41 +222,9 @@ export default function Dashboard() {
     return `${dateStr} ${timeStr}`;
   };
 
-  const handleSessionClick = async (sessionId: string) => {
-    // Check if session exists in summaries before navigating
-    const sessionExists = sessionSummaries.some(s => s.id === sessionId);
-    if (!sessionExists) {
-      console.warn('[Dashboard] Session not found:', sessionId);
-      alert('Session not found. It may have been deleted.');
-      // Remove from localStorage if it exists there
-      if (typeof window !== "undefined") {
-        const savedAllSessions = localStorage.getItem("poweredbypace_all_sessions");
-        if (savedAllSessions) {
-          try {
-            const parsed = JSON.parse(savedAllSessions);
-            const updated = parsed.filter((s: any) => s.id !== sessionId);
-            if (updated.length === 0) {
-              localStorage.removeItem("poweredbypace_all_sessions");
-            } else {
-              localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
-            }
-          } catch (error) {
-            // Ignore parse errors
-          }
-        }
-      }
-      // Refresh summaries to sync with API
-      try {
-        const summaries = await ApiClient.getSessionSummaries();
-        const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
-        setSessionSummaries(summariesWithDates);
-      } catch (error) {
-        console.warn('[Dashboard] Failed to refresh summaries:', error);
-      }
-      return;
-    }
+  const handleSessionClick = (sessionId: string) => {
     loadSession(sessionId);
-    router.push(`/session/${sessionId}`);
+    window.location.href = `/session/${sessionId}`;
   };
 
   const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
@@ -307,8 +253,8 @@ export default function Dashboard() {
             } else {
               localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
             }
-          } catch (error) {
-            console.warn('[Dashboard] Failed to update localStorage after delete:', error);
+          } catch {
+            // Ignore localStorage errors
           }
         }
         
@@ -348,8 +294,7 @@ export default function Dashboard() {
         } else {
           setGroupSessionCounts({});
         }
-      } catch (refreshError) {
-        console.warn('[Dashboard] Failed to refresh summaries after delete, using optimistic update:', refreshError);
+      } catch {
         // Fallback: optimistic update (remove from current summaries)
         const deletedSession = sessionSummaries.find(s => s.id === sessionId);
         setSessionSummaries(prev => prev.filter(s => s.id !== sessionId));
@@ -360,8 +305,7 @@ export default function Dashboard() {
           }));
         }
       }
-    } catch (error) {
-      console.error('[Dashboard] Failed to delete session:', error);
+    } catch {
       alert('Failed to delete session. Please try again.');
     } finally {
       setIsDeleting(prev => {
@@ -387,27 +331,6 @@ export default function Dashboard() {
       return name.includes(query);
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  
-  // Debug logging to help identify missing sessions
-  if (typeof window !== "undefined" && isLoaded) {
-    const allStandalone = sessionSummaries.filter(s => 
-      s.groupId == null || s.groupId === '' || s.groupId === undefined
-    );
-    if (allStandalone.length !== filteredStandaloneSessions.length) {
-      console.warn('[Dashboard] Standalone session count mismatch:', {
-        allStandalone: allStandalone.length,
-        filtered: filteredStandaloneSessions.length,
-        allStandaloneIds: allStandalone.map(s => s.id),
-        filteredIds: filteredStandaloneSessions.map(s => s.id),
-        searchQuery: searchQuery
-      });
-    }
-    console.log('[Dashboard] Standalone sessions:', {
-      total: allStandalone.length,
-      filtered: filteredStandaloneSessions.length,
-      sessions: allStandalone.map(s => ({ id: s.id, name: s.name, groupId: s.groupId }))
-    });
-  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">

@@ -46,17 +46,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   // Initialize and load saved session on mount (don't load all sessions/groups yet)
   // API availability check is done lazily (non-blocking) for faster initial render
   useEffect(() => {
-    console.log('[SessionContext] Initialization effect triggered');
     const initData = async () => {
       if (typeof window === "undefined") return;
       
       // Prevent duplicate calls
       if (isLoadingDataRef.current) {
-        console.log('[SessionContext] Already initializing, skipping');
         return;
       }
       isLoadingDataRef.current = true;
-      console.log('[SessionContext] Starting initialization...');
 
       try {
         // Check current pathname - don't load session on group pages or dashboard
@@ -86,20 +83,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             setSessionState(parsedSession);
             // Load games from localStorage first (fast, no API call)
             loadGamesFromLocalStorage(parsedSession.id);
-          } catch (error) {
-            console.warn('[SessionContext] Failed to parse saved session:', error);
+          } catch {
+            // Ignore parse errors for saved session
           }
-        } else if (isGroupPage || isDashboard) {
-          console.log('[SessionContext] Skipping session load on', pathname, '- not needed on this page');
         }
         
         // Check API availability lazily (non-blocking) - doesn't delay initial render
         // Skip health check on group pages and dashboard - we'll know if API works from actual calls
         if (isGroupPage || isDashboard) {
           // Assume API is available - will fail gracefully if not
-          // This saves ~400ms on group pages by skipping the health check
           setApiAvailable(true);
-          console.log('[SessionContext] Skipping API health check on', pathname, '- assuming available');
         } else {
           // Check API availability for other pages
           isApiAvailable()
@@ -120,11 +113,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
                     if (typeof window !== "undefined") {
                       localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(dbGames));
                     }
-                  }).catch((error) => {
+                  }).catch(() => {
                     // Silently fail - we have localStorage version
-                    console.warn('[SessionContext] Failed to sync session from API');
                   });
-                } catch (error) {
+                } catch {
                   // Ignore parse errors
                 }
               }
@@ -225,13 +217,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     // Don't sync session on dashboard, home page, or group pages - these pages don't need session sync
     const pathname = window.location.pathname;
-    console.log('[SessionContext] Session sync effect triggered, pathname:', pathname, 'session.id:', session.id);
-    
     const isGroupPage = pathname.startsWith('/group/');
     const isDashboard = pathname === '/dashboard' || pathname === '/';
     
     if (isDashboard || isGroupPage) {
-      console.log('[SessionContext] Skipping session sync on', pathname, '- only saving to localStorage');
       // Still save to localStorage for offline support, but don't sync to API
       localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify(session));
       return;
@@ -265,7 +254,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         !hasSyncedSessionRef.current.has(session.id);
     
     if (shouldSync) {
-      console.log('[SessionContext] Verifying session exists before sync:', session.id, 'pathname:', pathname);
       hasSyncedSessionRef.current.add(session.id);
       
       // First verify the session exists in the database
@@ -278,13 +266,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             ...session,
             groupId: session.groupId || existingSession.groupId,
           };
-          console.log('[SessionContext] Session exists, syncing to API:', session.id, 'groupId:', sessionToSync.groupId);
           return ApiClient.createSession(sessionToSync);
         })
         .catch((error) => {
           // Session doesn't exist (404) - it was deleted, remove from localStorage
           if (error.message?.includes('404') || error.message?.includes('not found')) {
-            console.log('[SessionContext] Session was deleted, removing from localStorage:', session.id);
             // Clear the session from state and localStorage
             setSessionState(null);
             setGames([]);
@@ -306,24 +292,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             hasSyncedSessionRef.current.delete(session.id);
           } else {
             // Other error - try to sync anyway (might be network issue)
-            // Note: In this case we can't preserve groupId from existing session, but we'll use what we have
-            console.warn('[SessionContext] Failed to verify session, attempting sync anyway:', error);
             return ApiClient.createSession(session);
           }
         })
-        .catch((error) => {
-          console.warn('[SessionContext] Failed to sync session to API:', error);
+        .catch(() => {
           // Remove from synced set on error so we can retry
           hasSyncedSessionRef.current.delete(session.id);
         });
-    } else {
-      console.log('[SessionContext] Skipping createSession sync:', {
-        apiAvailable,
-        sessionJustCreated: sessionJustCreatedRef.current === session.id,
-        isLoadingSession: isLoadingSessionRef.current === session.id,
-        alreadySynced: hasSyncedSessionRef.current.has(session.id),
-        pathname
-      });
     }
     
     // Clear the refs after a short delay to allow future updates
@@ -412,8 +387,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           try {
             const dbGames = await ApiClient.getGames(sessionWithDefaults.id);
             setGames(dbGames);
-          } catch (error) {
-            console.warn('[SessionContext] Failed to reload games from API');
+          } catch {
+            // Silently fail - keep local games
           }
         }
       } catch (error) {
@@ -555,13 +530,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             }
           });
         }
-      } catch (error) {
-        console.warn('[SessionContext] Failed to fetch session from API:', error);
+      } catch {
         // Fallback: Try to use cached session from allSessions if available
         const cachedSession = allSessions.find((s) => s.id === sessionId);
         if (cachedSession) {
           sessionToLoad = cachedSession;
-          console.warn('[SessionContext] Using cached session from allSessions');
         } else {
           // Last resort: Try localStorage
           if (typeof window !== "undefined") {
@@ -617,7 +590,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const isDashboard = pathname === '/dashboard' || pathname === '/';
       
       if (isGroupPage || isDashboard) {
-        console.log('[SessionContext] Skipping games load on', pathname, '- not needed on this page');
         return;
       }
       
@@ -632,8 +604,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           if (typeof window !== "undefined") {
             localStorage.setItem(STORAGE_KEY_GAMES, JSON.stringify(dbGames));
           }
-        } catch (error) {
-          console.warn('[SessionContext] Failed to load games from API, using localStorage fallback');
+        } catch {
+          // Fallback to localStorage
           loadGamesFromLocalStorage(sessionId);
         } finally {
           loadingGamesRef.current.delete(sessionId);
@@ -698,47 +670,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     
     const pathname = window.location.pathname;
     // Dashboard loads its own data (groups + summaries) - skip to avoid duplicate calls
-    // Always log this check (not just in development) to debug production issues
     if (pathname === '/dashboard') {
-      console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - dashboard loads its own data, pathname:', pathname);
       return;
     }
     
     // Only load all sessions/groups if we're on a group page
     // On session/home pages, we don't need all sessions - skip to avoid unnecessary API calls
     if (!pathname.startsWith('/group/')) {
-      // We're on a session page, home page, or other page - skip loading all sessions
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on group page:', pathname);
-      }
       return;
     }
     
     // Skip if already loaded (prevents unnecessary calls when prefetching or navigating)
     if (hasLoadedSessionsRef.current && hasLoadedGroupsRef.current) {
-      console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - already loaded');
-      return; // Already loaded, skip
-    }
-    
-    // Log for debugging (can be removed in production)
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[SessionContext] Loading all sessions and groups for pathname:', pathname);
+      return;
     }
     
     // Prevent duplicate simultaneous calls (but allow refresh if data was already loaded)
     if (isLoadingSessionsRef.current) {
-      // Already loading, skip
-      console.log('[SessionContext] getAllSessions already loading, skipping');
       return;
     } else if (apiAvailable) {
       // Double-check pathname before making expensive call
       const currentPathname = window.location.pathname;
       if (currentPathname === '/dashboard') {
-        console.log('[SessionContext] Skipping getAllSessions - on dashboard page');
         return;
       }
       
-      console.log('[SessionContext] Calling getAllSessions for pathname:', currentPathname);
       isLoadingSessionsRef.current = true;
       try {
         const sessions = await ApiClient.getAllSessions();
@@ -753,9 +709,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(STORAGE_KEY_ALL_SESSIONS, JSON.stringify(sessions));
           }
         }
-      } catch (error) {
-        console.warn('[SessionContext] Failed to load sessions:', error);
-        // Only use localStorage as fallback if API fails (not if API returns empty)
+      } catch {
+        // Fallback to localStorage if API fails
         const saved = localStorage.getItem(STORAGE_KEY_ALL_SESSIONS);
         if (saved) {
           try {
@@ -793,9 +748,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(fetchedGroups));
           }
         }
-      } catch (error) {
-        console.warn('[SessionContext] Failed to load groups:', error);
-        // Only use localStorage as fallback if API fails (not if API returns empty)
+      } catch {
+        // Fallback to localStorage if API fails
         const saved = localStorage.getItem(STORAGE_KEY_GROUPS);
         if (saved) {
           try {

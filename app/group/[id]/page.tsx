@@ -41,43 +41,15 @@ export default function GroupPage() {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('[GroupPage] Loading group data for groupId:', groupId);
       
       // Only load group and sessions initially - players load lazily when Players tab is clicked
       const [fetchedGroup, fetchedSessions] = await Promise.all([
-        ApiClient.getGroup(groupId).catch(err => {
-          console.error('[GroupPage] Error fetching group:', err);
-          throw err;
-        }),
-        ApiClient.getGroupSessions(groupId).catch(err => {
-          console.error('[GroupPage] Error fetching sessions:', err);
-          console.error('[GroupPage] Error details:', err.message, err.stack);
-          return [];
-        }),
+        ApiClient.getGroup(groupId),
+        ApiClient.getGroupSessions(groupId).catch(() => []),
       ]);
-      
-      console.log('[GroupPage] Loaded data:', {
-        group: fetchedGroup?.name,
-        sessionsCount: fetchedSessions?.length,
-        sessions: fetchedSessions?.map(s => ({ id: s.id, name: s.name, groupId: s.groupId })),
-      });
-      
-      // Always log the raw sessions array for debugging
-      console.log('[GroupPage] Raw sessions array:', fetchedSessions);
-      console.log('[GroupPage] Sessions with groupId check:', fetchedSessions?.map(s => ({
-        id: s.id,
-        name: s.name,
-        groupId: s.groupId,
-        matchesGroup: s.groupId === groupId
-      })));
       
       setGroup(fetchedGroup);
       setSessions(fetchedSessions || []);
-      
-      console.log('[GroupPage] State updated. Sessions state:', fetchedSessions?.length || 0);
-
-      // Calculate simple stats for now (statsService is server-side only)
-      // We'll calculate client-side stats from the sessions data
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load group");
     } finally {
@@ -94,10 +66,8 @@ export default function GroupPage() {
     
     setIsLoadingPlayers(true);
     try {
-      console.log('[GroupPage] Lazy loading players for groupId:', groupId);
       const fetchedPlayers = await ApiClient.getGroupPlayers(groupId);
       setPlayers(fetchedPlayers || []);
-      console.log('[GroupPage] Loaded', fetchedPlayers?.length || 0, 'players');
     } catch (err) {
       console.error('[GroupPage] Error fetching players:', err);
       setPlayers([]);
@@ -119,10 +89,8 @@ export default function GroupPage() {
     if (needsRefresh) {
       // Clear the flag
       sessionStorage.removeItem(needsRefreshKey);
-      console.log('[GroupPage] Detected return from create-session, forcing refresh');
       // Add a small delay to account for database replication lag
       setTimeout(() => {
-        console.log('[GroupPage] Refreshing after delay (replication lag)');
         loadGroupData();
       }, 500);
       return;
@@ -132,10 +100,7 @@ export default function GroupPage() {
     // If it's been long enough, load data
     if (now - lastLoadRef.current >= REFRESH_DEBOUNCE_MS) {
       lastLoadRef.current = now;
-      console.log('[GroupPage] Loading data (mount or groupId change)');
       loadGroupData();
-    } else {
-      console.log('[GroupPage] Skipping duplicate load (too soon after last load)');
     }
   }, [groupId, loadGroupData]);
 
@@ -164,17 +129,10 @@ export default function GroupPage() {
         const timeSinceLastLoad = now - lastLoadRef.current;
         
         if (isReturningFromCreateSession || timeSinceLastLoad > REFRESH_DEBOUNCE_MS) {
-          console.log('[GroupPage] Pathname changed to group page, refreshing data...', {
-            prev: prevPath,
-            current: pathname,
-            isReturningFromCreateSession,
-            timeSinceLastLoad
-          });
           lastLoadRef.current = now;
           // If returning from create-session, add delay for replication lag
           if (isReturningFromCreateSession) {
             setTimeout(() => {
-              console.log('[GroupPage] Refreshing after pathname change (with delay for replication)');
               loadGroupData();
             }, 500);
           } else {

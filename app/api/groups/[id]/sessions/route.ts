@@ -11,10 +11,7 @@ export async function GET(
     const resolvedParams = params instanceof Promise ? await params : params;
     const groupId = resolvedParams.id;
     
-    console.log('[API] Fetching group sessions for groupId:', groupId);
-    
     if (!groupId || groupId.trim() === '') {
-      console.error('[API] Group ID is empty or invalid');
       return NextResponse.json(
         { error: 'Group ID is required' },
         { status: 400 }
@@ -22,7 +19,6 @@ export async function GET(
     }
     
     const sessions = await GroupService.getGroupSessions(groupId);
-    console.log('[API] Found', sessions.length, 'sessions for group', groupId);
     return NextResponse.json(sessions);
   } catch (error) {
     console.error('[API] Error fetching group sessions:', error);

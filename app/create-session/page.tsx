@@ -27,9 +27,8 @@ function CreateSessionContent() {
         .then((group) => {
           setSelectedGroup(group);
         })
-        .catch((error) => {
-          console.warn('[CreateSession] Failed to load group details:', error);
-          // Try to find in available groups
+        .catch(() => {
+          // Fallback: Try to find in available groups
           const availableGroups = groups.length > 0 ? groups : localGroups;
           const foundGroup = availableGroups.find(g => g.id === initialGroupId);
           if (foundGroup) {
@@ -92,8 +91,8 @@ function CreateSessionContent() {
             }
           }
         })
-        .catch((error) => {
-          console.warn('[CreateSession] Failed to load groups from API:', error);
+        .catch(() => {
+          // Silently fail - use localStorage groups
         });
     }
   }, [groups.length, localGroups.length, hasTriedLoadingGroups, refreshGroups, initialGroupId, selectedGroup]);
@@ -322,17 +321,6 @@ function CreateSessionContent() {
       bettingEnabled,
     };
     
-    console.log('[CreateSession] Creating session:', {
-      id: session.id,
-      name: session.name,
-      initialGroupId,
-      selectedGroupId,
-      isGroupLocked,
-      finalGroupId,
-      groupId: session.groupId,
-      hasGroupId: !!session.groupId,
-    });
-
     // If round robin is enabled, generate games first
     let roundRobinGamesToAdd: Omit<Game, "id" | "sessionId" | "gameNumber">[] = [];
     if (enableRoundRobin) {
@@ -366,11 +354,8 @@ function CreateSessionContent() {
       // This helps the group page detect when to refresh
       if (typeof window !== "undefined") {
         sessionStorage.setItem(`group_${groupIdToNavigate}_needs_refresh`, Date.now().toString());
-        console.log('[CreateSession] Set refresh flag for group:', groupIdToNavigate);
       }
       // Use push (not replace) to ensure pathname change is detected by group page
-      // This triggers the refresh logic in group page
-      console.log('[CreateSession] Navigating to group page:', groupIdToNavigate);
       router.push(`/group/${groupIdToNavigate}`);
     } else {
       router.push(`/session/${session.id}`);

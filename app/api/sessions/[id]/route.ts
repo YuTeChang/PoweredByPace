@@ -110,7 +110,6 @@ export async function DELETE(
       );
     }
     
-    console.log(`[API] Successfully deleted session ${sessionId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API] Error deleting session:', error);

@@ -135,14 +135,6 @@ export class SessionService {
   ): Promise<Session> {
     try {
       const supabase = createSupabaseClient();
-      
-      console.log('[SessionService.createSession] Saving session:', {
-        id: session.id,
-        name: session.name,
-        groupId: session.groupId,
-        groupIdType: typeof session.groupId,
-        hasGroupId: !!session.groupId,
-      });
 
       // Upsert session (insert or update if exists)
       const sessionData = {
@@ -159,26 +151,13 @@ export class SessionService {
         group_id: session.groupId || null,
         betting_enabled: session.bettingEnabled ?? true,
       };
-      
-      console.log('[SessionService.createSession] Session data to save:', {
-        ...sessionData,
-        group_id: sessionData.group_id,
-        has_group_id: !!sessionData.group_id,
-      });
 
-      const { error: sessionError, data: savedData } = await supabase
+      const { error: sessionError } = await supabase
         .from('sessions')
         .upsert(sessionData, {
           onConflict: 'id',
         })
         .select();
-      
-      if (savedData) {
-        console.log('[SessionService.createSession] Session saved:', {
-          id: savedData[0]?.id,
-          group_id: savedData[0]?.group_id,
-        });
-      }
 
       if (sessionError) {
         throw sessionError;
