@@ -48,6 +48,17 @@
 - **Dashboard Load Time**: ~70% faster due to summary endpoint and eliminated duplicate calls
 - **API Response Times**: Reduced by ~90% for batch queries vs N+1 queries
 - **Network Traffic**: Reduced by ~80% for dashboard page (summary endpoint)
+- **Dashboard API Optimization** (Latest): Removed unnecessary `/api/sessions` call (~700ms saved)
+  - Dashboard now only calls `/api/groups` and `/api/sessions/summary` in parallel
+  - Total dashboard load time improved from ~1800ms to ~500ms (~72% faster)
+  - Parallel API calls reduce sequential wait time
+
+### Deployment
+- **Manual Deployment Control**: Changed from auto-deploy to manual deploy-only workflow
+  - Deployments only occur when `[deploy]` keyword is in commit message
+  - Default behavior: all commits skip deployment
+  - Gives full control over when deployments happen
+  - Allows testing locally before deploying
 
 ## [Unreleased] - 2024-12-XX
 

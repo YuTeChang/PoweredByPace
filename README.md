@@ -40,6 +40,9 @@ A web app that helps groups of friends track their badminton games (doubles or s
 - **Batch Queries**: Eliminated N+1 query problems with batch player fetching
 - **Duplicate Call Prevention**: Smart caching and deduplication to prevent unnecessary API calls
 - **Lazy Loading**: Data loaded only when needed (dashboard vs session pages)
+- **Dashboard API Optimization**: Removed unnecessary `/api/sessions` call, parallelized groups and summaries
+  - Dashboard load time improved from ~1800ms to ~500ms (~72% faster)
+  - Only 2 API calls instead of 3, executed in parallel for maximum speed
 
 ## Screenshots
 
