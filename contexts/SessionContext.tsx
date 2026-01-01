@@ -624,7 +624,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // Prevent duplicate simultaneous calls (but allow refresh if data was already loaded)
     if (isLoadingSessionsRef.current) {
       // Already loading, skip
+      console.log('[SessionContext] getAllSessions already loading, skipping');
+      return;
     } else if (apiAvailable) {
+      // Double-check pathname before making expensive call
+      const currentPathname = window.location.pathname;
+      if (currentPathname === '/dashboard') {
+        console.log('[SessionContext] Skipping getAllSessions - on dashboard page');
+        return;
+      }
+      
+      console.log('[SessionContext] Calling getAllSessions for pathname:', currentPathname);
       isLoadingSessionsRef.current = true;
       try {
         const sessions = await ApiClient.getAllSessions();
