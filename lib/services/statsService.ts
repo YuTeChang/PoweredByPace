@@ -1,5 +1,5 @@
 import { createSupabaseClient } from '@/lib/supabase';
-import { Game, Player } from '@/types';
+import { LeaderboardEntry, PlayerDetailedStats, PartnerStats, OpponentStats } from '@/types';
 
 export interface GroupPlayerStats {
   groupPlayerId: string;
@@ -13,12 +13,389 @@ export interface GroupPlayerStats {
   sessionsPlayed: number;
 }
 
+interface GameData {
+  id: string;
+  session_id: string;
+  team_a: string[] | string;
+  team_b: string[] | string;
+  winning_team: 'A' | 'B' | null;
+  team_a_score: number | null;
+  team_b_score: number | null;
+  created_at: string;
+}
+
 /**
  * Service layer for aggregating player stats across sessions
  */
 export class StatsService {
   /**
-   * Get aggregated stats for all players in a group
+   * Get leaderboard data for a group
+   */
+  static async getLeaderboard(groupId: string): Promise<LeaderboardEntry[]> {
+    try {
+      const supabase = createSupabaseClient();
+      
+      // Get all group players with ELO
+      const { data: groupPlayers, error: gpError } = await supabase
+        .from('group_players')
+        .select('id, name, elo_rating')
+        .eq('group_id', groupId)
+        .order('elo_rating', { ascending: false });
+
+      if (gpError) throw gpError;
+      if (!groupPlayers || groupPlayers.length === 0) return [];
+
+      // Get all sessions in the group
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('group_id', groupId);
+
+      if (sessionsError) throw sessionsError;
+      
+      const sessionIds = (sessions || []).map(s => s.id);
+      
+      // Get player mappings
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, session_id, group_player_id')
+        .in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__'])
+        .not('group_player_id', 'is', null);
+
+      const playerToGroupPlayer = new Map<string, string>();
+      const groupPlayerSessions = new Map<string, Set<string>>();
+      
+      (players || []).forEach((p) => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+          if (!groupPlayerSessions.has(p.group_player_id)) {
+            groupPlayerSessions.set(p.group_player_id, new Set());
+          }
+          groupPlayerSessions.get(p.group_player_id)!.add(p.session_id);
+        }
+      });
+
+      // Get all completed games
+      const { data: games } = await supabase
+        .from('games')
+        .select('*')
+        .in('session_id', sessionIds.length > 0 ? sessionIds : ['__none__'])
+        .not('winning_team', 'is', null)
+        .order('created_at', { ascending: false });
+
+      // Build stats for each player
+      const statsMap = new Map<string, {
+        wins: number;
+        losses: number;
+        recentGames: ('W' | 'L')[];
+      }>();
+
+      groupPlayers.forEach(gp => {
+        statsMap.set(gp.id, { wins: 0, losses: 0, recentGames: [] });
+      });
+
+      // Process games (newest first for recent form)
+      (games || []).forEach((game) => {
+        const teamA = this.parseJsonArray(game.team_a);
+        const teamB = this.parseJsonArray(game.team_b);
+        const winningTeam = game.winning_team;
+
+        teamA.forEach((playerId: string) => {
+          const groupPlayerId = playerToGroupPlayer.get(playerId);
+          if (groupPlayerId && statsMap.has(groupPlayerId)) {
+            const stats = statsMap.get(groupPlayerId)!;
+            if (winningTeam === 'A') {
+              stats.wins += 1;
+              if (stats.recentGames.length < 5) stats.recentGames.push('W');
+            } else {
+              stats.losses += 1;
+              if (stats.recentGames.length < 5) stats.recentGames.push('L');
+            }
+          }
+        });
+
+        teamB.forEach((playerId: string) => {
+          const groupPlayerId = playerToGroupPlayer.get(playerId);
+          if (groupPlayerId && statsMap.has(groupPlayerId)) {
+            const stats = statsMap.get(groupPlayerId)!;
+            if (winningTeam === 'B') {
+              stats.wins += 1;
+              if (stats.recentGames.length < 5) stats.recentGames.push('W');
+            } else {
+              stats.losses += 1;
+              if (stats.recentGames.length < 5) stats.recentGames.push('L');
+            }
+          }
+        });
+      });
+
+      // Build leaderboard entries
+      const leaderboard: LeaderboardEntry[] = groupPlayers.map((gp, index) => {
+        const stats = statsMap.get(gp.id) || { wins: 0, losses: 0, recentGames: [] };
+        const totalGames = stats.wins + stats.losses;
+        const winRate = totalGames > 0 ? (stats.wins / totalGames) * 100 : 0;
+        
+        // Determine trend based on recent form
+        const recentWins = stats.recentGames.filter(r => r === 'W').length;
+        const recentLosses = stats.recentGames.filter(r => r === 'L').length;
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        if (recentWins > recentLosses + 1) trend = 'up';
+        else if (recentLosses > recentWins + 1) trend = 'down';
+
+        return {
+          groupPlayerId: gp.id,
+          playerName: gp.name,
+          eloRating: gp.elo_rating || 1500,
+          rank: index + 1,
+          totalGames,
+          wins: stats.wins,
+          losses: stats.losses,
+          winRate,
+          recentForm: stats.recentGames,
+          trend,
+        };
+      });
+
+      return leaderboard;
+    } catch (error) {
+      console.error('[StatsService] Error fetching leaderboard:', error);
+      throw new Error('Failed to fetch leaderboard');
+    }
+  }
+
+  /**
+   * Get detailed stats for a specific player
+   */
+  static async getPlayerDetailedStats(groupId: string, groupPlayerId: string): Promise<PlayerDetailedStats | null> {
+    try {
+      const supabase = createSupabaseClient();
+      
+      // Get the player
+      const { data: player, error: playerError } = await supabase
+        .from('group_players')
+        .select('id, name, elo_rating')
+        .eq('id', groupPlayerId)
+        .eq('group_id', groupId)
+        .single();
+
+      if (playerError || !player) return null;
+
+      // Get total player count for rank
+      const { data: allPlayers } = await supabase
+        .from('group_players')
+        .select('id, elo_rating')
+        .eq('group_id', groupId)
+        .order('elo_rating', { ascending: false });
+
+      const totalPlayers = allPlayers?.length || 0;
+      const rank = (allPlayers?.findIndex(p => p.id === groupPlayerId) || 0) + 1;
+
+      // Get all sessions in the group
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('group_id', groupId);
+
+      const sessionIds = (sessions || []).map(s => s.id);
+      if (sessionIds.length === 0) {
+        return this.buildEmptyStats(player, rank, totalPlayers);
+      }
+
+      // Get player mappings
+      const { data: sessionPlayers } = await supabase
+        .from('players')
+        .select('id, session_id, group_player_id, name')
+        .in('session_id', sessionIds);
+
+      const playerToGroupPlayer = new Map<string, string>();
+      const groupPlayerToName = new Map<string, string>();
+      const thisPlayerSessionIds = new Set<string>();
+      
+      (sessionPlayers || []).forEach((p) => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+          groupPlayerToName.set(p.group_player_id, p.name);
+          if (p.group_player_id === groupPlayerId) {
+            thisPlayerSessionIds.add(p.session_id);
+          }
+        }
+      });
+
+      // Get all completed games
+      const { data: games } = await supabase
+        .from('games')
+        .select('*')
+        .in('session_id', sessionIds)
+        .not('winning_team', 'is', null)
+        .order('created_at', { ascending: false });
+
+      // Calculate stats
+      let wins = 0;
+      let losses = 0;
+      let pointsScored = 0;
+      let pointsConceded = 0;
+      const recentForm: ('W' | 'L')[] = [];
+      const partnerStatsMap = new Map<string, { wins: number; losses: number }>();
+      const opponentStatsMap = new Map<string, { wins: number; losses: number }>();
+      let currentStreak = 0;
+      let streakType: 'W' | 'L' | null = null;
+
+      (games || []).forEach((game) => {
+        const teamA = this.parseJsonArray(game.team_a);
+        const teamB = this.parseJsonArray(game.team_b);
+        const winningTeam = game.winning_team as 'A' | 'B';
+        const teamAScore = game.team_a_score || 0;
+        const teamBScore = game.team_b_score || 0;
+
+        // Find which team this player is on
+        const thisPlayerSessionId = teamA.find(id => playerToGroupPlayer.get(id) === groupPlayerId) 
+          || teamB.find(id => playerToGroupPlayer.get(id) === groupPlayerId);
+        
+        if (!thisPlayerSessionId) return; // Player not in this game
+
+        const isOnTeamA = teamA.includes(thisPlayerSessionId);
+        const playerTeam = isOnTeamA ? teamA : teamB;
+        const opponentTeam = isOnTeamA ? teamB : teamA;
+        const won = (isOnTeamA && winningTeam === 'A') || (!isOnTeamA && winningTeam === 'B');
+
+        // Update W/L
+        if (won) {
+          wins += 1;
+          pointsScored += isOnTeamA ? teamAScore : teamBScore;
+          pointsConceded += isOnTeamA ? teamBScore : teamAScore;
+        } else {
+          losses += 1;
+          pointsScored += isOnTeamA ? teamAScore : teamBScore;
+          pointsConceded += isOnTeamA ? teamBScore : teamAScore;
+        }
+
+        // Recent form (first 10 games since we sorted desc)
+        if (recentForm.length < 10) {
+          recentForm.push(won ? 'W' : 'L');
+        }
+
+        // Streak calculation (only count consecutive from most recent)
+        if (streakType === null) {
+          streakType = won ? 'W' : 'L';
+          currentStreak = won ? 1 : -1;
+        } else if ((won && streakType === 'W') || (!won && streakType === 'L')) {
+          currentStreak += won ? 1 : -1;
+        }
+
+        // Partner stats (for doubles - teammates)
+        playerTeam.forEach(teammateId => {
+          if (teammateId === thisPlayerSessionId) return;
+          const partnerGroupId = playerToGroupPlayer.get(teammateId);
+          if (partnerGroupId) {
+            if (!partnerStatsMap.has(partnerGroupId)) {
+              partnerStatsMap.set(partnerGroupId, { wins: 0, losses: 0 });
+            }
+            const pStats = partnerStatsMap.get(partnerGroupId)!;
+            if (won) pStats.wins += 1;
+            else pStats.losses += 1;
+          }
+        });
+
+        // Opponent stats
+        opponentTeam.forEach(opponentId => {
+          const opponentGroupId = playerToGroupPlayer.get(opponentId);
+          if (opponentGroupId) {
+            if (!opponentStatsMap.has(opponentGroupId)) {
+              opponentStatsMap.set(opponentGroupId, { wins: 0, losses: 0 });
+            }
+            const oStats = opponentStatsMap.get(opponentGroupId)!;
+            if (won) oStats.wins += 1;
+            else oStats.losses += 1;
+          }
+        });
+      });
+
+      // Build partner stats array
+      const partnerStats: PartnerStats[] = Array.from(partnerStatsMap.entries())
+        .map(([partnerId, stats]) => ({
+          partnerId,
+          partnerName: groupPlayerToName.get(partnerId) || 'Unknown',
+          gamesPlayed: stats.wins + stats.losses,
+          wins: stats.wins,
+          losses: stats.losses,
+          winRate: stats.wins + stats.losses > 0 
+            ? (stats.wins / (stats.wins + stats.losses)) * 100 
+            : 0,
+        }))
+        .sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
+
+      // Build opponent stats array
+      const opponentStats: OpponentStats[] = Array.from(opponentStatsMap.entries())
+        .map(([opponentId, stats]) => ({
+          opponentId,
+          opponentName: groupPlayerToName.get(opponentId) || 'Unknown',
+          gamesPlayed: stats.wins + stats.losses,
+          wins: stats.wins,
+          losses: stats.losses,
+          winRate: stats.wins + stats.losses > 0 
+            ? (stats.wins / (stats.wins + stats.losses)) * 100 
+            : 0,
+        }))
+        .sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
+
+      const totalGames = wins + losses;
+
+      return {
+        groupPlayerId: player.id,
+        playerName: player.name,
+        eloRating: player.elo_rating || 1500,
+        rank,
+        totalPlayers,
+        totalGames,
+        wins,
+        losses,
+        winRate: totalGames > 0 ? (wins / totalGames) * 100 : 0,
+        pointsScored,
+        pointsConceded,
+        pointDifferential: pointsScored - pointsConceded,
+        sessionsPlayed: thisPlayerSessionIds.size,
+        recentForm: recentForm.slice(0, 5), // Keep only last 5 for display
+        currentStreak,
+        partnerStats,
+        opponentStats,
+      };
+    } catch (error) {
+      console.error('[StatsService] Error fetching player detailed stats:', error);
+      throw new Error('Failed to fetch player stats');
+    }
+  }
+
+  /**
+   * Build empty stats for a player with no games
+   */
+  private static buildEmptyStats(
+    player: { id: string; name: string; elo_rating: number | null },
+    rank: number,
+    totalPlayers: number
+  ): PlayerDetailedStats {
+    return {
+      groupPlayerId: player.id,
+      playerName: player.name,
+      eloRating: player.elo_rating || 1500,
+      rank,
+      totalPlayers,
+      totalGames: 0,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+      pointsScored: 0,
+      pointsConceded: 0,
+      pointDifferential: 0,
+      sessionsPlayed: 0,
+      recentForm: [],
+      currentStreak: 0,
+      partnerStats: [],
+      opponentStats: [],
+    };
+  }
+
+  /**
+   * Get aggregated stats for all players in a group (legacy method)
    */
   static async getGroupPlayersStats(groupId: string): Promise<GroupPlayerStats[]> {
     try {
@@ -181,7 +558,7 @@ export class StatsService {
   }
 
   /**
-   * Get stats for a specific group player
+   * Get stats for a specific group player (legacy method)
    */
   static async getGroupPlayerStats(groupId: string, groupPlayerId: string): Promise<GroupPlayerStats | null> {
     const allStats = await this.getGroupPlayersStats(groupId);
@@ -198,5 +575,3 @@ export class StatsService {
     return value as string[];
   }
 }
-
-

@@ -3,19 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Group, GroupPlayer, Session } from "@/types";
+import { Group, GroupPlayer, Session, LeaderboardEntry, PlayerDetailedStats } from "@/types";
 import { ApiClient } from "@/lib/api/client";
 import { formatPercentage } from "@/lib/calculations";
-
-interface GroupPlayerStats {
-  groupPlayerId: string;
-  playerName: string;
-  totalGames: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  sessionsPlayed: number;
-}
+import { PlayerProfileSheet } from "@/components/PlayerProfileSheet";
 
 export default function GroupPage() {
   const params = useParams();
@@ -26,15 +17,20 @@ export default function GroupPage() {
   const [group, setGroup] = useState<Group | null>(null);
   const [players, setPlayers] = useState<GroupPlayer[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"sessions" | "players" | "stats">("sessions");
-  const [playerStats, setPlayerStats] = useState<GroupPlayerStats[]>([]);
+  const [activeTab, setActiveTab] = useState<"sessions" | "leaderboard" | "players">("sessions");
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Player profile modal state
+  const [selectedPlayerStats, setSelectedPlayerStats] = useState<PlayerDetailedStats | null>(null);
+  const [isLoadingPlayerStats, setIsLoadingPlayerStats] = useState(false);
 
   // Load group and sessions immediately (fast initial render)
   const loadGroupData = useCallback(async () => {
@@ -42,7 +38,7 @@ export default function GroupPage() {
       setIsLoading(true);
       setError(null);
       
-      // Only load group and sessions initially - players load lazily when Players tab is clicked
+      // Only load group and sessions initially - players/leaderboard load lazily
       const [fetchedGroup, fetchedSessions] = await Promise.all([
         ApiClient.getGroup(groupId),
         ApiClient.getGroupSessions(groupId).catch(() => []),
@@ -59,12 +55,8 @@ export default function GroupPage() {
 
   // Lazy load players only when Players tab is clicked
   const loadPlayers = useCallback(async () => {
-    // Don't reload if we already loaded players
-    if (playersLoadedRef.current) {
-      return;
-    }
+    if (playersLoadedRef.current) return;
     
-    // Mark as loaded immediately to prevent concurrent calls
     playersLoadedRef.current = true;
     setIsLoadingPlayers(true);
     try {
@@ -78,69 +70,92 @@ export default function GroupPage() {
     }
   }, [groupId]);
 
+  // Lazy load leaderboard only when Leaderboard tab is clicked
+  const loadLeaderboard = useCallback(async () => {
+    if (leaderboardLoadedRef.current) return;
+    
+    leaderboardLoadedRef.current = true;
+    setIsLoadingLeaderboard(true);
+    try {
+      const fetchedLeaderboard = await ApiClient.getGroupLeaderboard(groupId);
+      setLeaderboard(fetchedLeaderboard || []);
+    } catch (err) {
+      console.error('[GroupPage] Error fetching leaderboard:', err);
+      setLeaderboard([]);
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  }, [groupId]);
+
+  // Load player detailed stats
+  const loadPlayerStats = async (playerId: string) => {
+    setIsLoadingPlayerStats(true);
+    try {
+      const stats = await ApiClient.getPlayerDetailedStats(groupId, playerId);
+      setSelectedPlayerStats(stats);
+    } catch (err) {
+      console.error('[GroupPage] Error fetching player stats:', err);
+    } finally {
+      setIsLoadingPlayerStats(false);
+    }
+  };
+
   // Track last load time to prevent duplicate calls
   const lastLoadRef = useRef<number>(0);
-  const REFRESH_DEBOUNCE_MS = 500; // Don't refresh more than once per 500ms
+  const REFRESH_DEBOUNCE_MS = 500;
   
-  // Track if players have been loaded to prevent infinite loop
+  // Track if data has been loaded
   const playersLoadedRef = useRef<boolean>(false);
+  const leaderboardLoadedRef = useRef<boolean>(false);
 
   // Single effect to load data on mount and when groupId changes
   useEffect(() => {
-    // Check if we need to refresh due to returning from create-session
     const needsRefreshKey = `group_${groupId}_needs_refresh`;
     const needsRefresh = typeof window !== "undefined" && sessionStorage.getItem(needsRefreshKey) !== null;
     
     if (needsRefresh) {
-      // Clear the flag
       sessionStorage.removeItem(needsRefreshKey);
-      // Add a delay to account for database replication lag
-      // The create-session page already waits 500ms, so 500ms more (1000ms total) should be sufficient
       setTimeout(() => {
         loadGroupData();
+        // Reset lazy load flags on refresh
+        leaderboardLoadedRef.current = false;
       }, 500);
       return;
     }
     
     const now = Date.now();
-    // If it's been long enough, load data
     if (now - lastLoadRef.current >= REFRESH_DEBOUNCE_MS) {
       lastLoadRef.current = now;
       loadGroupData();
     }
   }, [groupId, loadGroupData]);
 
-  // Lazy load players when Players tab is clicked
+  // Lazy load data when tabs are clicked
   useEffect(() => {
     if (activeTab === 'players') {
       loadPlayers();
+    } else if (activeTab === 'leaderboard') {
+      loadLeaderboard();
     }
-  }, [activeTab, loadPlayers]);
+  }, [activeTab, loadPlayers, loadLeaderboard]);
 
-  // Track if we've navigated away to detect when returning to this page
+  // Track navigation for refresh handling
   const hasNavigatedAwayRef = useRef(false);
   const prevPathnameRef = useRef<string | null>(null);
   
-  // Refresh when pathname changes TO this page (returning from create-session)
-  // This prevents refresh when clicking links that navigate away
   useEffect(() => {
     if (pathname === `/group/${groupId}`) {
-      // If pathname changed to this page (different from previous), refresh
-      // This handles the case when returning from create-session page
       const prevPath = prevPathnameRef.current;
       if (prevPath !== null && prevPath !== pathname) {
-        // Check if we're coming from create-session page
         const isReturningFromCreateSession = prevPath === '/create-session' || prevPath?.startsWith('/create-session');
         const now = Date.now();
         const timeSinceLastLoad = now - lastLoadRef.current;
         
         if (isReturningFromCreateSession || timeSinceLastLoad > REFRESH_DEBOUNCE_MS) {
           lastLoadRef.current = now;
-          // If returning from create-session, add delay for replication lag
+          leaderboardLoadedRef.current = false; // Reset leaderboard on return
           if (isReturningFromCreateSession) {
-            setTimeout(() => {
-              loadGroupData();
-            }, 500);
+            setTimeout(() => loadGroupData(), 500);
           } else {
             loadGroupData();
           }
@@ -148,20 +163,12 @@ export default function GroupPage() {
       }
       prevPathnameRef.current = pathname;
     } else {
-      // Mark that we've navigated away from this page
       if (prevPathnameRef.current === `/group/${groupId}`) {
         hasNavigatedAwayRef.current = true;
       }
       prevPathnameRef.current = pathname;
     }
   }, [pathname, groupId, loadGroupData]);
-
-  // Removed aggressive visibility/focus auto-refresh
-  // Data will refresh:
-  // 1. On mount (initial load)
-  // 2. When returning from create-session (pathname effect above)
-  // 3. When user clicks refresh button (explicit)
-  // This prevents unnecessary refreshes when switching browser tabs/windows
 
   const handleAddPlayer = async () => {
     if (!newPlayerName.trim()) return;
@@ -171,6 +178,8 @@ export default function GroupPage() {
       const result = await ApiClient.addGroupPlayer(groupId, newPlayerName.trim());
       setPlayers([...players, result.player]);
       setNewPlayerName("");
+      // Reset leaderboard cache so it reloads with new player
+      leaderboardLoadedRef.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add player");
     } finally {
@@ -182,9 +191,16 @@ export default function GroupPage() {
     try {
       await ApiClient.removeGroupPlayer(groupId, playerId);
       setPlayers(players.filter((p) => p.id !== playerId));
+      // Reset leaderboard cache
+      leaderboardLoadedRef.current = false;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove player");
     }
+  };
+
+  const handleRefreshLeaderboard = () => {
+    leaderboardLoadedRef.current = false;
+    loadLeaderboard();
   };
 
   const getShareableUrl = () => {
@@ -203,14 +219,6 @@ export default function GroupPage() {
     }
   };
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
   const formatDateWithTime = (date: Date) => {
     const d = new Date(date);
     const dateStr = d.toLocaleDateString("en-US", {
@@ -224,6 +232,13 @@ export default function GroupPage() {
       hour12: true,
     });
     return `${dateStr} ${timeStr}`;
+  };
+
+  // Render trend indicator
+  const renderTrend = (trend: 'up' | 'down' | 'stable') => {
+    if (trend === 'up') return <span className="text-green-500 text-sm">↑</span>;
+    if (trend === 'down') return <span className="text-red-500 text-sm">↓</span>;
+    return <span className="text-japandi-text-muted text-sm">-</span>;
   };
 
   if (isLoading) {
@@ -302,7 +317,7 @@ export default function GroupPage() {
         </div>
       </div>
 
-      {/* Tabs - Tab switching is UI-only, no data refresh needed */}
+      {/* Tabs */}
       <div className="bg-japandi-background-card border-b border-japandi-border-light">
         <div className="max-w-2xl mx-auto px-4 flex">
           <button
@@ -316,6 +331,16 @@ export default function GroupPage() {
             Sessions ({sessions.length})
           </button>
           <button
+            onClick={() => setActiveTab("leaderboard")}
+            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "leaderboard"
+                ? "border-japandi-accent-primary text-japandi-accent-primary"
+                : "border-transparent text-japandi-text-muted hover:text-japandi-text-primary"
+            }`}
+          >
+            Leaderboard
+          </button>
+          <button
             onClick={() => setActiveTab("players")}
             className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "players"
@@ -323,7 +348,7 @@ export default function GroupPage() {
                 : "border-transparent text-japandi-text-muted hover:text-japandi-text-primary"
             }`}
           >
-            Players ({players.length})
+            Players
           </button>
         </div>
       </div>
@@ -389,6 +414,98 @@ export default function GroupPage() {
           </div>
         )}
 
+        {/* Leaderboard Tab */}
+        {activeTab === "leaderboard" && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-japandi-text-primary">Leaderboard</h2>
+              <button
+                onClick={handleRefreshLeaderboard}
+                className="px-3 py-2 bg-japandi-background-card hover:bg-japandi-background-primary text-japandi-text-primary text-sm font-medium rounded-full border border-japandi-border-light transition-all"
+                title="Refresh leaderboard"
+              >
+                ↻ Refresh
+              </button>
+            </div>
+
+            {isLoadingLeaderboard ? (
+              <div className="text-center py-12 text-japandi-text-muted">
+                Loading leaderboard...
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="text-center py-12 text-japandi-text-muted">
+                <p className="mb-2">No players yet</p>
+                <p className="text-sm">Add players and play some games to see the leaderboard!</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {leaderboard.map((entry, index) => (
+                  <button
+                    key={entry.groupPlayerId}
+                    onClick={() => loadPlayerStats(entry.groupPlayerId)}
+                    className="w-full text-left bg-japandi-background-card border border-japandi-border-light rounded-xl p-4 shadow-soft hover:border-japandi-accent-primary transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      {/* Rank */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                        index === 1 ? 'bg-gray-100 text-gray-600' :
+                        index === 2 ? 'bg-orange-100 text-orange-700' :
+                        'bg-japandi-background-primary text-japandi-text-muted'
+                      }`}>
+                        #{entry.rank}
+                      </div>
+                      
+                      {/* Player Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-japandi-text-primary truncate">
+                            {entry.playerName}
+                          </span>
+                          {renderTrend(entry.trend)}
+                        </div>
+                        <div className="text-sm text-japandi-text-muted">
+                          {entry.wins}-{entry.losses} • {formatPercentage(entry.winRate)}
+                        </div>
+                      </div>
+                      
+                      {/* ELO */}
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-lg font-bold text-japandi-text-primary">
+                          {entry.eloRating}
+                        </div>
+                        <div className="text-xs text-japandi-text-muted">ELO</div>
+                      </div>
+                      
+                      {/* Recent Form */}
+                      {entry.recentForm.length > 0 && (
+                        <div className="hidden sm:flex gap-1 flex-shrink-0">
+                          {entry.recentForm.slice(0, 5).map((result, i) => (
+                            <div
+                              key={i}
+                              className={`w-6 h-6 rounded text-xs font-bold flex items-center justify-center ${
+                                result === 'W'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {result}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            <p className="text-center text-xs text-japandi-text-muted pt-4">
+              Tap a player to see detailed stats
+            </p>
+          </div>
+        )}
+
         {/* Players Tab */}
         {activeTab === "players" && (
           <div className="space-y-4">
@@ -422,7 +539,7 @@ export default function GroupPage() {
             </div>
 
             {/* Players list */}
-            {players.length === 0 ? (
+            {players.length === 0 && !isLoadingPlayers ? (
               <div className="text-center py-8 text-japandi-text-muted">
                 No players yet. Add your first player above!
               </div>
@@ -433,7 +550,14 @@ export default function GroupPage() {
                     key={player.id}
                     className="flex items-center justify-between bg-japandi-background-card border border-japandi-border-light rounded-card p-3"
                   >
-                    <span className="text-japandi-text-primary">{player.name}</span>
+                    <div>
+                      <span className="text-japandi-text-primary">{player.name}</span>
+                      {player.eloRating && (
+                        <span className="text-xs text-japandi-text-muted ml-2">
+                          ELO: {player.eloRating}
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleRemovePlayer(player.id)}
                       className="text-red-500 hover:text-red-700 text-sm transition-colors"
@@ -447,8 +571,23 @@ export default function GroupPage() {
           </div>
         )}
       </div>
+
+      {/* Player Profile Sheet */}
+      {selectedPlayerStats && (
+        <PlayerProfileSheet
+          stats={selectedPlayerStats}
+          onClose={() => setSelectedPlayerStats(null)}
+        />
+      )}
+
+      {/* Loading overlay for player stats */}
+      {isLoadingPlayerStats && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-japandi-background-card rounded-xl px-6 py-4 shadow-lg">
+            <div className="text-japandi-text-secondary">Loading player stats...</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-

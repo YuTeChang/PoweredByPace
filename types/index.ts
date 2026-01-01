@@ -9,6 +9,7 @@ export interface GroupPlayer {
   id: string;
   groupId: string;
   name: string;
+  eloRating?: number; // ELO rating, defaults to 1500
   createdAt?: Date;
 }
 
@@ -46,3 +47,67 @@ export interface Game {
   updatedAt?: Date; // When the game was last updated
 }
 
+// Leaderboard entry for group stats
+export interface LeaderboardEntry {
+  groupPlayerId: string;
+  playerName: string;
+  eloRating: number;
+  rank: number;
+  totalGames: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  recentForm: ('W' | 'L')[]; // Last 5 games
+  trend: 'up' | 'down' | 'stable'; // ELO trend direction
+}
+
+// Partner statistics
+export interface PartnerStats {
+  partnerId: string;
+  partnerName: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+// Opponent statistics
+export interface OpponentStats {
+  opponentId: string;
+  opponentName: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+// Detailed player statistics for player profile
+export interface PlayerDetailedStats {
+  groupPlayerId: string;
+  playerName: string;
+  eloRating: number;
+  rank: number;
+  totalPlayers: number;
+  
+  // Core stats
+  totalGames: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  pointsScored: number;
+  pointsConceded: number;
+  pointDifferential: number;
+  
+  // Sessions
+  sessionsPlayed: number;
+  
+  // Form & streaks
+  recentForm: ('W' | 'L')[]; // Last 5-10 games
+  currentStreak: number; // Positive = wins, negative = losses
+  
+  // Partner synergy (doubles only)
+  partnerStats: PartnerStats[];
+  
+  // Opponent matchups
+  opponentStats: OpponentStats[];
+}

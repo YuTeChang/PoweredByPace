@@ -1,0 +1,215 @@
+"use client";
+
+import { PlayerDetailedStats } from "@/types";
+import { formatPercentage } from "@/lib/calculations";
+
+interface PlayerProfileSheetProps {
+  stats: PlayerDetailedStats;
+  onClose: () => void;
+}
+
+export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) {
+  // Get top 3 partners and opponents
+  const topPartners = stats.partnerStats.slice(0, 3);
+  const topOpponents = stats.opponentStats.slice(0, 3);
+  
+  // Best and worst matchups
+  const bestPartner = stats.partnerStats.length > 0 
+    ? stats.partnerStats.reduce((a, b) => a.winRate > b.winRate ? a : b)
+    : null;
+  const worstPartner = stats.partnerStats.length > 1
+    ? stats.partnerStats.reduce((a, b) => a.winRate < b.winRate ? a : b)
+    : null;
+  const nemesis = stats.opponentStats.length > 0
+    ? stats.opponentStats.reduce((a, b) => a.winRate < b.winRate ? a : b)
+    : null;
+  const dominates = stats.opponentStats.length > 0
+    ? stats.opponentStats.reduce((a, b) => a.winRate > b.winRate ? a : b)
+    : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Sheet */}
+      <div className="relative w-full max-w-lg max-h-[90vh] bg-japandi-background-card rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-xl animate-in slide-in-from-bottom duration-300">
+        {/* Header */}
+        <div className="sticky top-0 bg-japandi-background-card border-b border-japandi-border-light px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-japandi-text-primary">{stats.playerName}</h2>
+            <p className="text-sm text-japandi-text-muted">
+              ELO: {stats.eloRating} • Rank #{stats.rank} of {stats.totalPlayers}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-japandi-background-primary rounded-full transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5 text-japandi-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6 space-y-6">
+          {/* Overview Stats */}
+          <div>
+            <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">Overview</h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-japandi-text-primary">
+                  {stats.wins}-{stats.losses}
+                </div>
+                <div className="text-xs text-japandi-text-muted mt-1">W-L</div>
+              </div>
+              <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-japandi-text-primary">
+                  {formatPercentage(stats.winRate)}
+                </div>
+                <div className="text-xs text-japandi-text-muted mt-1">Win Rate</div>
+              </div>
+              <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
+                <div className={`text-2xl font-bold ${stats.pointDifferential >= 0 ? 'text-green-600' : 'text-japandi-text-secondary'}`}>
+                  {stats.pointDifferential >= 0 ? '+' : ''}{stats.pointDifferential}
+                </div>
+                <div className="text-xs text-japandi-text-muted mt-1">Pts +/-</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Form */}
+          {stats.recentForm.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
+                Recent Form (Last {stats.recentForm.length})
+              </h3>
+              <div className="flex gap-2">
+                {stats.recentForm.map((result, i) => (
+                  <div
+                    key={i}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
+                      result === 'W'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {result}
+                  </div>
+                ))}
+              </div>
+              {stats.currentStreak !== 0 && (
+                <p className="text-sm text-japandi-text-muted mt-2">
+                  {stats.currentStreak > 0 
+                    ? `🔥 ${stats.currentStreak} game win streak!`
+                    : `😢 ${Math.abs(stats.currentStreak)} game losing streak`
+                  }
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Partner Stats (for doubles) */}
+          {topPartners.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
+                Best Partners
+              </h3>
+              <div className="space-y-2">
+                {topPartners.map((partner, i) => (
+                  <div
+                    key={partner.partnerId}
+                    className="flex items-center justify-between bg-japandi-background-primary rounded-xl p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        i === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-japandi-background-card text-japandi-text-muted'
+                      }`}>
+                        {i + 1}
+                      </div>
+                      <div>
+                        <div className="font-medium text-japandi-text-primary">{partner.partnerName}</div>
+                        <div className="text-xs text-japandi-text-muted">
+                          {partner.wins}-{partner.losses} ({partner.gamesPlayed} games)
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`text-sm font-semibold ${
+                      partner.winRate >= 60 ? 'text-green-600' : 
+                      partner.winRate >= 40 ? 'text-japandi-text-primary' : 
+                      'text-red-600'
+                    }`}>
+                      {formatPercentage(partner.winRate)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {bestPartner && bestPartner.winRate >= 70 && bestPartner.gamesPlayed >= 3 && (
+                <p className="text-sm text-green-600 mt-2">
+                  🔥 Hot duo with {bestPartner.partnerName}!
+                </p>
+              )}
+              {worstPartner && worstPartner !== bestPartner && worstPartner.winRate < 40 && worstPartner.gamesPlayed >= 3 && (
+                <p className="text-sm text-japandi-text-muted mt-1">
+                  ⚠️ Struggles with {worstPartner.partnerName}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Opponent Stats */}
+          {topOpponents.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
+                vs Opponents
+              </h3>
+              <div className="space-y-2">
+                {topOpponents.map((opponent) => (
+                  <div
+                    key={opponent.opponentId}
+                    className="flex items-center justify-between bg-japandi-background-primary rounded-xl p-3"
+                  >
+                    <div>
+                      <div className="font-medium text-japandi-text-primary">{opponent.opponentName}</div>
+                      <div className="text-xs text-japandi-text-muted">
+                        {opponent.wins}-{opponent.losses} ({opponent.gamesPlayed} games)
+                      </div>
+                    </div>
+                    <div className={`text-sm font-semibold ${
+                      opponent.winRate >= 60 ? 'text-green-600' : 
+                      opponent.winRate >= 40 ? 'text-japandi-text-primary' : 
+                      'text-red-600'
+                    }`}>
+                      {formatPercentage(opponent.winRate)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {dominates && dominates.winRate >= 70 && dominates.gamesPlayed >= 3 && (
+                <p className="text-sm text-green-600 mt-2">
+                  💪 Dominates vs {dominates.opponentName}
+                </p>
+              )}
+              {nemesis && nemesis !== dominates && nemesis.winRate < 30 && nemesis.gamesPlayed >= 3 && (
+                <p className="text-sm text-red-500 mt-1">
+                  😰 Nemesis: {nemesis.opponentName}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Sessions */}
+          <div className="text-center text-sm text-japandi-text-muted pt-2 border-t border-japandi-border-light">
+            {stats.sessionsPlayed} sessions • {stats.totalGames} games played
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

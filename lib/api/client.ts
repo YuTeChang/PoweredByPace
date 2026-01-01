@@ -1,4 +1,4 @@
-import { Session, Game, Group, GroupPlayer } from '@/types';
+import { Session, Game, Group, GroupPlayer, LeaderboardEntry, PlayerDetailedStats } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || '/api';
 
@@ -103,6 +103,20 @@ export class ApiClient {
    */
   static async getGroupSessions(groupId: string): Promise<Session[]> {
     return this.fetch<Session[]>(`/groups/${groupId}/sessions`);
+  }
+
+  /**
+   * Group Stats API (Leaderboard)
+   */
+  static async getGroupLeaderboard(groupId: string): Promise<LeaderboardEntry[]> {
+    return this.fetch<LeaderboardEntry[]>(`/groups/${groupId}/stats`);
+  }
+
+  /**
+   * Player Detailed Stats API
+   */
+  static async getPlayerDetailedStats(groupId: string, playerId: string): Promise<PlayerDetailedStats> {
+    return this.fetch<PlayerDetailedStats>(`/groups/${groupId}/players/${playerId}/stats`);
   }
 
   /**

@@ -27,7 +27,7 @@ npm run dev
 
 2. **Database**: Run `scripts/init-db-schema.sql` in Supabase SQL Editor
 
-3. **Migrations**: Run automatically on Vercel deployments, or manually: `npm run migrate:run`
+3. **Migrations**: Run automatically on Vercel deployments (see below)
 
 See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructions.
 
@@ -50,6 +50,15 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Player Pool**: Maintain player pool per group
 - ✅ **Group Sessions**: Track all sessions within a group
 - ✅ **Cross-Session Stats**: View aggregated player statistics
+
+### Leaderboard & Player Stats (NEW)
+- ✅ **ELO Rating System**: Track player skill with ELO ratings (starting at 1500)
+- ✅ **Leaderboard**: Ranked view of all players in a group by ELO
+- ✅ **Player Profiles**: Detailed stats for each player (click to view)
+- ✅ **Partner Synergy**: See who you play best with (win rates by partner)
+- ✅ **Opponent Matchups**: Track performance against specific opponents
+- ✅ **Recent Form**: Visual display of last 5 games (W/L indicators)
+- ✅ **Streak Tracking**: Current win/loss streak indicators
 
 ### Optional Betting
 - ✅ **Toggle Betting**: Enable/disable per session (default: OFF)
@@ -74,9 +83,77 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 
 ---
 
-## Deployment
+## Database & Migrations
 
-Deployments happen automatically when you push to the `main` branch. Changes to documentation files only (`.md` files, `docs/` folder) will skip deployment.
+### Automatic Migrations
+
+Migrations run **automatically on every Vercel deployment**. No manual steps required!
+
+**How it works:**
+```
+Push to GitHub → Vercel builds → postbuild runs → Migrations applied → Deploy complete
+```
+
+**Under the hood:**
+1. `postbuild` script executes after `next build`
+2. Migration system scans `scripts/migrations/` for SQL files
+3. Compares against `migrations` table to find pending migrations
+4. Applies only new migrations in version order (001, 002, 003...)
+5. Records applied migrations to prevent re-running
+
+**Migration files follow this pattern:**
+```
+scripts/migrations/
+├── 001-add-groups.sql       # Creates groups feature tables
+├── 002-add-elo-rating.sql   # Adds ELO rating column
+└── README.md                # Detailed migration guide
+```
+
+**Manual migration (if needed):**
+```bash
+npm run migrate:run          # Run locally
+# OR
+curl -X POST https://your-app.vercel.app/api/migrate  # Via API
+```
+
+See [scripts/migrations/README.md](scripts/migrations/README.md) for detailed migration documentation.
+
+---
+
+## Project Structure
+
+```
+app/                    # Next.js pages [FRONTEND]
+├── page.tsx            # Home (landing)
+├── dashboard/          # Dashboard
+├── create-*/           # Create forms
+├── group/[id]/         # Group pages
+├── session/[id]/       # Session pages
+└── api/                # API routes [BACKEND]
+    ├── groups/         # Group endpoints
+    │   └── [id]/
+    │       ├── stats/  # Leaderboard endpoint
+    │       └── players/[playerId]/stats/  # Player profile endpoint
+    └── sessions/       # Session endpoints
+
+components/             # React components [FRONTEND]
+├── PlayerProfileSheet.tsx  # Player profile modal (NEW)
+└── ...
+
+lib/
+├── api/client.ts       # API client [FRONTEND]
+├── services/           # Database services [BACKEND]
+│   ├── sessionService.ts
+│   ├── gameService.ts
+│   ├── groupService.ts
+│   ├── statsService.ts   # Leaderboard & player stats (NEW)
+│   └── eloService.ts     # ELO calculations (NEW)
+├── calculations.ts     # Stats calculations [FRONTEND]
+└── migration.ts        # Migration system
+
+scripts/migrations/     # Database migrations (auto-applied)
+types/index.ts          # TypeScript types
+```
 
 ---
 
@@ -90,31 +167,15 @@ Deployments happen automatically when you push to the `main` branch. Changes to 
 - [Changelog](CHANGELOG.md) - Change history
 - [Testing Guide](docs/TESTING_CHECKLIST.md) - Test scenarios
 - [Backend Setup](docs/SETUP_BACKEND.md) - Database setup
+- [Database Schema](docs/engineering/database.md) - Database documentation
 - [API Analysis](docs/API_ANALYSIS.md) - API documentation
 - [Architecture](docs/engineering/architecture.md) - System design
 
 ---
 
-## Project Structure
+## Deployment
 
-```
-app/              # Next.js pages [FRONTEND]
-├── page.tsx      # Home (landing)
-├── dashboard/    # Dashboard
-├── create-*/     # Create forms
-├── group/[id]/     # Group pages
-├── session/[id]/ # Session pages
-└── api/          # API routes [BACKEND]
-
-components/       # React components [FRONTEND]
-contexts/         # State management [FRONTEND]
-lib/
-├── api/client.ts # API client [FRONTEND]
-├── services/     # Database services [BACKEND]
-└── calculations.ts # Stats calculations [FRONTEND]
-```
-
-See [docs/README.md](docs/README.md) for complete architecture details.
+Deployments happen automatically when you push to the `main` branch. Changes to documentation files only (`.md` files, `docs/` folder) will skip deployment.
 
 ---
 

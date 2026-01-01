@@ -16,10 +16,11 @@ This leads to confusion, forgotten debts, and awkward money conversations at the
 A simple web app that:
 1. Lets you organize recurring playing groups
 2. Logs games during play (select teams, mark winner)
-3. Tracks player performance across sessions
-4. Automatically calculates final money settlement
-5. Generates shareable text for easy distribution
-6. Works with or without betting
+3. Tracks player performance across sessions with ELO ratings
+4. Shows partner synergy and opponent matchups
+5. Automatically calculates final money settlement
+6. Generates shareable text for easy distribution
+7. Works with or without betting
 
 ## Target Users
 
@@ -48,21 +49,47 @@ A simple web app that:
 - ✅ Track all sessions within a group
 - ✅ Link players across sessions for stats tracking
 
+### Leaderboard & Player Stats
+- ✅ **ELO Rating System**: Players start at 1500, ratings update after each game
+- ✅ **Leaderboard Tab**: Ranked view of all group players by ELO
+- ✅ **Player Profiles**: Click any player to see detailed statistics
+- ✅ **Partner Synergy**: Win rates with each partner (for doubles)
+- ✅ **Opponent Matchups**: Win rates against each opponent
+- ✅ **Recent Form**: Last 5 games shown as W/L indicators
+- ✅ **Streak Tracking**: Current win/loss streak displayed
+- ✅ **Trend Indicators**: Up/down arrows showing if player is improving
+
 ### Optional Betting
 - ✅ Per-session betting toggle
 - ✅ Universal stats always shown (win rate, points)
 - ✅ Conditional betting UI (only shown when enabled)
 - ✅ Stats-only mode for non-betting groups
 
+## How ELO Works
+
+The ELO system tracks player skill:
+
+1. **Starting Rating**: All players begin at 1500
+2. **After Each Game**: Winners gain points, losers lose points
+3. **Point Calculation**: Based on expected outcome vs actual
+   - Upset win (lower ELO beats higher) = more points gained
+   - Expected win (higher ELO beats lower) = fewer points gained
+4. **Doubles**: Team rating = average of both players' ELO
+
+**Example:**
+- Player A (1600 ELO) beats Player B (1400 ELO): Small gain/loss (~12 points)
+- Player B (1400 ELO) beats Player A (1600 ELO): Large gain/loss (~20 points)
+
 ## Future Features (Post-MVP)
 
-- Player history & Elo ratings
-- Head-to-head and teammate stats
+- ELO history and trend graphs
+- Team suggestion AI (balance teams based on ELO)
 - Flexible settlement (multiple prepayers)
 - Multi-sport support
 - User authentication (optional)
-- AI helper layer (team suggestions, auto-summaries)
+- AI helper layer (auto-summaries, matchup predictions)
 - Advanced analytics and visualizations
+- Push notifications for game invites
 
 ## Success Metrics
 
@@ -70,3 +97,4 @@ A simple web app that:
 - **User Satisfaction**: Groups use it consistently for their sessions
 - **Time Saved**: Reduces end-of-night calculation time from minutes to seconds
 - **Group Engagement**: Groups use it to track performance over time
+- **Competitive Fun**: Leaderboard motivates players to improve

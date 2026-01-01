@@ -400,6 +400,7 @@ export class GroupService {
       id: row.id,
       groupId: row.group_id,
       name: row.name,
+      eloRating: row.elo_rating || 1500,
       createdAt: row.created_at ? new Date(row.created_at) : undefined,
     };
   }

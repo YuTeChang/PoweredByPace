@@ -1,5 +1,6 @@
 import { createSupabaseClient } from '@/lib/supabase';
 import { Game } from '@/types';
+import { EloService } from './eloService';
 
 export interface GameRow {
   id: string;
@@ -93,7 +94,14 @@ export class GameService {
         throw insertError;
       }
 
-      return this.mapRowToGame(insertedGame as any);
+      const createdGame = this.mapRowToGame(insertedGame as any);
+
+      // Update ELO if game has a winner
+      if (game.winningTeam) {
+        await this.updateEloForGame(sessionId, createdGame);
+      }
+
+      return createdGame;
     } catch (error) {
       console.error('[GameService] Error creating game:', error);
       throw new Error('Failed to create game');
@@ -136,7 +144,16 @@ export class GameService {
         throw insertError;
       }
 
-      return (insertedGames || []).map((row) => this.mapRowToGame(row as any));
+      const createdGames = (insertedGames || []).map((row) => this.mapRowToGame(row as any));
+
+      // Update ELO for games with winners
+      for (const game of createdGames) {
+        if (game.winningTeam) {
+          await this.updateEloForGame(sessionId, game);
+        }
+      }
+
+      return createdGames;
     } catch (error) {
       console.error('[GameService] Error creating games:', error);
       throw new Error('Failed to create games');
@@ -153,6 +170,20 @@ export class GameService {
   ): Promise<Game> {
     try {
       const supabase = createSupabaseClient();
+      
+      // First, get the current game state to check if winning_team is changing
+      const { data: currentGame, error: fetchError } = await supabase
+        .from('games')
+        .select('*')
+        .eq('id', gameId)
+        .eq('session_id', sessionId)
+        .single();
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      const previousWinningTeam = currentGame?.winning_team;
       
       const updateData: any = {};
       
@@ -188,7 +219,15 @@ export class GameService {
         throw updateError;
       }
 
-      return this.mapRowToGame(updatedGame as any);
+      const game = this.mapRowToGame(updatedGame as any);
+
+      // Update ELO if winning team is being set for the first time
+      // (only when going from null to a value, not when changing existing result)
+      if (updates.winningTeam && !previousWinningTeam) {
+        await this.updateEloForGame(sessionId, game);
+      }
+
+      return game;
     } catch (error) {
       console.error('[GameService] Error updating game:', error);
       throw new Error('Failed to update game');
@@ -218,6 +257,64 @@ export class GameService {
   }
 
   /**
+   * Update ELO ratings for players in a completed game
+   */
+  private static async updateEloForGame(sessionId: string, game: Game): Promise<void> {
+    try {
+      if (!game.winningTeam) return;
+
+      const supabase = createSupabaseClient();
+
+      // Check if this session belongs to a group
+      const { data: session, error: sessionError } = await supabase
+        .from('sessions')
+        .select('group_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !session?.group_id) {
+        // Not a group session, no ELO to update
+        return;
+      }
+
+      // Get player mappings (session player ID -> group player ID)
+      const allPlayerIds = [...game.teamA, ...game.teamB];
+      const { data: players, error: playersError } = await supabase
+        .from('players')
+        .select('id, group_player_id')
+        .in('id', allPlayerIds);
+
+      if (playersError || !players) {
+        console.error('[GameService] Error fetching player mappings:', playersError);
+        return;
+      }
+
+      const playerToGroupPlayer = new Map<string, string>();
+      players.forEach(p => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+        }
+      });
+
+      // Map team player IDs to group player IDs
+      const teamAGroupIds = game.teamA
+        .map(id => playerToGroupPlayer.get(id))
+        .filter(Boolean) as string[];
+      const teamBGroupIds = game.teamB
+        .map(id => playerToGroupPlayer.get(id))
+        .filter(Boolean) as string[];
+
+      // Update ELO ratings
+      if (teamAGroupIds.length > 0 || teamBGroupIds.length > 0) {
+        await EloService.processGameResult(teamAGroupIds, teamBGroupIds, game.winningTeam);
+      }
+    } catch (error) {
+      // Log but don't throw - ELO update failure shouldn't fail the game update
+      console.error('[GameService] Error updating ELO:', error);
+    }
+  }
+
+  /**
    * Map database row to Game type
    */
   private static mapRowToGame(row: any): Game {
@@ -242,4 +339,3 @@ export class GameService {
     };
   }
 }
-

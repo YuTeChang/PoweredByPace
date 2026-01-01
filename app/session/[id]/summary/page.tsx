@@ -11,6 +11,7 @@ import {
 } from "@/lib/calculations";
 import Link from "next/link";
 import { Session, Game } from "@/types";
+import { ApiClient } from "@/lib/api/client";
 
 export default function SummaryPage() {
   const params = useParams();
@@ -21,10 +22,20 @@ export default function SummaryPage() {
   const [notFound, setNotFound] = useState(false);
   const [localSession, setLocalSession] = useState<Session | null>(null);
   const [localGames, setLocalGames] = useState<Game[]>([]);
+  const [groupName, setGroupName] = useState<string | null>(null);
   
   // Track loading state to prevent duplicate calls
   const isLoadingRef = useRef(false);
   const sessionIdRef = useRef<string | null>(null);
+  
+  // Fetch group name for group sessions
+  useEffect(() => {
+    if (localSession?.groupId) {
+      ApiClient.getGroup(localSession.groupId)
+        .then(group => setGroupName(group.name))
+        .catch(() => {}); // Fail silently
+    }
+  }, [localSession?.groupId]);
 
   // Load session using context's loadSession (which handles API calls)
   useEffect(() => {
@@ -110,6 +121,13 @@ export default function SummaryPage() {
   const currentSession = localSession;
   const currentGames = localGames;
   const bettingEnabled = currentSession.bettingEnabled ?? true; // Default to true for backward compatibility
+  
+  // Determine if this is a group session
+  const isGroupSession = !!currentSession.groupId;
+  const backLink = isGroupSession ? `/group/${currentSession.groupId}` : "/";
+  const backText = isGroupSession 
+    ? `← Back to ${groupName || 'Group'}` 
+    : "← Back to Home";
 
   const settlement = calculateFinalSettlement(currentSession, currentGames);
   const shareableText = generateShareableText(settlement, bettingEnabled);
@@ -131,11 +149,24 @@ export default function SummaryPage() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
         <div className="mb-8">
           <Link
-            href="/"
+            href={backLink}
             className="text-japandi-accent-primary hover:text-japandi-accent-hover active:opacity-70 text-sm transition-all flex items-center gap-1 mb-4 inline-block touch-manipulation"
           >
-            ← Back to Home
+            {backText}
           </Link>
+          
+          {/* Group Session Badge */}
+          {isGroupSession && (
+            <div className="mb-3">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-japandi-accent-primary/10 text-japandi-accent-primary text-xs font-medium rounded-full">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z"/>
+                </svg>
+                {groupName || 'Group Session'}
+              </span>
+            </div>
+          )}
+          
           <h1 className="text-2xl sm:text-3xl font-bold text-japandi-text-primary mb-3">
             Final Summary
           </h1>
@@ -301,15 +332,15 @@ export default function SummaryPage() {
               Back to Session
             </Link>
             <Link
-              href="/"
+              href={backLink}
               className="flex-1 px-5 py-3 bg-japandi-background-card hover:bg-japandi-background-primary active:scale-95 text-japandi-text-primary border border-japandi-border-light font-semibold rounded-full transition-all text-center touch-manipulation"
             >
-              Back to Home
+              {isGroupSession ? `Back to ${groupName || 'Group'}` : 'Back to Home'}
             </Link>
           </div>
           <div className="pt-2">
             <Link
-              href="/create-session"
+              href={isGroupSession ? `/create-session?groupId=${currentSession.groupId}` : "/create-session"}
               className="block w-full px-5 py-3 bg-japandi-accent-primary hover:bg-japandi-accent-hover active:scale-95 text-white font-semibold rounded-full transition-all text-center shadow-button touch-manipulation"
             >
               New Session
