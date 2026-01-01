@@ -2,9 +2,70 @@
 
 This document tracks all features, improvements, and fixes added to PoweredByPace.
 
-## Latest Updates (2025-01-XX)
+## Latest Updates (2025-01)
 
 ### Major Features Added
+
+#### 1. Delete Functionality
+- **Status**: ✅ Complete
+- **Description**: Delete sessions and groups with confirmation dialogs
+- **Implementation**:
+  - Added delete buttons to dashboard session cards
+  - Added delete button to group page header
+  - Added delete button to session page header
+  - All delete actions require confirmation
+  - Proper cleanup of related data (cascade deletes)
+- **User Impact**: Users can now clean up old sessions and groups they no longer need
+
+#### 2. Search Functionality
+- **Status**: ✅ Complete
+- **Description**: Search standalone sessions by name on dashboard
+- **Implementation**:
+  - Added search input to dashboard page
+  - Real-time filtering as user types
+  - Case-insensitive substring matching
+  - Only searches standalone sessions (not group sessions)
+- **User Impact**: Users can quickly find sessions by name when they have many sessions
+
+#### 3. Edit Session Functionality
+- **Status**: ✅ Complete
+- **Description**: Edit session name and date after creation
+- **Implementation**:
+  - Added "Edit Session" button on session page
+  - Modal form for editing name and date
+  - Updates session in database and context
+- **User Impact**: Users can correct mistakes or update session information after creation
+
+#### 4. API Optimization
+- **Status**: ✅ Complete
+- **Description**: Optimized API calls for better performance
+- **Implementation**:
+  - Created lightweight `/api/sessions/summary` endpoint
+  - Eliminated duplicate API calls with smart caching
+  - Fixed N+1 query problems with batch queries
+  - Dashboard now uses summary endpoint instead of full sessions
+  - Group session counts calculated from summaries (no extra API calls)
+- **User Impact**: Faster dashboard loading, reduced server load, better user experience
+
+#### 5. Home Page Refactor
+- **Status**: ✅ Complete
+- **Description**: Separated landing page from dashboard
+- **Implementation**:
+  - Home page (`/`) is now simple landing page with navigation
+  - Dashboard page (`/dashboard`) contains all sessions and groups
+  - Prevents expensive API calls on home page load
+  - Better separation of concerns
+- **User Impact**: Faster initial page load, cleaner navigation structure
+
+#### 6. Betting Default Change
+- **Status**: ✅ Complete
+- **Description**: Betting now defaults to OFF for new sessions
+- **Implementation**:
+  - Changed default `bettingEnabled` from `true` to `false`
+  - Users can still enable betting if desired
+- **User Impact**: Better default for users who just want to track games without betting
+
+### Previous Major Features (2024-12)
 
 #### 1. Groups Feature
 - **Status**: ✅ Complete

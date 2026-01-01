@@ -6,8 +6,6 @@ A web app that helps groups of friends track their badminton games (doubles or s
 
 🌐 **Live App**: [View on Vercel](https://poweredbypace.vercel.app)
 
-> **Note**: Update the URL above if your deployment uses a different domain.
-
 ## Features
 
 ### Core Features
@@ -19,19 +17,29 @@ A web app that helps groups of friends track their badminton games (doubles or s
 - **Game Planning**: See upcoming scheduled games to plan your session time
 - **Auto-Calculate**: Automatically calculates wins/losses, gambling net, and final settlement
 - **Mobile-First**: Designed for use at the court with optimized mobile navigation
+- **Edit Sessions**: Edit session name and date after creation
+- **Delete Sessions**: Delete sessions and groups with confirmation dialogs
+- **Search Sessions**: Search standalone sessions by name on the dashboard
 
-### Groups Feature (NEW)
+### Groups Feature
 - **Create Groups**: Organize recurring badminton groups (e.g., "Friday Night Badminton")
 - **Shareable Links**: Share group links with friends so they can view sessions and stats
 - **Player Pool**: Maintain a player pool per group for quick session setup
 - **Group Sessions**: Track all sessions within a group over time
 - **Cross-Session Stats**: View aggregated player statistics across all group sessions
+- **Delete Groups**: Delete groups with all their sessions (with confirmation)
 
-### Optional Betting (NEW)
-- **Toggle Betting**: Enable or disable betting per session
+### Optional Betting
+- **Toggle Betting**: Enable or disable betting per session (default: OFF)
 - **Universal Stats**: Always see win rate, points scored/conceded, and point differential
 - **Conditional Betting UI**: Betting-related fields and calculations only shown when enabled
 - **Stats-Only Mode**: Use the app purely for tracking games without betting
+
+### Performance Optimizations
+- **Lightweight API Endpoints**: Dashboard uses optimized `/api/sessions/summary` endpoint for faster loading
+- **Batch Queries**: Eliminated N+1 query problems with batch player fetching
+- **Duplicate Call Prevention**: Smart caching and deduplication to prevent unnecessary API calls
+- **Lazy Loading**: Data loaded only when needed (dashboard vs session pages)
 
 ## Screenshots
 
@@ -73,6 +81,7 @@ npm install
 # Copy .env.example to .env.local and fill in your Supabase credentials
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+POSTGRES_URL=your_postgres_connection_string  # For migrations
 ```
 
 3. Initialize database:
@@ -107,12 +116,16 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed instructions.
 ```
 PoweredByPace/
 ├── app/                    # Next.js app directory
-│   ├── page.tsx           # Home page (groups and sessions)
+│   ├── page.tsx           # Home page (simple landing)
+│   ├── dashboard/         # Dashboard page (sessions & groups)
 │   ├── create-group/      # Create group page
 │   ├── create-session/    # Create session page
 │   ├── group/[id]/        # Group detail page
 │   ├── session/[id]/      # Live session page
 │   └── api/               # API routes
+│       ├── sessions/      # Session endpoints
+│       │   └── summary/  # Lightweight summary endpoint
+│       └── groups/        # Group endpoints
 ├── components/            # React components
 ├── contexts/              # React Context (SessionContext)
 ├── lib/                   # Utilities and services
@@ -137,6 +150,7 @@ PoweredByPace/
 - [Testing Checklist](docs/TESTING_CHECKLIST.md) - Test guide
 - [Backend Setup](docs/SETUP_BACKEND.md) - Database setup instructions
 - [Migration Guide](scripts/migrations/README.md) - Database migration system and best practices
+- [API Analysis](docs/API_ANALYSIS.md) - API endpoint documentation and optimization notes
 
 All documentation is organized for easy navigation. The main README has everything essential; detailed reference docs are in `docs/`.
 
@@ -147,7 +161,7 @@ All documentation is organized for easy navigation. The main README has everythi
 - **Groups**: Organize recurring playing groups with shareable links
 - **Sessions**: Individual badminton sessions (can belong to a group or standalone)
 - **Players**: Can be linked to group player pool for tracking across sessions
-- **Betting**: Optional per-session feature for tracking gambling nets
+- **Betting**: Optional per-session feature for tracking gambling nets (default: OFF)
 - **Stats**: Universal stats (win rate, points) always shown; betting stats shown when enabled
 
 ### Database Schema
@@ -159,6 +173,18 @@ All documentation is organized for easy navigation. The main README has everythi
 - `games` - Individual games within sessions
 
 See `scripts/init-db-schema.sql` for complete schema.
+
+## Recent Updates
+
+### Latest Features (2025-01)
+- ✅ **Delete Functionality**: Delete sessions and groups with confirmation dialogs
+- ✅ **Search**: Search standalone sessions by name on dashboard
+- ✅ **Edit Sessions**: Edit session name and date after creation
+- ✅ **API Optimization**: Lightweight summary endpoint for faster dashboard loading
+- ✅ **Betting Default**: Betting now defaults to OFF for new sessions
+- ✅ **Home Page Refactor**: Simple landing page with dashboard for sessions/groups
+
+See [CHANGELOG.md](CHANGELOG.md) and [docs/FEATURES_LOG.md](docs/FEATURES_LOG.md) for complete change history.
 
 ## License
 

@@ -26,6 +26,9 @@ Helps groups of friends track badminton games (doubles or singles) during a sess
 - ✅ Automatic final settlement calculation
 - ✅ Shareable summary text
 - ✅ Mobile-optimized UI with bottom tab navigation
+- ✅ **Edit Sessions**: Edit session name and date after creation
+- ✅ **Delete Sessions**: Delete sessions and groups with confirmation
+- ✅ **Search Sessions**: Search standalone sessions by name on dashboard
 
 #### Groups Feature (NEW)
 - ✅ **Create Groups**: Organize recurring badminton groups
@@ -34,8 +37,8 @@ Helps groups of friends track badminton games (doubles or singles) during a sess
 - ✅ **Group Sessions**: Track all sessions within a group over time
 - ✅ **Player Linking**: Link session players to group player pool for cross-session tracking
 
-#### Optional Betting (NEW)
-- ✅ **Toggle Betting**: Enable or disable betting per session
+#### Optional Betting
+- ✅ **Toggle Betting**: Enable or disable betting per session (default: OFF)
 - ✅ **Universal Stats**: Always see win rate, points scored/conceded, point differential
 - ✅ **Conditional UI**: Betting fields and calculations only shown when enabled
 - ✅ **Stats-Only Mode**: Use app purely for game tracking without betting
@@ -215,7 +218,8 @@ scripts/          # Database migration scripts
 ```
 
 ### Key Files
-- `app/page.tsx` - Home page (groups and sessions)
+- `app/page.tsx` - Home page (simple landing)
+- `app/dashboard/page.tsx` - Dashboard (groups and sessions)
 - `app/create-group/page.tsx` - Create group form
 - `app/create-session/page.tsx` - Create session form
 - `app/group/[id]/page.tsx` - Group detail page
@@ -224,6 +228,7 @@ scripts/          # Database migration scripts
 - `contexts/SessionContext.tsx` - State management
 - `lib/calculations.ts` - Money and stats calculations
 - `lib/services/groupService.ts` - Group database operations
+- `lib/services/sessionService.ts` - Session database operations (with summary endpoint)
 - `lib/services/statsService.ts` - Cross-session stats aggregation
 
 ### Design System
@@ -282,12 +287,24 @@ See `docs/TESTING_CHECKLIST.md` for comprehensive test scenarios.
 - Player pool management
 - Group sessions tracking
 - Player linking across sessions
+- Delete groups (with confirmation)
+
+**Management:**
+- Edit session name and date
+- Delete sessions and groups
+- Search standalone sessions by name
 
 **Optional Betting:**
-- Per-session betting toggle
+- Per-session betting toggle (default: OFF)
 - Universal stats (always shown)
 - Conditional betting UI
 - Stats-only mode
+
+**Performance:**
+- Lightweight summary API endpoint
+- Optimized batch queries (no N+1 problems)
+- Duplicate call prevention
+- Lazy loading for better performance
 
 **What's Not (Future):**
 - User authentication
