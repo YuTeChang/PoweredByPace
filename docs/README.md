@@ -387,6 +387,7 @@ See `docs/TESTING_CHECKLIST.md` for comprehensive test scenarios.
 - Optimized batch queries (no N+1 problems)
 - Duplicate call prevention
 - Lazy loading for better performance
+- Dashboard API optimization: parallelized calls, removed unnecessary endpoints (~72% faster)
 
 **What's Not (Future):**
 - User authentication
