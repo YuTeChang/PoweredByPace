@@ -6,6 +6,25 @@ This document tracks all features, improvements, and fixes added to PoweredByPac
 
 ### Major Features Added
 
+#### ELO Rating & Leaderboard System
+- **Status**: ✅ Complete
+- **Description**: Track player skill with ELO ratings and view group leaderboards
+- **Implementation**:
+  - Added `elo_rating` column to `group_players` table (default: 1500)
+  - Created `EloService` for rating calculations (K-factor: 32)
+  - ELO updates automatically when games are completed
+  - New "Leaderboard" tab on group pages showing ranked players
+  - Player profiles with detailed statistics
+    - Partner synergy (win rates by teammate)
+    - Opponent matchups (win rates against each player)
+    - Recent form (last 5 games as W/L indicators)
+    - Current streak tracking
+  - Created new API endpoints:
+    - `GET /api/groups/[id]/stats` - Leaderboard data
+    - `GET /api/groups/[id]/players/[id]/stats` - Player detailed stats
+- **Database Migration**: `002-add-elo-rating.sql` (auto-applied on deploy)
+- **User Impact**: Players can now track their skill progression and see who they pair well with
+
 #### 1. Delete Functionality
 - **Status**: ✅ Complete
 - **Description**: Delete sessions and groups with confirmation dialogs
@@ -284,13 +303,12 @@ This document tracks all features, improvements, and fixes added to PoweredByPac
 
 ### Potential Enhancements
 - User authentication (optional)
-- Elo ratings
-- Player history across all sessions
-- Team statistics
-- Head-to-head matchups
+- ELO history and trend graphs
+- Team suggestion AI (balance teams based on ELO)
 - Export/import sessions
 - Multi-sport support
 - Advanced analytics dashboard
+- Push notifications for game invites
 
 ## Technical Debt & Notes
 

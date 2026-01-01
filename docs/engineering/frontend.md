@@ -39,11 +39,18 @@
 
 ### Home Page
 - **Route**: `/`
-- **Purpose**: Landing page, redirects to create session or shows recent sessions
+- **Purpose**: Landing page with quick navigation
 - **Components**: 
   - Welcome message
-  - "Create New Session" button
-  - (Future: Recent sessions list)
+  - Navigation links to Dashboard and Create Session
+
+### Dashboard Page
+- **Route**: `/dashboard`
+- **Purpose**: View and manage all sessions and groups
+- **Components**:
+  - Groups list with session counts
+  - Standalone sessions list with search
+  - Create Group and Quick Session buttons
 
 ### Create Session Page
 - **Route**: `/create-session`
@@ -82,6 +89,17 @@
   - Copy-to-clipboard button
   - "New Session" button
 
+### Group Page
+- **Route**: `/group/[id]`
+- **Purpose**: View group details, sessions, leaderboard, and player pool
+- **Structure**: Tab navigation with 3 tabs
+- **Components**:
+  - **Sessions Tab**: List of all sessions in the group
+  - **Leaderboard Tab**: Ranked players by ELO rating
+    - Player cards showing ELO, W/L, win rate, recent form
+    - Click player to view detailed profile
+  - **Players Tab**: Manage player pool
+
 ## Components
 
 ### Implemented Components
@@ -91,6 +109,7 @@
 - `GameHistoryList` - Full game history with undo functionality
 - `BottomTabNav` - Tab navigation (Stats, Record, History)
 - `FloatingActionButton` - Quick record access from Stats tab
+- `PlayerProfileSheet` - Detailed player stats modal (ELO, partners, opponents)
 
 ## Configuration
 

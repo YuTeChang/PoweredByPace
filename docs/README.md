@@ -348,7 +348,6 @@ See [TESTING_CHECKLIST.md](TESTING_CHECKLIST.md) for comprehensive test scenario
 - **[Features Log](FEATURES_LOG.md)** - Complete feature development history
 - **[Changelog](../CHANGELOG.md)** - Change history
 - **[Testing Checklist](TESTING_CHECKLIST.md)** - Manual testing guide
-- **[Design Decisions](decisions.md)** - Technical and design decisions
 
 ### Setup & Configuration
 - **[Backend Setup](SETUP_BACKEND.md)** - Database setup instructions
@@ -357,7 +356,6 @@ See [TESTING_CHECKLIST.md](TESTING_CHECKLIST.md) for comprehensive test scenario
 ### Engineering
 - **[Architecture](engineering/architecture.md)** - Frontend/backend separation, data flow
 - **[Database](engineering/database.md)** - Schema, tables, relationships, migrations
-- **[System Overview](engineering/system_overview.md)** - High-level system design
 - **[Frontend Details](engineering/frontend.md)** - React components and state management
 - **[User Flows](engineering/flows.md)** - Key interaction flows
 - **[Sync Strategy](engineering/sync-strategy.md)** - Event-driven sync (no polling)
