@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "@/contexts/SessionContext";
 import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { ApiClient } from "@/lib/api/client";
 import { Group } from "@/types";
 
@@ -18,6 +18,7 @@ type SessionSummary = {
 
 export default function Dashboard() {
   const router = useRouter();
+  const pathname = usePathname();
   const { session, games, loadSession } = useSession();
   const [isLoaded, setIsLoaded] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -29,6 +30,11 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const hasLoadedDataRef = useRef(false);
   const isLoadingSummariesRef = useRef(false);
+  
+  // Track pathname changes to detect when returning to dashboard
+  const prevPathnameRef = useRef<string | null>(null);
+  const lastLoadRef = useRef<number>(0);
+  const REFRESH_DEBOUNCE_MS = 500;
 
   useEffect(() => {
     // Always log to verify code is loaded
@@ -173,6 +179,47 @@ export default function Dashboard() {
       hasLoadedDataRef.current = true;
     }
   };
+
+  // Detect when returning to dashboard and refresh automatically
+  useEffect(() => {
+    if (pathname === '/dashboard') {
+      const prevPath = prevPathnameRef.current;
+      if (prevPath !== null && prevPath !== pathname) {
+        // Check if we're coming from create-session or session page
+        const isReturningFromSession = 
+          prevPath === '/create-session' || 
+          prevPath?.startsWith('/create-session') ||
+          prevPath?.startsWith('/session/');
+        
+        const now = Date.now();
+        const timeSinceLastLoad = now - lastLoadRef.current;
+        
+        if (isReturningFromSession || timeSinceLastLoad > REFRESH_DEBOUNCE_MS) {
+          console.log('[Dashboard] Returning to dashboard, refreshing data...', {
+            prev: prevPath,
+            current: pathname,
+            isReturningFromSession,
+            timeSinceLastLoad
+          });
+          lastLoadRef.current = now;
+          
+          // If returning from session-related page, add delay for database replication
+          if (isReturningFromSession) {
+            setTimeout(() => {
+              console.log('[Dashboard] Refreshing after return (with delay for replication)');
+              handleRefresh();
+            }, 500);
+          } else {
+            handleRefresh();
+          }
+        }
+      }
+      prevPathnameRef.current = pathname;
+    } else {
+      // Track that we've navigated away
+      prevPathnameRef.current = pathname;
+    }
+  }, [pathname]);
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("en-US", {
