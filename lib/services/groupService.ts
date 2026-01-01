@@ -297,29 +297,6 @@ export class GroupService {
         }
       }
       
-      // Sort by date descending, then by created_at descending as tiebreaker
-      if (sessionsData) {
-        sessionsData.sort((a, b) => {
-          const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
-          if (dateDiff !== 0) return dateDiff;
-          const createdDiff = new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
-          return createdDiff;
-        });
-      }
-
-      if (sessionsError && (!sessionsData || sessionsData.length === 0)) {
-        console.error('[GroupService] Error fetching group sessions:', {
-          groupId,
-          message: sessionsError.message,
-          code: sessionsError.code,
-        });
-        throw sessionsError;
-      }
-
-      if (!sessionsData || sessionsData.length === 0) {
-        return [];
-      }
-      
       // If we still don't have sessions after fallback, return empty
       if (!sessionsData || sessionsData.length === 0) {
         // Only throw error if we had an actual error AND no fallback worked
