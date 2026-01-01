@@ -95,54 +95,38 @@ export default function GroupPage() {
     loadGroupData();
   }, [groupId, loadGroupData]);
 
-  // Refresh data when pathname changes (only if different from initial load)
+  // Track if we've navigated away to detect when returning to this page
+  const hasNavigatedAwayRef = useRef(false);
   const prevPathnameRef = useRef<string | null>(null);
+  
+  // Only refresh when pathname changes TO this page (returning from create-session)
+  // This prevents refresh when clicking links that navigate away
   useEffect(() => {
     if (pathname === `/group/${groupId}`) {
-      // Always refresh when pathname matches (handles navigation from create-session)
-      const now = Date.now();
-      if (prevPathnameRef.current !== pathname || now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
-        console.log('[GroupPage] Pathname changed or time elapsed, refreshing data...');
-        lastLoadRef.current = now;
-        const timer = setTimeout(() => {
-          loadGroupData();
-        }, 100);
-        prevPathnameRef.current = pathname;
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [pathname, groupId, loadGroupData]);
-
-  // Refresh data when page becomes visible (with debounce)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      // Only refresh if we actually navigated away and came back
+      // This handles the case when returning from create-session page
+      if (hasNavigatedAwayRef.current && prevPathnameRef.current !== pathname) {
         const now = Date.now();
         if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
-          console.log('[GroupPage] Page became visible, refreshing data...');
+          console.log('[GroupPage] Returning to group page, refreshing data...');
           lastLoadRef.current = now;
           loadGroupData();
         }
+        hasNavigatedAwayRef.current = false;
       }
-    };
+      prevPathnameRef.current = pathname;
+    } else {
+      // Mark that we've navigated away from this page
+      hasNavigatedAwayRef.current = true;
+    }
+  }, [pathname, groupId, loadGroupData]);
 
-    const handleFocus = () => {
-      const now = Date.now();
-      if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
-        console.log('[GroupPage] Window focused, refreshing data...');
-        lastLoadRef.current = now;
-        loadGroupData();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, [loadGroupData]);
+  // Removed aggressive visibility/focus auto-refresh
+  // Data will refresh:
+  // 1. On mount (initial load)
+  // 2. When returning from create-session (pathname effect above)
+  // 3. When user clicks refresh button (explicit)
+  // This prevents unnecessary refreshes when switching browser tabs/windows
 
   const handleAddPlayer = async () => {
     if (!newPlayerName.trim()) return;
