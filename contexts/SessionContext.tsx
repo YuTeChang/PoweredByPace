@@ -585,18 +585,27 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, [apiAvailable]);
 
-  // Lazy load all sessions and groups - only when explicitly needed (e.g., on home page)
+  // Lazy load all sessions and groups - only when explicitly needed (e.g., on group pages)
+  // NOTE: Dashboard page loads its own data directly, so we skip it here to avoid duplicate calls
   // Always tries API first to ensure fresh data, even if localStorage has cached data
   const ensureSessionsAndGroupsLoaded = useCallback(async () => {
     if (typeof window === "undefined") return;
     
-    // Only load all sessions/groups if we're on the dashboard page
-    // On session/group/home pages, we don't need all sessions - skip to avoid unnecessary API calls
     const pathname = window.location.pathname;
-    if (pathname !== '/dashboard' && !pathname.startsWith('/group/')) {
+    // Dashboard loads its own data (groups + summaries) - skip to avoid duplicate calls
+    if (pathname === '/dashboard') {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - dashboard loads its own data');
+      }
+      return;
+    }
+    
+    // Only load all sessions/groups if we're on a group page
+    // On session/home pages, we don't need all sessions - skip to avoid unnecessary API calls
+    if (!pathname.startsWith('/group/')) {
       // We're on a session page, home page, or other page - skip loading all sessions
       if (process.env.NODE_ENV === 'development') {
-        console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on dashboard/group page:', pathname);
+        console.log('[SessionContext] Skipping ensureSessionsAndGroupsLoaded - not on group page:', pathname);
       }
       return;
     }
