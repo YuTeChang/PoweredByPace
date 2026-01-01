@@ -12,8 +12,9 @@
 4. [Database](#database)
 5. [Development](#development)
 6. [API Reference](#api-reference)
-7. [Testing](#testing)
-8. [Reference Docs](#reference-documentation)
+7. [Admin Operations](#admin-operations)
+8. [Testing](#testing)
+9. [Reference Docs](#reference-documentation)
 
 ---
 
@@ -26,6 +27,8 @@ Helps groups of friends track badminton games (doubles or singles) during a sess
 - Win rates and point statistics (always shown)
 - ELO ratings and leaderboard rankings
 - Partner synergy and opponent matchups
+- **Best pairings** (which doubles teams perform best)
+- **Head-to-head matchups** (how pairings fare against each other)
 - Gambling net (from per-game bets, optional)
 - Final money settlement (who owes the organizer how much)
 
@@ -48,7 +51,6 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 **Session Management**
 - Create sessions with players and financial settings
 - Edit session name and date after creation
-- Delete sessions with confirmation
 - Search standalone sessions by name
 
 **Game Modes**
@@ -73,7 +75,6 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 **Group Management**
 - Create recurring badminton groups
 - Shareable links (no accounts required)
-- Delete groups with all sessions (confirmation required)
 
 **Player Pool**
 - Maintain player pool per group
@@ -85,7 +86,7 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 - Aggregated player statistics across sessions
 - Track players over time
 
-### Leaderboard & Player Stats (NEW)
+### Leaderboard & Player Stats
 
 **ELO Rating System**
 - All players start at 1500 ELO
@@ -105,6 +106,19 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 - **Opponent Matchups**: Win rates against each opponent
 - Current streak tracking (win/loss)
 - Labels for "Hot Duo", "Nemesis", etc.
+
+### Pairing Stats (NEW)
+
+**Pairings Tab**
+- View all doubles pairings ranked by win rate
+- See which two-player combinations perform best
+- Click any pairing to view detailed stats
+
+**Pairing Profile**
+- Combined W-L record for the pair
+- Recent form and current streak
+- **Head-to-Head Matchups**: Performance against other pairings
+- Identify best/worst opponent pairings
 
 ### Optional Betting
 
@@ -137,9 +151,10 @@ This is a **full-stack Next.js application** with clear separation.
 - **Key Files**:
   - `app/dashboard/page.tsx` - Dashboard
   - `app/create-session/page.tsx` - Create session
-  - `app/group/[id]/page.tsx` - Group detail with Leaderboard
+  - `app/group/[id]/page.tsx` - Group detail with Leaderboard & Pairings
   - `app/session/[id]/page.tsx` - Live session
   - `components/PlayerProfileSheet.tsx` - Player profile modal
+  - `components/PairingProfileSheet.tsx` - Pairing profile modal (NEW)
   - `contexts/SessionContext.tsx` - State management
   - `lib/api/client.ts` - API client
 
@@ -149,10 +164,12 @@ This is a **full-stack Next.js application** with clear separation.
 - **Key Files**:
   - `app/api/sessions/route.ts` - Session endpoints
   - `app/api/groups/[id]/stats/route.ts` - Leaderboard endpoint
+  - `app/api/groups/[id]/pairings/route.ts` - Pairing stats endpoint (NEW)
   - `lib/services/sessionService.ts` - Session operations
   - `lib/services/groupService.ts` - Group operations
   - `lib/services/statsService.ts` - Leaderboard & player stats
   - `lib/services/eloService.ts` - ELO calculations
+  - `lib/services/pairingStatsService.ts` - Pairing stats (NEW)
   - `lib/supabase.ts` - Database client
 
 ### Data Flow
@@ -179,7 +196,7 @@ Group {
 }
 
 GroupPlayer {
-  id, groupId, name, eloRating, createdAt
+  id, groupId, name, eloRating, wins, losses, totalGames, createdAt
 }
 
 Session {
@@ -202,6 +219,19 @@ Game {
   winningTeam: "A" | "B",
   teamAScore?, teamBScore?
 }
+
+// NEW: Pairing stats tables
+PartnerStats {
+  groupId, player1Id, player2Id,
+  wins, losses, totalGames
+}
+
+PairingMatchups {
+  groupId,
+  team1Player1Id, team1Player2Id,
+  team2Player1Id, team2Player2Id,
+  team1Wins, team1Losses, totalGames
+}
 ```
 
 See [engineering/architecture.md](engineering/architecture.md) for detailed architecture.
@@ -216,10 +246,12 @@ PoweredByPace uses **PostgreSQL** hosted on **Supabase**.
 
 **Tables:**
 - `groups` - Badminton groups with shareable links
-- `group_players` - Player pool per group (includes `elo_rating`)
+- `group_players` - Player pool per group (includes ELO, W/L stats)
 - `sessions` - Badminton sessions (can belong to a group)
 - `players` - Session players (can link to group players)
 - `games` - Individual games within sessions
+- `partner_stats` - Win/loss when two players are paired (NEW)
+- `pairing_matchups` - Head-to-head between pairings (NEW)
 - `migrations` - Tracks applied database migrations
 
 ### Automatic Migrations
@@ -240,9 +272,11 @@ Push to GitHub → Vercel builds → postbuild runs → Migrations applied
 **Migration files:**
 ```
 scripts/migrations/
-├── 001-add-groups.sql       # Groups feature tables
-├── 002-add-elo-rating.sql   # ELO rating column
-└── README.md                # Detailed guide
+├── 001-add-groups.sql           # Groups feature tables
+├── 002-add-elo-rating.sql       # ELO rating column
+├── 003-add-player-stats.sql     # Wins/losses columns
+├── 004-add-pairing-stats.sql    # Pairing stats tables (NEW)
+└── README.md                    # Detailed guide
 ```
 
 See [engineering/database.md](engineering/database.md) for full database documentation.
@@ -259,23 +293,26 @@ app/
 ├── dashboard/            # Dashboard
 ├── create-group/         # Create group
 ├── create-session/       # Create session
-├── group/[id]/           # Group detail (Sessions, Leaderboard, Players)
+├── group/[id]/           # Group detail (Sessions, Leaderboard, Players, Pairings)
 ├── session/[id]/         # Live session
 └── api/                  # API routes [BACKEND]
     ├── groups/[id]/
-    │   ├── stats/        # Leaderboard endpoint
-    │   └── players/[id]/stats/  # Player profile endpoint
+    │   ├── stats/              # Leaderboard endpoint
+    │   ├── pairings/           # Pairing stats endpoint (NEW)
+    │   └── players/[id]/stats/ # Player profile endpoint
     └── sessions/
 
 components/               # React components
-├── PlayerProfileSheet.tsx  # Player profile modal
+├── PlayerProfileSheet.tsx   # Player profile modal
+├── PairingProfileSheet.tsx  # Pairing profile modal (NEW)
 └── ...
 
 lib/
 ├── api/client.ts        # API client [FRONTEND]
 ├── services/            # Database services [BACKEND]
-│   ├── statsService.ts    # Leaderboard & player stats
-│   └── eloService.ts      # ELO calculations
+│   ├── statsService.ts       # Leaderboard & player stats
+│   ├── eloService.ts         # ELO calculations
+│   └── pairingStatsService.ts  # Pairing stats (NEW)
 ├── calculations.ts      # Stats calculations [FRONTEND]
 ├── migration.ts         # Migration system
 └── roundRobin.ts        # Round robin scheduling
@@ -290,6 +327,7 @@ types/index.ts          # TypeScript type definitions
 - **Sessions**: Individual badminton sessions (can belong to a group or standalone)
 - **Players**: Can be linked to group player pool for cross-session tracking
 - **ELO**: Skill rating that updates after each game
+- **Pairings**: Doubles team combinations with their own stats
 - **Betting**: Optional per-session feature (default: OFF)
 - **Stats**: Universal stats always shown; betting stats when enabled
 
@@ -304,7 +342,7 @@ types/index.ts          # TypeScript type definitions
 - `GET /api/sessions/summary` - Get lightweight summaries (dashboard)
 - `GET /api/sessions/[id]` - Get one session
 - `POST /api/sessions` - Create session
-- `DELETE /api/sessions/[id]` - Delete session
+- `DELETE /api/sessions/[id]` - Delete session *(admin only)*
 
 **Groups**
 - `GET /api/groups` - Get all groups
@@ -312,11 +350,17 @@ types/index.ts          # TypeScript type definitions
 - `GET /api/groups/[id]/sessions` - Get group sessions
 - `GET /api/groups/[id]/players` - Get player pool
 - `POST /api/groups` - Create group
-- `DELETE /api/groups/[id]` - Delete group
+- `DELETE /api/groups/[id]` - Delete group *(admin only)*
 
-**Stats (NEW)**
+**Stats**
 - `GET /api/groups/[id]/stats` - Get leaderboard
+- `POST /api/groups/[id]/stats` - Recalculate ELO/W-L *(admin only)*
 - `GET /api/groups/[id]/players/[playerId]/stats` - Get player detailed stats
+
+**Pairings (NEW)**
+- `GET /api/groups/[id]/pairings` - Get pairing leaderboard
+- `POST /api/groups/[id]/pairings` - Recalculate pairing stats *(admin only)*
+- `GET /api/groups/[id]/pairings/[p1]/[p2]` - Get pairing detailed stats
 
 **Games**
 - `GET /api/sessions/[id]/games` - Get session games
@@ -325,6 +369,31 @@ types/index.ts          # TypeScript type definitions
 - `DELETE /api/sessions/[id]/games/[gameId]` - Delete game
 
 See [API_ANALYSIS.md](API_ANALYSIS.md) for detailed API documentation and optimization notes.
+
+---
+
+## Admin Operations
+
+Some operations are intentionally admin-only (not exposed in UI) for safety:
+
+- **Delete groups/sessions** - Prevents accidental data loss
+- **Recalculate stats** - Expensive operation, rate-limited
+
+### Quick Reference
+
+| Operation | Command |
+|-----------|---------|
+| Delete group | `curl -X DELETE https://app.vercel.app/api/groups/{ID}` |
+| Delete session | `curl -X DELETE https://app.vercel.app/api/sessions/{ID}` |
+| Recalculate ELO | `curl -X POST https://app.vercel.app/api/groups/{ID}/stats` |
+| Recalculate pairings | `curl -X POST https://app.vercel.app/api/groups/{ID}/pairings` |
+| Run migrations | `curl -X POST https://app.vercel.app/api/migrate` |
+
+**📖 See [ADMIN.md](ADMIN.md) for complete admin guide** including:
+- Finding IDs
+- Troubleshooting
+- Database queries
+- Rate limits
 
 ---
 
@@ -352,6 +421,7 @@ See [TESTING_CHECKLIST.md](TESTING_CHECKLIST.md) for comprehensive test scenario
 ### Setup & Configuration
 - **[Backend Setup](SETUP_BACKEND.md)** - Database setup instructions
 - **[Migration Guide](../scripts/migrations/README.md)** - Database migration system
+- **[Admin Guide](ADMIN.md)** - Admin operations (NEW)
 
 ### Engineering
 - **[Architecture](engineering/architecture.md)** - Frontend/backend separation, data flow

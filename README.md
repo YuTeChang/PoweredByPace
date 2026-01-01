@@ -37,7 +37,7 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 
 ### Core
 - ✅ **Game Modes**: Doubles (4-6 players) and Singles (2-6 players)
-- ✅ **Session Management**: Create, edit, delete sessions
+- ✅ **Session Management**: Create, edit sessions
 - ✅ **Game Logging**: Quick game recording with team/player selection
 - ✅ **Live Stats**: Real-time win/loss tracking and calculations
 - ✅ **Round Robin**: Generate scheduled game combinations
@@ -51,7 +51,7 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Group Sessions**: Track all sessions within a group
 - ✅ **Cross-Session Stats**: View aggregated player statistics
 
-### Leaderboard & Player Stats (NEW)
+### Leaderboard & Player Stats
 - ✅ **ELO Rating System**: Track player skill with ELO ratings (starting at 1500)
 - ✅ **Leaderboard**: Ranked view of all players in a group by ELO
 - ✅ **Player Profiles**: Detailed stats for each player (click to view)
@@ -59,6 +59,12 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Opponent Matchups**: Track performance against specific opponents
 - ✅ **Recent Form**: Visual display of last 5 games (W/L indicators)
 - ✅ **Streak Tracking**: Current win/loss streak indicators
+
+### Pairing Stats (NEW)
+- ✅ **Best Pairings Tab**: View doubles team combinations ranked by win rate
+- ✅ **Pairing Profiles**: Detailed stats for each pairing (click to view)
+- ✅ **Head-to-Head Matchups**: See how pairings perform against other pairings
+- ✅ **Pairing Form**: Recent form and streaks for each pairing
 
 ### Optional Betting
 - ✅ **Toggle Betting**: Enable/disable per session (default: OFF)
@@ -104,9 +110,11 @@ Push to GitHub → Vercel builds → postbuild runs → Migrations applied → D
 **Migration files follow this pattern:**
 ```
 scripts/migrations/
-├── 001-add-groups.sql       # Creates groups feature tables
-├── 002-add-elo-rating.sql   # Adds ELO rating column
-└── README.md                # Detailed migration guide
+├── 001-add-groups.sql          # Creates groups feature tables
+├── 002-add-elo-rating.sql      # Adds ELO rating column
+├── 003-add-player-stats.sql    # Adds wins/losses columns
+├── 004-add-pairing-stats.sql   # Adds pairing stats tables
+└── README.md                   # Detailed migration guide
 ```
 
 **Manual migration (if needed):**
@@ -127,17 +135,19 @@ app/                    # Next.js pages [FRONTEND]
 ├── page.tsx            # Home (landing)
 ├── dashboard/          # Dashboard
 ├── create-*/           # Create forms
-├── group/[id]/         # Group pages
+├── group/[id]/         # Group pages (Sessions, Leaderboard, Players, Pairings)
 ├── session/[id]/       # Session pages
 └── api/                # API routes [BACKEND]
     ├── groups/         # Group endpoints
     │   └── [id]/
-    │       ├── stats/  # Leaderboard endpoint
+    │       ├── stats/          # Leaderboard endpoint
+    │       ├── pairings/       # Pairing stats endpoint (NEW)
     │       └── players/[playerId]/stats/  # Player profile endpoint
     └── sessions/       # Session endpoints
 
 components/             # React components [FRONTEND]
-├── PlayerProfileSheet.tsx  # Player profile modal (NEW)
+├── PlayerProfileSheet.tsx   # Player profile modal
+├── PairingProfileSheet.tsx  # Pairing profile modal (NEW)
 └── ...
 
 lib/
@@ -146,8 +156,9 @@ lib/
 │   ├── sessionService.ts
 │   ├── gameService.ts
 │   ├── groupService.ts
-│   ├── statsService.ts   # Leaderboard & player stats (NEW)
-│   └── eloService.ts     # ELO calculations (NEW)
+│   ├── statsService.ts       # Leaderboard & player stats
+│   ├── eloService.ts         # ELO calculations
+│   └── pairingStatsService.ts  # Pairing stats (NEW)
 ├── calculations.ts     # Stats calculations [FRONTEND]
 └── migration.ts        # Migration system
 
@@ -170,6 +181,25 @@ types/index.ts          # TypeScript types
 - [Database Schema](docs/engineering/database.md) - Database documentation
 - [API Analysis](docs/API_ANALYSIS.md) - API documentation
 - [Architecture](docs/engineering/architecture.md) - System design
+- [Admin Guide](docs/ADMIN.md) - Admin operations (NEW)
+
+---
+
+## Admin Operations
+
+Some operations are admin-only and must be performed via API or Supabase dashboard.
+
+See [docs/ADMIN.md](docs/ADMIN.md) for complete admin guide.
+
+**Quick Reference:**
+
+| Operation | Method | Endpoint |
+|-----------|--------|----------|
+| Run migrations | `POST` | `/api/migrate` |
+| Recalculate ELO/W-L | `POST` | `/api/groups/{id}/stats` |
+| Recalculate Pairings | `POST` | `/api/groups/{id}/pairings` |
+| Delete Group | `DELETE` | `/api/groups/{id}` |
+| Delete Session | `DELETE` | `/api/sessions/{id}` |
 
 ---
 

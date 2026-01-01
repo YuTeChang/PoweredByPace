@@ -26,21 +26,34 @@ PoweredByPace uses **PostgreSQL** hosted on **Supabase**. The database stores al
 │ name            │  │    │ group_id (FK)────────┼──┐
 │ shareable_link  │  │    │ name                 │  │
 │ created_at      │  │    │ elo_rating (1500)    │  │
-│ updated_at      │  │    │ created_at           │  │
-└─────────────────┘  │    └──────────────────────┘  │
-                     │                              │
-                     │    ┌──────────────────────┐  │
-                     │    │      sessions        │  │
-                     │    ├──────────────────────┤  │
-                     └───►│ id (PK)              │  │
-                          │ name                 │  │
-                          │ date                 │  │
-                          │ organizer_id         │  │
-                          │ court_cost_type      │  │
-                          │ court_cost_value     │  │
-                          │ bird_cost_total      │  │
-                          │ bet_per_player       │  │
-                          │ game_mode            │  │
+│ updated_at      │  │    │ wins, losses         │  │
+└─────────────────┘  │    │ total_games          │  │
+                     │    │ created_at           │  │
+                     │    └──────────────────────┘  │
+                     │              │               │
+                     │    ┌─────────┴─────────┐     │
+                     │    ▼                   ▼     │
+                     │  ┌─────────────┐  ┌─────────────────┐
+                     │  │partner_stats│  │pairing_matchups │
+                     │  ├─────────────┤  ├─────────────────┤
+                     │  │ group_id    │  │ group_id        │
+                     │  │ player1_id  │  │ team1_p1/p2     │
+                     │  │ player2_id  │  │ team2_p1/p2     │
+                     │  │ wins/losses │  │ team1_wins/loss │
+                     │  └─────────────┘  └─────────────────┘
+                     │
+                     │    ┌──────────────────────┐
+                     │    │      sessions        │
+                     │    ├──────────────────────┤
+                     └───►│ id (PK)              │
+                          │ name                 │
+                          │ date                 │
+                          │ organizer_id         │
+                          │ court_cost_type      │
+                          │ court_cost_value     │
+                          │ bird_cost_total      │
+                          │ bet_per_player       │
+                          │ game_mode            │
                           │ group_id (FK)────────┼──┘
                           │ betting_enabled      │
                           │ created_at           │
@@ -186,6 +199,69 @@ Individual games within a session.
 
 ---
 
+### `partner_stats` (NEW)
+
+Tracks win/loss record when two players are on the same team (doubles).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | VARCHAR(255) | Primary key |
+| `group_id` | VARCHAR(255) | Foreign key to `groups.id` |
+| `player1_id` | VARCHAR(255) | Foreign key to `group_players.id` (always < player2_id) |
+| `player2_id` | VARCHAR(255) | Foreign key to `group_players.id` (always > player1_id) |
+| `wins` | INTEGER | Games won together (default: 0) |
+| `losses` | INTEGER | Games lost together (default: 0) |
+| `total_games` | INTEGER | Total games played together |
+| `created_at` | TIMESTAMP | Creation timestamp |
+| `updated_at` | TIMESTAMP | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Index on `group_id`
+- Index on `player1_id`
+- Index on `player2_id`
+- Unique constraint on `(group_id, player1_id, player2_id)`
+
+**Constraints:**
+- `player1_id < player2_id` ensures consistent key ordering
+
+**On Delete:** CASCADE (deleting a group or player deletes related stats)
+
+---
+
+### `pairing_matchups` (NEW)
+
+Tracks head-to-head record between two specific pairings.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | VARCHAR(255) | Primary key |
+| `group_id` | VARCHAR(255) | Foreign key to `groups.id` |
+| `team1_player1_id` | VARCHAR(255) | Team 1, player 1 (sorted) |
+| `team1_player2_id` | VARCHAR(255) | Team 1, player 2 (sorted) |
+| `team2_player1_id` | VARCHAR(255) | Team 2, player 1 (sorted) |
+| `team2_player2_id` | VARCHAR(255) | Team 2, player 2 (sorted) |
+| `team1_wins` | INTEGER | Games won by team 1 (default: 0) |
+| `team1_losses` | INTEGER | Games lost by team 1 (default: 0) |
+| `total_games` | INTEGER | Total games between these pairings |
+| `created_at` | TIMESTAMP | Creation timestamp |
+| `updated_at` | TIMESTAMP | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Index on `group_id`
+- Index on `(team1_player1_id, team1_player2_id)`
+- Index on `(team2_player1_id, team2_player2_id)`
+
+**Constraints:**
+- Players within each team are ordered (player1 < player2)
+- Teams are ordered (team1 < team2 by concatenated IDs)
+- Ensures each matchup is stored exactly once
+
+**On Delete:** CASCADE (deleting a group or player deletes related stats)
+
+---
+
 ### `migrations`
 
 Tracks applied database migrations.
@@ -264,9 +340,11 @@ Migrations are versioned SQL files that run automatically on deployment.
 ### Location
 ```
 scripts/migrations/
-├── 001-add-groups.sql      # Initial groups feature
-├── 002-add-elo-rating.sql  # ELO rating column
-└── README.md               # Migration guide
+├── 001-add-groups.sql          # Initial groups feature
+├── 002-add-elo-rating.sql      # ELO rating column
+├── 003-add-player-stats.sql    # Wins/losses columns
+├── 004-add-pairing-stats.sql   # Partner stats & pairing matchups (NEW)
+└── README.md                   # Migration guide
 ```
 
 ### Automatic Execution

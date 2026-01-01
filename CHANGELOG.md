@@ -3,9 +3,27 @@
 ## [Unreleased] - 2025-01
 
 ### Added
+- **Pairing Stats Feature**: Track doubles team combination performance
+  - New "Pairings" tab on group page showing best pairs by win rate
+  - Pairing profile modal with detailed stats (W-L, win rate, recent form)
+  - Head-to-head matchups showing performance against other pairings
+  - Stored aggregates for fast queries (partner_stats, pairing_matchups tables)
+  - Auto-updates when games are recorded or deleted
+- **Admin Operations Guide**: New ADMIN.md with complete admin documentation
+  - API endpoints for stats recalculation
+  - Database queries for troubleshooting
+  - Rate limiting documentation
+
+### Changed
+- **Admin-Only Operations**: Moved sensitive operations out of UI
+  - Delete Group: Removed from UI, available via API only
+  - Recalculate Stats: Removed from UI, available via API only (rate-limited to 5 min)
+- **Documentation Overhaul**: Updated all docs with new features and admin guide
+
+### Added (Previous)
 - **Delete Functionality**: Delete sessions and groups with confirmation dialogs
   - Delete button on dashboard session cards
-  - Delete button on group page header
+  - ~~Delete button on group page header~~ (moved to admin-only)
   - Delete button on session page header
   - All deletions require confirmation to prevent accidents
 - **Search Functionality**: Search standalone sessions by name on dashboard
