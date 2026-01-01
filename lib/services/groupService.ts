@@ -265,16 +265,23 @@ export class GroupService {
         .select('id, name, group_id, created_at')
         .order('created_at', { ascending: false })
         .limit(20);
-      console.log('[GroupService.getGroupSessions] DEBUG - All recent sessions:', {
+      
+      // Log this in a way that will definitely show up in Vercel logs
+      const debugInfo = {
         total: allSessionsDebug?.length || 0,
         sessions: allSessionsDebug?.map(s => ({
           id: s.id,
           name: s.name,
           group_id: s.group_id,
           group_id_type: typeof s.group_id,
-          matches: s.group_id === groupId
+          matches: s.group_id === groupId,
+          group_id_string: String(s.group_id),
+          groupId_string: String(groupId)
         }))
-      });
+      };
+      
+      // Use console.error to ensure it shows up in logs (higher priority)
+      console.error('[GroupService.getGroupSessions] DEBUG - All recent sessions:', JSON.stringify(debugInfo, null, 2));
       
       // Query sessions with group_id filter - use order to ensure consistent results
       // Try exact match first
