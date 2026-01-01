@@ -571,6 +571,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const ensureSessionsAndGroupsLoaded = useCallback(async () => {
     if (typeof window === "undefined") return;
     
+    // Only load all sessions/groups if we're on the home page
+    // On session/group pages, we don't need all sessions - skip to avoid unnecessary API calls
+    const pathname = window.location.pathname;
+    if (pathname !== '/' && !pathname.startsWith('/group/')) {
+      // We're on a session page or other page - skip loading all sessions
+      return;
+    }
+    
+    // Skip if already loaded (prevents unnecessary calls when prefetching or navigating)
+    if (hasLoadedSessionsRef.current && hasLoadedGroupsRef.current) {
+      return; // Already loaded, skip
+    }
+    
     // Prevent duplicate simultaneous calls (but allow refresh if data was already loaded)
     if (isLoadingSessionsRef.current) {
       // Already loading, skip
