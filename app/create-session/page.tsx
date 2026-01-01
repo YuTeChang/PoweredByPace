@@ -303,6 +303,9 @@ function CreateSessionContent() {
     const defaultSessionName = getDefaultSessionName(sessionDateTime);
     const finalSessionName = sessionName.trim() || defaultSessionName;
     
+    // Use initialGroupId if group is locked, otherwise use selectedGroupId
+    const finalGroupId = isGroupLocked ? initialGroupId : (selectedGroupId || undefined);
+    
     const session: Session = {
       id: `session-${Date.now()}`,
       name: finalSessionName,
@@ -314,14 +317,17 @@ function CreateSessionContent() {
       birdCostTotal: finalBirdCostTotal,
       betPerPlayer: finalBetPerPlayer,
       gameMode,
-      groupId: selectedGroupId || undefined,
+      groupId: finalGroupId || undefined,
       bettingEnabled,
     };
     
     console.log('[CreateSession] Creating session:', {
       id: session.id,
       name: session.name,
+      initialGroupId,
       selectedGroupId,
+      isGroupLocked,
+      finalGroupId,
       groupId: session.groupId,
       hasGroupId: !!session.groupId,
     });
@@ -353,15 +359,18 @@ function CreateSessionContent() {
 
     // Navigate to session page
     // If created from a group, navigate back to group page to show the new session
-    if (selectedGroupId) {
+    const groupIdToNavigate = finalGroupId || selectedGroupId;
+    if (groupIdToNavigate) {
       // Mark in sessionStorage that we're returning from create-session
       // This helps the group page detect when to refresh
       if (typeof window !== "undefined") {
-        sessionStorage.setItem(`group_${selectedGroupId}_needs_refresh`, Date.now().toString());
+        sessionStorage.setItem(`group_${groupIdToNavigate}_needs_refresh`, Date.now().toString());
+        console.log('[CreateSession] Set refresh flag for group:', groupIdToNavigate);
       }
       // Use push (not replace) to ensure pathname change is detected by group page
       // This triggers the refresh logic in group page
-      router.push(`/group/${selectedGroupId}`);
+      console.log('[CreateSession] Navigating to group page:', groupIdToNavigate);
+      router.push(`/group/${groupIdToNavigate}`);
     } else {
       router.push(`/session/${session.id}`);
     }
