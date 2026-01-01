@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [sessionGameCounts, setSessionGameCounts] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<Record<string, boolean>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const hasLoadedDataRef = useRef(false);
   const isLoadingSummariesRef = useRef(false);
 
@@ -136,6 +137,42 @@ export default function Dashboard() {
 
     loadData();
   }, []);
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    hasLoadedDataRef.current = false; // Allow reload
+    try {
+      const [fetchedGroups, summaries] = await Promise.all([
+        ApiClient.getAllGroups(),
+        ApiClient.getSessionSummaries(),
+      ]);
+      
+      setGroups(fetchedGroups);
+      const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
+      setSessionSummaries(summariesWithDates);
+      
+      console.log('[Dashboard] Refreshed summaries:', summariesWithDates.length, summariesWithDates);
+      console.log('[Dashboard] Standalone sessions after refresh:', summariesWithDates.filter(s => !s.groupId).length);
+      
+      // Recalculate group session counts
+      if (fetchedGroups && fetchedGroups.length > 0 && summariesWithDates.length > 0) {
+        const counts: Record<string, number> = {};
+        fetchedGroups.forEach((group) => {
+          const groupSessions = summariesWithDates.filter(s => 
+            s.groupId != null && s.groupId === group.id
+          );
+          counts[group.id] = groupSessions.length;
+        });
+        setGroupSessionCounts(counts);
+      }
+    } catch (error) {
+      console.error('[Dashboard] Failed to refresh:', error);
+    } finally {
+      setIsRefreshing(false);
+      hasLoadedDataRef.current = true;
+    }
+  };
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -289,8 +326,13 @@ export default function Dashboard() {
   };
 
   // Filter standalone sessions (no group) and apply search
+  // Explicitly check for null/undefined/empty string to catch all standalone sessions
   const filteredStandaloneSessions = sessionSummaries
-    .filter(s => !s.groupId)
+    .filter(s => {
+      // Explicitly check for standalone sessions (null, undefined, or empty string)
+      const isStandalone = s.groupId == null || s.groupId === '' || s.groupId === undefined;
+      return isStandalone;
+    })
     .filter(s => {
       if (!searchQuery.trim()) return true;
       const query = searchQuery.toLowerCase();
@@ -298,6 +340,27 @@ export default function Dashboard() {
       return name.includes(query);
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  // Debug logging to help identify missing sessions
+  if (typeof window !== "undefined" && isLoaded) {
+    const allStandalone = sessionSummaries.filter(s => 
+      s.groupId == null || s.groupId === '' || s.groupId === undefined
+    );
+    if (allStandalone.length !== filteredStandaloneSessions.length) {
+      console.warn('[Dashboard] Standalone session count mismatch:', {
+        allStandalone: allStandalone.length,
+        filtered: filteredStandaloneSessions.length,
+        allStandaloneIds: allStandalone.map(s => s.id),
+        filteredIds: filteredStandaloneSessions.map(s => s.id),
+        searchQuery: searchQuery
+      });
+    }
+    console.log('[Dashboard] Standalone sessions:', {
+      total: allStandalone.length,
+      filtered: filteredStandaloneSessions.length,
+      sessions: allStandalone.map(s => ({ id: s.id, name: s.name, groupId: s.groupId }))
+    });
+  }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-8">
@@ -310,9 +373,21 @@ export default function Dashboard() {
             ← Back to Home
           </Link>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-japandi-text-primary">
-          Sessions & Groups
-        </h1>
+        <div className="flex items-center justify-between w-full">
+          <h1 className="text-3xl sm:text-4xl font-bold text-japandi-text-primary">
+            Sessions & Groups
+          </h1>
+          {isLoaded && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="px-3 py-2 bg-japandi-background-card hover:bg-japandi-background-primary text-japandi-text-primary text-sm font-medium rounded-full border border-japandi-border-light transition-all disabled:opacity-50 touch-manipulation"
+              title="Refresh sessions list"
+            >
+              {isRefreshing ? "..." : "↻"}
+            </button>
+          )}
+        </div>
 
         {/* Search Input */}
         {isLoaded && sessionSummaries.length > 0 && (
@@ -422,7 +497,8 @@ export default function Dashboard() {
         )}
 
         {/* Continue Active Session Card (if different from list) */}
-        {isLoaded && session && !sessionSummaries.find(s => s.id === session.id) && (
+        {/* Only show if active session is NOT already in the standalone sessions list */}
+        {isLoaded && session && !filteredStandaloneSessions.find(s => s.id === session.id) && (
           <div className="bg-japandi-background-card border border-japandi-border-light rounded-card p-6 text-left shadow-soft">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-japandi-text-primary">
