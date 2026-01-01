@@ -216,7 +216,7 @@ export default function QuickGameForm({
             You need to add players to this session before you can record games.
           </p>
           <p className="text-xs text-japandi-text-muted">
-            Please add players using the "Edit Session" button in the Stats tab.
+            Please add players using the &quot;Edit Session&quot; button in the Stats tab.
           </p>
         </div>
       </div>
