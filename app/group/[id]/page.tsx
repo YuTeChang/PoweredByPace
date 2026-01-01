@@ -85,39 +85,62 @@ export default function GroupPage() {
 
   // Single effect to load data on mount and when groupId changes
   useEffect(() => {
-    const now = Date.now();
-    if (now - lastLoadRef.current < REFRESH_DEBOUNCE_MS) {
-      console.log('[GroupPage] Skipping duplicate load (too soon after last load)');
-      return;
+    // Check if we need to refresh due to returning from create-session
+    const needsRefreshKey = `group_${groupId}_needs_refresh`;
+    const needsRefresh = typeof window !== "undefined" && sessionStorage.getItem(needsRefreshKey) !== null;
+    
+    if (needsRefresh) {
+      // Clear the flag
+      sessionStorage.removeItem(needsRefreshKey);
+      console.log('[GroupPage] Detected return from create-session, forcing refresh');
     }
-    lastLoadRef.current = now;
-    console.log('[GroupPage] Loading data (mount or groupId change)');
-    loadGroupData();
+    
+    const now = Date.now();
+    // If we need refresh or it's been long enough, load data
+    if (needsRefresh || now - lastLoadRef.current >= REFRESH_DEBOUNCE_MS) {
+      lastLoadRef.current = now;
+      console.log('[GroupPage] Loading data (mount or groupId change)', { needsRefresh });
+      loadGroupData();
+    } else {
+      console.log('[GroupPage] Skipping duplicate load (too soon after last load)');
+    }
   }, [groupId, loadGroupData]);
 
   // Track if we've navigated away to detect when returning to this page
   const hasNavigatedAwayRef = useRef(false);
   const prevPathnameRef = useRef<string | null>(null);
   
-  // Only refresh when pathname changes TO this page (returning from create-session)
+  // Refresh when pathname changes TO this page (returning from create-session)
   // This prevents refresh when clicking links that navigate away
   useEffect(() => {
     if (pathname === `/group/${groupId}`) {
-      // Only refresh if we actually navigated away and came back
+      // If pathname changed to this page (different from previous), refresh
       // This handles the case when returning from create-session page
-      if (hasNavigatedAwayRef.current && prevPathnameRef.current !== pathname) {
+      const prevPath = prevPathnameRef.current;
+      if (prevPath !== null && prevPath !== pathname) {
+        // Check if we're coming from create-session page
+        const isReturningFromCreateSession = prevPath === '/create-session' || prevPath?.startsWith('/create-session');
         const now = Date.now();
-        if (now - lastLoadRef.current > REFRESH_DEBOUNCE_MS) {
-          console.log('[GroupPage] Returning to group page, refreshing data...');
+        const timeSinceLastLoad = now - lastLoadRef.current;
+        
+        if (isReturningFromCreateSession || timeSinceLastLoad > REFRESH_DEBOUNCE_MS) {
+          console.log('[GroupPage] Pathname changed to group page, refreshing data...', {
+            prev: prevPath,
+            current: pathname,
+            isReturningFromCreateSession,
+            timeSinceLastLoad
+          });
           lastLoadRef.current = now;
           loadGroupData();
         }
-        hasNavigatedAwayRef.current = false;
       }
       prevPathnameRef.current = pathname;
     } else {
       // Mark that we've navigated away from this page
-      hasNavigatedAwayRef.current = true;
+      if (prevPathnameRef.current === `/group/${groupId}`) {
+        hasNavigatedAwayRef.current = true;
+      }
+      prevPathnameRef.current = pathname;
     }
   }, [pathname, groupId, loadGroupData]);
 

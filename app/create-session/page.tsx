@@ -354,10 +354,14 @@ function CreateSessionContent() {
     // Navigate to session page
     // If created from a group, navigate back to group page to show the new session
     if (selectedGroupId) {
-      // Use replace to avoid back button issues, and the group page will refresh on mount
-      router.replace(`/group/${selectedGroupId}`);
-      // Force a refresh to ensure data is reloaded
-      router.refresh();
+      // Mark in sessionStorage that we're returning from create-session
+      // This helps the group page detect when to refresh
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(`group_${selectedGroupId}_needs_refresh`, Date.now().toString());
+      }
+      // Use push (not replace) to ensure pathname change is detected by group page
+      // This triggers the refresh logic in group page
+      router.push(`/group/${selectedGroupId}`);
     } else {
       router.push(`/session/${session.id}`);
     }

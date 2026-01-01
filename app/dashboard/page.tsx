@@ -157,7 +157,39 @@ export default function Dashboard() {
     return `${dateStr} ${timeStr}`;
   };
 
-  const handleSessionClick = (sessionId: string) => {
+  const handleSessionClick = async (sessionId: string) => {
+    // Check if session exists in summaries before navigating
+    const sessionExists = sessionSummaries.some(s => s.id === sessionId);
+    if (!sessionExists) {
+      console.warn('[Dashboard] Session not found:', sessionId);
+      alert('Session not found. It may have been deleted.');
+      // Remove from localStorage if it exists there
+      if (typeof window !== "undefined") {
+        const savedAllSessions = localStorage.getItem("poweredbypace_all_sessions");
+        if (savedAllSessions) {
+          try {
+            const parsed = JSON.parse(savedAllSessions);
+            const updated = parsed.filter((s: any) => s.id !== sessionId);
+            if (updated.length === 0) {
+              localStorage.removeItem("poweredbypace_all_sessions");
+            } else {
+              localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
+            }
+          } catch (error) {
+            // Ignore parse errors
+          }
+        }
+      }
+      // Refresh summaries to sync with API
+      try {
+        const summaries = await ApiClient.getSessionSummaries();
+        const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
+        setSessionSummaries(summariesWithDates);
+      } catch (error) {
+        console.warn('[Dashboard] Failed to refresh summaries:', error);
+      }
+      return;
+    }
     loadSession(sessionId);
     router.push(`/session/${sessionId}`);
   };
@@ -274,6 +306,7 @@ export default function Dashboard() {
               <Link
                 key={group.id}
                 href={`/group/${group.id}`}
+                prefetch={false}
                 className="block bg-japandi-background-card border border-japandi-border-light rounded-card p-4 sm:p-5 shadow-soft hover:border-japandi-accent-primary transition-colors"
               >
                 <div className="flex items-center justify-between mb-2">
