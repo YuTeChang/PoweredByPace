@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
 
     const supabase = createSupabaseClient();
 
-    // 1. Get all group players
+    // 1. Get all group players (including inactive for debugging)
     const { data: groupPlayers } = await supabase
       .from('group_players')
-      .select('id, name, elo_rating, wins, losses, total_games')
+      .select('id, name, elo_rating, wins, losses, total_games, is_active')
       .eq('group_id', groupId);
 
     // 2. Get all sessions for this group
@@ -93,6 +93,8 @@ export async function GET(request: NextRequest) {
       groupId,
       summary: {
         totalGroupPlayers: groupPlayers?.length || 0,
+        activeGroupPlayers: groupPlayers?.filter(p => p.is_active !== false).length || 0,
+        inactiveGroupPlayers: groupPlayers?.filter(p => p.is_active === false).length || 0,
         totalSessions: sessions?.length || 0,
         totalSessionPlayers: sessionPlayers?.length || 0,
         linkedPlayers: linkedPlayers.length,
@@ -102,6 +104,7 @@ export async function GET(request: NextRequest) {
       groupPlayers: groupPlayers?.map(gp => ({
         id: gp.id,
         name: gp.name,
+        isActive: gp.is_active ?? true,
         storedStats: { wins: gp.wins, losses: gp.losses, total_games: gp.total_games, elo_rating: gp.elo_rating },
       })),
       unlinkedSessionPlayers: unlinkedPlayers.map(p => ({

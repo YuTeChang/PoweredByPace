@@ -126,12 +126,20 @@ Player pool for a group. Players here can be linked to session players for cross
 | `current_streak` | INTEGER | Current win/loss streak: positive=wins, negative=losses (default: 0) |
 | `best_win_streak` | INTEGER | Best win streak ever achieved (default: 0) |
 | `sessions_attended` | INTEGER | Number of sessions attended (default: 0) |
+| `is_active` | BOOLEAN | Whether player is active (default: true). Soft-deleted players have is_active=false |
 | `created_at` | TIMESTAMP | Creation timestamp |
 
 **Indexes:**
 - Primary key on `id`
 - Index on `group_id`
+- Index on `(group_id, is_active)` for efficient active player filtering
 - Index on `elo_rating DESC` (for leaderboard queries)
+
+**Soft-Delete Behavior:**
+- When a player is removed, `is_active` is set to `false` instead of deleting the row
+- This preserves the player's ID, ELO rating, and all session player links
+- When re-adding a player with the same name, the existing record is reactivated
+- All historical stats are automatically restored
 
 **On Delete:** CASCADE (deleting a group deletes all its players)
 

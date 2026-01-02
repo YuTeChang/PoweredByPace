@@ -331,16 +331,20 @@ export class PairingStatsService {
     const supabase = createSupabaseClient();
 
     try {
-      // Get all group players
+      // Get all group players (include soft-deleted for historical name lookups)
       const { data: groupPlayers } = await supabase
         .from('group_players')
-        .select('id, name')
+        .select('id, name, is_active')
         .eq('group_id', groupId);
 
       if (!groupPlayers || groupPlayers.length === 0) return [];
 
       const playerNames = new Map<string, string>();
-      groupPlayers.forEach(p => playerNames.set(p.id, p.name));
+      const activePlayers = new Set<string>();
+      groupPlayers.forEach(p => {
+        playerNames.set(p.id, p.name);
+        if (p.is_active !== false) activePlayers.add(p.id);
+      });
 
       // Get all sessions for this group
       const { data: sessions } = await supabase
@@ -420,10 +424,16 @@ export class PairingStatsService {
         eloMap.set(key, s.elo_rating || this.DEFAULT_PAIRING_ELO);
       });
 
-      // Build result array
+      // Build result array - only include pairings where BOTH players are active
       const result: PairingStats[] = [];
       pairingStats.forEach((stats, key) => {
         const [player1Id, player2Id] = key.split('|');
+        
+        // Skip pairings where either player is inactive (soft-deleted)
+        if (!activePlayers.has(player1Id) || !activePlayers.has(player2Id)) {
+          return;
+        }
+        
         const totalGames = stats.wins + stats.losses;
         
         result.push({
@@ -474,7 +484,8 @@ export class PairingStatsService {
         .eq('player2_id', orderedP2)
         .single();
 
-      // Get player names
+      // Get player names from group_players (include soft-deleted for historical lookups)
+      // Note: We don't filter by is_active here because we need names for historical stats
       const { data: players } = await supabase
         .from('group_players')
         .select('id, name')
@@ -482,6 +493,34 @@ export class PairingStatsService {
 
       const playerNames = new Map<string, string>();
       (players || []).forEach(p => playerNames.set(p.id, p.name));
+
+      // If player names not found in group_players, try to find them from session players
+      // This handles cases where players were removed but their historical data exists
+      if (!playerNames.has(orderedP1) || !playerNames.has(orderedP2)) {
+        const { data: sessions } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('group_id', groupId);
+
+        if (sessions && sessions.length > 0) {
+          const sessionIds = sessions.map(s => s.id);
+          
+          // Look for session players that were linked to the requested group player IDs
+          // These would have been unlinked (group_player_id set to null) when player was removed
+          const { data: sessionPlayers } = await supabase
+            .from('players')
+            .select('id, name, group_player_id')
+            .in('session_id', sessionIds);
+
+          // Build a map of historical names from session players
+          // First, check for currently linked players
+          (sessionPlayers || []).forEach(p => {
+            if (p.group_player_id && !playerNames.has(p.group_player_id) && p.name) {
+              playerNames.set(p.group_player_id, p.name);
+            }
+          });
+        }
+      }
 
       // Get recent games and compute stats from games
       const { recentForm, recentGames, unluckyGames, clutchGames, wins, losses, pointsFor, pointsAgainst, bestWinStreak } = await this.getRecentGamesForPairingWithStats(

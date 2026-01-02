@@ -42,6 +42,7 @@ export class StatsService {
           .from('group_players')
           .select('id, name, elo_rating')
           .eq('group_id', groupId)
+          .eq('is_active', true)  // Only show active players in leaderboard
           .order('elo_rating', { ascending: false }),
         supabase
           .from('sessions')
@@ -522,11 +523,12 @@ export class StatsService {
     try {
       const supabase = createSupabaseClient();
       
-      // Get all group players
+      // Get all active group players
       const { data: groupPlayers, error: gpError } = await supabase
         .from('group_players')
         .select('id, name')
-        .eq('group_id', groupId);
+        .eq('group_id', groupId)
+        .eq('is_active', true);
 
       if (gpError) {
         throw gpError;

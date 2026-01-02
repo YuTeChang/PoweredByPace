@@ -57,6 +57,7 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Create Groups**: Organize recurring badminton groups
 - ✅ **Shareable Links**: Share groups with friends (no accounts needed)
 - ✅ **Player Pool**: Maintain player pool per group
+- ✅ **Soft-Delete Players**: Remove players while preserving stats (auto-restore when re-added)
 - ✅ **Group Sessions**: Track all sessions within a group
 - ✅ **Cross-Session Stats**: View aggregated player statistics
 - ✅ **Guest Mode**: Allow non-group players to join sessions temporarily
@@ -128,6 +129,8 @@ scripts/migrations/
 ├── 002-add-elo-rating.sql      # Adds ELO rating column
 ├── 003-add-player-stats.sql    # Adds wins/losses columns
 ├── 004-add-pairing-stats.sql   # Adds pairing stats tables
+├── 005-add-extended-stats.sql  # Adds extended stats columns
+├── 006-add-soft-delete.sql     # Adds soft-delete for players
 └── README.md                   # Detailed migration guide
 ```
 

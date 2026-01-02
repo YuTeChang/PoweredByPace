@@ -18,9 +18,12 @@ type SelectedMatchup = {
   data: OpponentStats;
 } | null;
 
+const INITIAL_GAMES_COUNT = 3;
+const LOAD_MORE_COUNT = 5;
+
 export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) {
   const [selectedMatchup, setSelectedMatchup] = useState<SelectedMatchup>(null);
-  const [showAllGames, setShowAllGames] = useState(false);
+  const [visibleGamesCount, setVisibleGamesCount] = useState(INITIAL_GAMES_COUNT);
   const [showUnluckyGames, setShowUnluckyGames] = useState(false);
   const [showClutchGames, setShowClutchGames] = useState(false);
   const [showAllPartners, setShowAllPartners] = useState(false);
@@ -436,19 +439,19 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide">
-                  Recent Games ({stats.recentGames.length})
+                  Recent Games ({Math.min(visibleGamesCount, stats.recentGames.length)})
                 </h3>
-                {stats.recentGames.length > 3 && (
+                {visibleGamesCount > INITIAL_GAMES_COUNT && (
                   <button
-                    onClick={() => setShowAllGames(!showAllGames)}
+                    onClick={() => setVisibleGamesCount(INITIAL_GAMES_COUNT)}
                     className="text-xs text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors"
                   >
-                    {showAllGames ? 'Show Less' : `Show All (${stats.recentGames.length})`}
+                    Show Less
                   </button>
                 )}
               </div>
               <div className="space-y-2">
-                {(showAllGames ? stats.recentGames : stats.recentGames.slice(0, 3)).map((game, i) => (
+                {stats.recentGames.slice(0, visibleGamesCount).map((game, i) => (
                   <div
                     key={i}
                     className={`rounded-xl p-3 border ${
@@ -487,6 +490,15 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
                   </div>
                 ))}
               </div>
+              {/* Load More button */}
+              {stats.recentGames && visibleGamesCount < stats.recentGames.length && (
+                <button
+                  onClick={() => setVisibleGamesCount(prev => Math.min(prev + LOAD_MORE_COUNT, stats.recentGames?.length || prev))}
+                  className="w-full mt-3 py-2 text-sm text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors border border-japandi-border-light rounded-lg hover:bg-japandi-background-elevated"
+                >
+                  Load {Math.min(LOAD_MORE_COUNT, (stats.recentGames?.length || 0) - visibleGamesCount)} More
+                </button>
+              )}
             </div>
           )}
 

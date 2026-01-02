@@ -3,6 +3,16 @@
 ## [Unreleased] - 2025-01
 
 ### Added
+- **Soft-Delete Players**: Players removed from groups are now soft-deleted instead of permanently deleted
+  - Preserves player ID, ELO rating, and all stats
+  - Re-adding a player with the same name automatically restores their stats
+  - Session player links remain intact (no re-linking needed)
+  - New `is_active` column in `group_players` table (migration 006)
+- **Progressive Game Loading**: Recent Games section now loads progressively
+  - Shows 3 games by default
+  - "Load 5 More" button to incrementally load more games
+  - "Show Less" to collapse back to 3 games
+  - Prevents loading large amounts of data at once
 - **Clutch Stats**: Track games won by narrow margins (1-2 points) - the reverse of unlucky games
   - New `ClutchGame` type tracking close wins
   - Clutch Player and Clutch Pairing shown in Group Overview
@@ -32,6 +42,9 @@
   - "Show All" button to reveal all partners/opponents
   - Fixes issue where "Struggles with X" or "Nemesis: X" callouts referenced invisible players
   - Now shows count in header (e.g., "Partners (7)")
+
+### Removed
+- **Debug scripts**: Removed one-off development debug scripts from `scripts/` folder
 
 ### Added
 - **Vercel Analytics & Speed Insights**: Real-time visitor tracking and performance monitoring

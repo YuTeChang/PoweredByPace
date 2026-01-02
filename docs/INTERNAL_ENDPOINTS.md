@@ -32,7 +32,7 @@ curl https://poweredbypace.vercel.app/api/endpoint
 
 ## Debug Endpoints
 
-These endpoints help diagnose issues with data and stats.
+These endpoints help diagnose issues with data and stats. They are read-only and don't affect app performance.
 
 ### 1. List All Sessions
 
@@ -49,11 +49,6 @@ These endpoints help diagnose issues with data and stats.
 ```javascript
 // Browser Console
 fetch('/api/debug/sessions').then(r => r.json()).then(console.log)
-```
-
-```bash
-# curl
-curl https://poweredbypace.vercel.app/api/debug/sessions
 ```
 
 **Response:**
@@ -96,11 +91,6 @@ curl https://poweredbypace.vercel.app/api/debug/sessions
 // Browser Console
 fetch('/api/debug/group-stats?groupId=group-1704000000000')
   .then(r => r.json()).then(console.log)
-```
-
-```bash
-# curl
-curl "https://poweredbypace.vercel.app/api/debug/group-stats?groupId=group-1704000000000"
 ```
 
 **Response:**
@@ -150,27 +140,32 @@ fetch('/api/debug/player-links?groupId=group-1704000000000')
   .then(r => r.json()).then(console.log)
 ```
 
-```bash
-# curl
-curl "https://poweredbypace.vercel.app/api/debug/player-links?groupId=group-1704000000000"
-```
-
 **Response:**
 ```json
 {
   "groupId": "group-1704000000000",
   "summary": {
     "totalGroupPlayers": 8,
+    "activeGroupPlayers": 7,
+    "inactiveGroupPlayers": 1,
     "totalSessions": 5,
     "totalSessionPlayers": 32,
     "linkedPlayers": 28,
     "unlinkedPlayers": 4,
     "totalGames": 20
   },
-  "unlinkedPlayersList": [
-    { "id": "session-123-player-5", "name": "Guest Bob", "session_id": "session-123" }
+  "groupPlayers": [
+    {
+      "id": "gp-123",
+      "name": "Alice",
+      "isActive": true,
+      "storedStats": { "wins": 15, "losses": 10, "total_games": 25, "elo_rating": 1125 }
+    }
   ],
-  "gameAnalysis": [
+  "unlinkedSessionPlayers": [
+    { "id": "session-123-player-5", "name": "Guest Bob", "sessionId": "session-123" }
+  ],
+  "recentGames": [
     {
       "gameId": "session-123-game-1",
       "winningTeam": "A",
@@ -186,9 +181,10 @@ curl "https://poweredbypace.vercel.app/api/debug/player-links?groupId=group-1704
 ```
 
 **What to look for:**
-- `unlinkedPlayers` > 0 → These players' stats won't count
-- `allLinked: false` in `gameAnalysis` → That game didn't update stats for unlinked players
-- Check `unlinkedPlayersList` to see who needs to be linked
+- `inactiveGroupPlayers` > 0 → Players that were removed (soft-deleted) but stats preserved
+- `unlinkedPlayers` > 0 → These players' stats won't count (likely guests)
+- `allLinked: false` in `recentGames` → That game didn't update stats for unlinked players
+- `isActive: false` → Player was removed from group but can be re-added with stats restored
 
 ---
 
@@ -210,25 +206,12 @@ curl "https://poweredbypace.vercel.app/api/debug/player-links?groupId=group-1704
 fetch('/api/health/db').then(r => r.json()).then(console.log)
 ```
 
-```bash
-curl https://poweredbypace.vercel.app/api/health/db
-```
-
 **Response (healthy):**
 ```json
 {
   "ok": true,
   "db": "connected",
   "sessionsCount": 42
-}
-```
-
-**Response (error):**
-```json
-{
-  "ok": false,
-  "db": "error",
-  "error": "Connection refused"
 }
 ```
 
@@ -250,133 +233,136 @@ curl https://poweredbypace.vercel.app/api/health/db
 fetch('/api/init', { method: 'POST' }).then(r => r.json()).then(console.log)
 ```
 
-```bash
-curl -X POST https://poweredbypace.vercel.app/api/init
-```
-
 ---
 
-### 3. Database Migrations
+### 3. Migration Status
 
-**Endpoint:** `GET /api/migrate` (check status) | `POST /api/migrate` (run migrations)
+**Endpoint:** `GET /api/migrate`
 
-**Purpose:** Run database migrations to update schema.
+**Purpose:** Check which migrations have been applied.
 
-**When to use:**
-- After deployment with new features
-- If new tables/columns are needed
-- To check which migrations have been applied
-
-**Check Status:**
+**Usage:**
 ```javascript
 fetch('/api/migrate').then(r => r.json()).then(console.log)
 ```
 
-**Run Migrations:**
+---
+
+### 4. Run Migrations
+
+**Endpoint:** `POST /api/migrate`
+
+**Purpose:** Apply pending database migrations.
+
+**When to use:**
+- After deployment if automatic migration failed
+- When adding new features that require schema changes
+
+**Usage:**
 ```javascript
 fetch('/api/migrate', { method: 'POST' }).then(r => r.json()).then(console.log)
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Migrations completed",
-  "applied": ["001-add-groups", "002-add-elo-rating", "003-add-player-stats", "004-add-pairing-stats"]
-}
 ```
 
 ---
 
 ## Admin Operations
 
-### 1. Recalculate Individual Player Stats
+### 1. Recalculate Player Stats (ELO, W/L)
 
-**Endpoint:** `POST /api/groups/{GROUP_ID}/stats`
+**Endpoint:** `POST /api/groups/{id}/stats`
 
-**Purpose:** Rebuild all ELO ratings and W/L records from game history.
+**Purpose:** Recalculate all player ELO ratings and win/loss records from game history.
 
 **When to use:**
-- Stats appear out of sync with actual games
-- After manually editing database
-- After fixing a bug that affected stats
+- Stats seem incorrect
+- After bulk game imports
+- After fixing data issues
 
-**Rate Limit:** 1 request per 5 minutes per group
+**Rate Limit:** Once per 5 minutes per group
 
 **Usage:**
 ```javascript
-fetch('/api/groups/group-1704000000000/stats', { method: 'POST' })
+fetch('/api/groups/YOUR_GROUP_ID/stats', { method: 'POST' })
   .then(r => r.json()).then(console.log)
-```
-
-```bash
-curl -X POST https://poweredbypace.vercel.app/api/groups/group-1704000000000/stats
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Stats recalculated successfully",
-  "playersReset": 8,
-  "gamesProcessed": 45,
-  "playersUpdated": ["Alice", "Bob", "Charlie"]
-}
 ```
 
 ---
 
 ### 2. Recalculate Pairing Stats
 
-**Endpoint:** `POST /api/groups/{GROUP_ID}/pairings`
+**Endpoint:** `POST /api/groups/{id}/pairings`
 
-**Purpose:** Rebuild all partner stats and head-to-head matchup records.
+**Purpose:** Recalculate all pairing (doubles team) statistics.
 
 **When to use:**
-- Pairings tab shows wrong data
-- After running individual stats recalculation
-- Partnership records seem incorrect
+- Pairing stats seem incorrect
+- After recalculating player stats
 
-**Rate Limit:** 1 request per 5 minutes per group
+**Rate Limit:** Once per 5 minutes per group
 
 **Usage:**
 ```javascript
-fetch('/api/groups/group-1704000000000/pairings', { method: 'POST' })
+fetch('/api/groups/YOUR_GROUP_ID/pairings', { method: 'POST' })
   .then(r => r.json()).then(console.log)
-```
-
-```bash
-curl -X POST https://poweredbypace.vercel.app/api/groups/group-1704000000000/pairings
 ```
 
 ---
 
-### 3. Delete Operations
+### 3. Delete Group
 
-#### Delete a Group (⚠️ Destructive)
+**Endpoint:** `DELETE /api/groups/{id}`
+
+**Purpose:** Permanently delete a group and all its data (sessions, games, players).
+
+**⚠️ WARNING:** This action cannot be undone!
+
+**Usage:**
 ```javascript
-// Deletes group AND all sessions, players, games, stats
-fetch('/api/groups/group-1704000000000', { method: 'DELETE' })
+fetch('/api/groups/YOUR_GROUP_ID', { method: 'DELETE' })
   .then(r => r.json()).then(console.log)
 ```
 
-#### Delete a Session (⚠️ Destructive)
+---
+
+### 4. Delete Session
+
+**Endpoint:** `DELETE /api/sessions/{id}`
+
+**Purpose:** Permanently delete a session and all its games.
+
+**Usage:**
 ```javascript
-// Deletes session AND all its players and games
-fetch('/api/sessions/session-1704067200000', { method: 'DELETE' })
+fetch('/api/sessions/YOUR_SESSION_ID', { method: 'DELETE' })
   .then(r => r.json()).then(console.log)
 ```
 
-#### Delete a Game
+---
+
+### 5. Delete Game
+
+**Endpoint:** `DELETE /api/sessions/{sessionId}/games/{gameId}`
+
+**Purpose:** Delete a specific game from a session.
+
+**Usage:**
 ```javascript
-// Deletes game and reverses its stats impact
-fetch('/api/sessions/session-123/games/session-123-game-5', { method: 'DELETE' })
+fetch('/api/sessions/SESSION_ID/games/GAME_ID', { method: 'DELETE' })
   .then(r => r.json()).then(console.log)
 ```
 
-#### Delete a Player from Group Pool
+---
+
+### 6. Remove Player from Group
+
+**Endpoint:** `DELETE /api/groups/{id}/players/{playerId}`
+
+**Purpose:** Remove a player from a group's player pool (soft-delete).
+
+**Note:** Players are soft-deleted to preserve historical data. If the same player is re-added later, their stats are restored automatically.
+
+**Usage:**
 ```javascript
-fetch('/api/groups/group-123/players/gp-456', { method: 'DELETE' })
+fetch('/api/groups/GROUP_ID/players/PLAYER_ID', { method: 'DELETE' })
   .then(r => r.json()).then(console.log)
 ```
 
@@ -410,7 +396,7 @@ fetch('/api/groups/group-123/players/gp-456', { method: 'DELETE' })
 | `/api/groups/{id}` | DELETE | None | Delete entire group |
 | `/api/sessions/{id}` | DELETE | None | Delete session |
 | `/api/sessions/{sid}/games/{gid}` | DELETE | None | Delete game |
-| `/api/groups/{id}/players/{pid}` | DELETE | None | Remove player from pool |
+| `/api/groups/{id}/players/{pid}` | DELETE | None | Remove player (soft-delete) |
 
 ---
 
@@ -461,7 +447,7 @@ fetch('/api/groups/group-123/players/gp-456', { method: 'DELETE' })
 
 1. **No authentication** - Anyone with endpoint URLs can access them
 2. **Keep this document private** - Don't share with regular users
-3. **Debug endpoints expose internal data** - Session IDs, player IDs, etc.
+3. **Debug endpoints are read-only** - They don't modify data
 4. **Delete operations are permanent** - No undo, use with caution
 5. **Rate limiting** on recalculation prevents abuse
 

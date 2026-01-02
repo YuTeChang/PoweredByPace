@@ -157,11 +157,12 @@ export class GroupService {
     try {
       const supabase = createSupabaseClient();
       
-      // Get all group players
+      // Get all ACTIVE group players (soft-deleted players are excluded)
       const { data: groupPlayers, error } = await supabase
         .from('group_players')
-        .select('id, group_id, name, elo_rating, created_at')
+        .select('id, group_id, name, elo_rating, created_at, is_active')
         .eq('group_id', groupId)
+        .eq('is_active', true)
         .order('name', { ascending: true });
 
       if (error) {
@@ -266,11 +267,40 @@ export class GroupService {
 
   /**
    * Add a player to a group's player pool
+   * If a soft-deleted player with the same name exists, reactivate them instead
    */
   static async addGroupPlayer(groupId: string, name: string): Promise<GroupPlayer> {
     try {
       const supabase = createSupabaseClient();
       
+      // Check if a soft-deleted player with the same name exists (case-insensitive)
+      const { data: existingPlayers } = await supabase
+        .from('group_players')
+        .select('id, group_id, name, elo_rating, created_at, is_active')
+        .eq('group_id', groupId)
+        .eq('is_active', false)
+        .ilike('name', name);
+      
+      // If found, reactivate the existing player (preserves ID and all stats)
+      if (existingPlayers && existingPlayers.length > 0) {
+        const existingPlayer = existingPlayers[0];
+        
+        const { data: reactivated, error: reactivateError } = await supabase
+          .from('group_players')
+          .update({ is_active: true })
+          .eq('id', existingPlayer.id)
+          .select()
+          .single();
+        
+        if (reactivateError) {
+          throw reactivateError;
+        }
+        
+        console.log(`[GroupService] Reactivated soft-deleted player "${name}" with preserved stats`);
+        return this.mapRowToGroupPlayer(reactivated);
+      }
+      
+      // No existing player found, create a new one
       const playerId = `gp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
       const { data, error } = await supabase
@@ -279,6 +309,7 @@ export class GroupService {
           id: playerId,
           group_id: groupId,
           name,
+          is_active: true,
         })
         .select()
         .single();
@@ -296,27 +327,78 @@ export class GroupService {
 
   /**
    * Add multiple players to a group's player pool
+   * If soft-deleted players with matching names exist, reactivate them instead
    */
   static async addGroupPlayers(groupId: string, names: string[]): Promise<GroupPlayer[]> {
     try {
       const supabase = createSupabaseClient();
       
-      const playersData = names.map((name) => ({
-        id: `gp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        group_id: groupId,
-        name,
-      }));
-      
-      const { data, error } = await supabase
+      // Check for existing soft-deleted players with matching names
+      const { data: existingInactive } = await supabase
         .from('group_players')
-        .insert(playersData)
-        .select();
+        .select('id, group_id, name, elo_rating, created_at, is_active')
+        .eq('group_id', groupId)
+        .eq('is_active', false);
+      
+      type InactivePlayer = { id: string; group_id: string; name: string; elo_rating: number | null; created_at: string | null; is_active: boolean };
+      const inactiveByName = new Map<string, InactivePlayer>();
+      (existingInactive || []).forEach((p: InactivePlayer) => {
+        inactiveByName.set(p.name.toLowerCase().trim(), p);
+      });
+      
+      const toReactivate: string[] = [];
+      const newNames: string[] = [];
+      
+      names.forEach(name => {
+        const normalizedName = name.toLowerCase().trim();
+        const existing = inactiveByName.get(normalizedName);
+        if (existing) {
+          toReactivate.push(existing.id);
+        } else {
+          newNames.push(name);
+        }
+      });
+      
+      const results: GroupPlayer[] = [];
+      
+      // Reactivate existing soft-deleted players
+      if (toReactivate.length > 0) {
+        const { data: reactivated } = await supabase
+          .from('group_players')
+          .update({ is_active: true })
+          .in('id', toReactivate)
+          .select();
+        
+        if (reactivated) {
+          results.push(...reactivated.map((row) => this.mapRowToGroupPlayer(row)));
+        }
+        console.log(`[GroupService] Reactivated ${toReactivate.length} soft-deleted players`);
+      }
+      
+      // Create new players for names that don't have existing records
+      if (newNames.length > 0) {
+        const playersData = newNames.map((name) => ({
+          id: `gp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          group_id: groupId,
+          name,
+          is_active: true,
+        }));
+        
+        const { data, error } = await supabase
+          .from('group_players')
+          .insert(playersData)
+          .select();
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          results.push(...data.map((row) => this.mapRowToGroupPlayer(row)));
+        }
       }
 
-      return (data || []).map((row) => this.mapRowToGroupPlayer(row));
+      return results;
     } catch (error) {
       console.error('[GroupService] Error adding group players:', error);
       throw new Error('Failed to add group players');
@@ -324,34 +406,27 @@ export class GroupService {
   }
 
   /**
-   * Remove a player from a group's player pool
+   * Remove a player from a group's player pool (soft-delete)
+   * The player is marked as inactive but their data is preserved
+   * This allows stats to be restored if the player is re-added later
    */
   static async removeGroupPlayer(groupPlayerId: string): Promise<void> {
     try {
       const supabase = createSupabaseClient();
       
-      // First, unlink any session players that reference this group player
-      // This prevents foreign key constraint violations
-      const { error: unlinkError } = await supabase
-        .from('players')
-        .update({ group_player_id: null })
-        .eq('group_player_id', groupPlayerId);
-
-      if (unlinkError) {
-        console.warn('[GroupService] Warning unlinking players:', unlinkError);
-        // Continue anyway - the players table might not have any linked records
-      }
-
-      // Now delete the group player
+      // Soft-delete: mark as inactive instead of deleting
+      // This preserves the group_player_id, stats, and session player links
       const { error } = await supabase
         .from('group_players')
-        .delete()
+        .update({ is_active: false })
         .eq('id', groupPlayerId);
 
       if (error) {
-        console.error('[GroupService] Delete error:', error);
+        console.error('[GroupService] Soft-delete error:', error);
         throw error;
       }
+      
+      console.log(`[GroupService] Soft-deleted group player ${groupPlayerId}`);
     } catch (error) {
       console.error('[GroupService] Error removing group player:', error);
       throw new Error('Failed to remove group player');
@@ -672,8 +747,9 @@ export class GroupService {
           .gte('total_games', 3),
         supabase
           .from('group_players')
-          .select('id, name, elo_rating, wins, losses, total_games, best_win_streak')
-          .eq('group_id', groupId),
+          .select('id, name, elo_rating, wins, losses, total_games, best_win_streak, is_active')
+          .eq('group_id', groupId)
+          .eq('is_active', true),  // Only count active players in group stats
         supabase
           .from('partner_stats')
           .select('player1_id, player2_id, wins, losses, total_games, elo_rating, best_win_streak')

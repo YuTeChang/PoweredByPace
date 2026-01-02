@@ -268,6 +268,7 @@ scripts/
     003-add-player-stats.sql        # Wins, losses, total_games columns
     004-add-pairing-stats.sql       # partner_stats and pairing_matchups tables
     005-add-extended-stats.sql      # Streaks, pairing ELO, point tracking
+    006-add-soft-delete.sql         # Soft-delete for group_players (is_active column)
     README.md                       # This file
 ```
 
