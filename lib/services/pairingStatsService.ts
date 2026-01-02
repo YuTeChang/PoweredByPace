@@ -484,7 +484,7 @@ export class PairingStatsService {
       (players || []).forEach(p => playerNames.set(p.id, p.name));
 
       // Get recent games and compute stats from games
-      const { recentForm, recentGames, wins, losses } = await this.getRecentGamesForPairingWithStats(
+      const { recentForm, recentGames, wins, losses, pointsFor, pointsAgainst, bestWinStreak } = await this.getRecentGamesForPairingWithStats(
         groupId, orderedP1, orderedP2, playerNames
       );
 
@@ -508,11 +508,8 @@ export class PairingStatsService {
         }
       }
 
-      // Get stored values with defaults
+      // Get stored ELO with default
       const eloRating = partnerStat?.elo_rating ?? this.DEFAULT_PAIRING_ELO;
-      const bestWinStreak = partnerStat?.best_win_streak ?? Math.max(0, currentStreak);
-      const pointsFor = partnerStat?.points_for ?? 0;
-      const pointsAgainst = partnerStat?.points_against ?? 0;
 
       return {
         player1Id: orderedP1,
@@ -530,7 +527,7 @@ export class PairingStatsService {
         currentStreak,
         bestWinStreak,
         recentForm: recentForm.slice(0, 5),
-        recentGames: recentGames.slice(0, 3),
+        recentGames, // Return all 10 recent games
         matchups: matchupStats,
       };
     } catch (error) {
@@ -651,14 +648,22 @@ export class PairingStatsService {
 
   /**
    * Get recent games with details for a pairing - computed from games table
-   * Also returns total wins/losses for accuracy
+   * Also returns total wins/losses, points, and best streak for accuracy
    */
   private static async getRecentGamesForPairingWithStats(
     groupId: string,
     player1Id: string,
     player2Id: string,
     playerNames: Map<string, string>
-  ): Promise<{ recentForm: ('W' | 'L')[]; recentGames: RecentGame[]; wins: number; losses: number }> {
+  ): Promise<{ 
+    recentForm: ('W' | 'L')[]; 
+    recentGames: RecentGame[]; 
+    wins: number; 
+    losses: number;
+    pointsFor: number;
+    pointsAgainst: number;
+    bestWinStreak: number;
+  }> {
     const supabase = createSupabaseClient();
 
     try {
@@ -669,7 +674,7 @@ export class PairingStatsService {
         .eq('group_id', groupId);
 
       const sessionIds = (sessions || []).map(s => s.id);
-      if (sessionIds.length === 0) return { recentForm: [], recentGames: [], wins: 0, losses: 0 };
+      if (sessionIds.length === 0) return { recentForm: [], recentGames: [], wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, bestWinStreak: 0 };
 
       // Get player mappings
       const { data: sessionPlayers } = await supabase
@@ -701,6 +706,10 @@ export class PairingStatsService {
       const recentGames: RecentGame[] = [];
       let wins = 0;
       let losses = 0;
+      let pointsFor = 0;
+      let pointsAgainst = 0;
+      let bestWinStreak = 0;
+      let tempWinStreak = 0;
 
       (games || []).forEach(game => {
         const teamA = typeof game.team_a === 'string' ? JSON.parse(game.team_a) : game.team_a;
@@ -715,6 +724,17 @@ export class PairingStatsService {
         if (bothInTeamA) {
           const won = game.winning_team === 'A';
           if (won) wins++; else losses++;
+          pointsFor += game.team_a_score || 0;
+          pointsAgainst += game.team_b_score || 0;
+          
+          // Track best win streak
+          if (won) {
+            tempWinStreak++;
+            if (tempWinStreak > bestWinStreak) bestWinStreak = tempWinStreak;
+          } else {
+            tempWinStreak = 0;
+          }
+          
           if (recentForm.length < 10) recentForm.push(won ? 'W' : 'L');
           if (recentGames.length < 10) {
             recentGames.push({
@@ -729,6 +749,17 @@ export class PairingStatsService {
         } else if (bothInTeamB) {
           const won = game.winning_team === 'B';
           if (won) wins++; else losses++;
+          pointsFor += game.team_b_score || 0;
+          pointsAgainst += game.team_a_score || 0;
+          
+          // Track best win streak
+          if (won) {
+            tempWinStreak++;
+            if (tempWinStreak > bestWinStreak) bestWinStreak = tempWinStreak;
+          } else {
+            tempWinStreak = 0;
+          }
+          
           if (recentForm.length < 10) recentForm.push(won ? 'W' : 'L');
           if (recentGames.length < 10) {
             recentGames.push({
@@ -743,10 +774,10 @@ export class PairingStatsService {
         }
       });
 
-      return { recentForm, recentGames, wins, losses };
+      return { recentForm, recentGames, wins, losses, pointsFor, pointsAgainst, bestWinStreak };
     } catch (error) {
       console.error('[PairingStatsService] Error getting recent games:', error);
-      return { recentForm: [], recentGames: [], wins: 0, losses: 0 };
+      return { recentForm: [], recentGames: [], wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0, bestWinStreak: 0 };
     }
   }
 
