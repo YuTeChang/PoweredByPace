@@ -159,7 +159,8 @@ This is a **full-stack Next.js application** with clear separation.
   - `app/group/[id]/page.tsx` - Group detail with Leaderboard & Pairings
   - `app/session/[id]/page.tsx` - Live session
   - `components/PlayerProfileSheet.tsx` - Player profile modal
-  - `components/PairingProfileSheet.tsx` - Pairing profile modal (NEW)
+  - `components/PairingProfileSheet.tsx` - Pairing profile modal
+  - `components/MatchupDetailSheet.tsx` - Matchup detail modal
   - `contexts/SessionContext.tsx` - State management
   - `lib/api/client.ts` - API client
 
@@ -169,12 +170,12 @@ This is a **full-stack Next.js application** with clear separation.
 - **Key Files**:
   - `app/api/sessions/route.ts` - Session endpoints
   - `app/api/groups/[id]/stats/route.ts` - Leaderboard endpoint
-  - `app/api/groups/[id]/pairings/route.ts` - Pairing stats endpoint (NEW)
+  - `app/api/groups/[id]/pairings/route.ts` - Pairing stats endpoint
   - `lib/services/sessionService.ts` - Session operations
   - `lib/services/groupService.ts` - Group operations
   - `lib/services/statsService.ts` - Leaderboard & player stats
   - `lib/services/eloService.ts` - ELO calculations
-  - `lib/services/pairingStatsService.ts` - Pairing stats (NEW)
+  - `lib/services/pairingStatsService.ts` - Pairing stats & matchups
   - `lib/supabase.ts` - Database client
 
 ### Data Flow
@@ -225,10 +226,12 @@ Game {
   teamAScore?, teamBScore?
 }
 
-// NEW: Pairing stats tables
+// Pairing stats tables
 PartnerStats {
   groupId, player1Id, player2Id,
-  wins, losses, totalGames
+  wins, losses, totalGames, eloRating,
+  currentStreak, bestWinStreak,
+  pointsFor, pointsAgainst
 }
 
 PairingMatchups {
@@ -251,12 +254,12 @@ PoweredByPace uses **PostgreSQL** hosted on **Supabase**.
 
 **Tables:**
 - `groups` - Badminton groups with shareable links
-- `group_players` - Player pool per group (includes ELO, W/L stats)
+- `group_players` - Player pool per group (includes ELO, W/L stats, streaks)
 - `sessions` - Badminton sessions (can belong to a group)
 - `players` - Session players (can link to group players)
 - `games` - Individual games within sessions
-- `partner_stats` - Win/loss when two players are paired (NEW)
-- `pairing_matchups` - Head-to-head between pairings (NEW)
+- `partner_stats` - Win/loss when two players are paired (pairing ELO, streaks)
+- `pairing_matchups` - Head-to-head between pairings
 - `migrations` - Tracks applied database migrations
 
 ### Automatic Migrations
@@ -280,7 +283,7 @@ scripts/migrations/
 ├── 001-add-groups.sql           # Groups feature tables
 ├── 002-add-elo-rating.sql       # ELO rating column
 ├── 003-add-player-stats.sql     # Wins/losses columns
-├── 004-add-pairing-stats.sql    # Pairing stats tables (NEW)
+├── 004-add-pairing-stats.sql    # Pairing stats tables
 └── README.md                    # Detailed guide
 ```
 

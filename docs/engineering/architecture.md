@@ -178,14 +178,17 @@ app/
 ├── create-session/page.tsx     # Create session form
 ├── group/[id]/page.tsx         # Group page with tabs:
 │                               #   - Sessions
-│                               #   - Leaderboard (NEW)
+│                               #   - Leaderboard
 │                               #   - Players
+│                               #   - Pairings
 └── session/[id]/
     ├── page.tsx                # Live session page
     └── summary/page.tsx        # Summary page
 
 components/
-├── PlayerProfileSheet.tsx      # Player profile modal (NEW)
+├── PlayerProfileSheet.tsx      # Player profile modal
+├── PairingProfileSheet.tsx     # Pairing profile modal
+├── MatchupDetailSheet.tsx      # Matchup detail modal (nested)
 ├── LiveStatsCard.tsx           # Real-time stats display
 ├── QuickGameForm.tsx           # Game recording form
 └── ...
@@ -202,12 +205,16 @@ app/api/
 │   └── [id]/
 │       ├── route.ts           # GET one, DELETE
 │       ├── stats/
-│       │   └── route.ts       # GET leaderboard (NEW)
+│       │   └── route.ts       # GET leaderboard
+│       ├── pairings/
+│       │   └── route.ts       # GET pairing leaderboard
+│       │   └── [player1Id]/[player2Id]/
+│       │       └── route.ts   # GET pairing details
 │       ├── players/
 │       │   ├── route.ts       # GET/POST/DELETE players
 │       │   └── [playerId]/
 │       │       └── stats/
-│       │           └── route.ts # GET player stats (NEW)
+│       │           └── route.ts # GET player stats
 │       └── sessions/
 │           └── route.ts       # GET group sessions
 ├── sessions/
@@ -219,8 +226,9 @@ lib/services/
 ├── sessionService.ts           # Session operations
 ├── gameService.ts              # Game operations + ELO trigger
 ├── groupService.ts             # Group operations
-├── statsService.ts             # Leaderboard & stats (NEW)
-└── eloService.ts               # ELO calculations (NEW)
+├── statsService.ts             # Leaderboard & player stats
+├── eloService.ts               # ELO calculations
+└── pairingStatsService.ts      # Pairing stats & matchups
 
 lib/
 ├── supabase.ts                # Database client
@@ -262,6 +270,8 @@ DELETE /api/groups/[id]/players         # Remove player
 ```
 GET    /api/groups/[id]/stats           # Get leaderboard
 GET    /api/groups/[id]/players/[id]/stats  # Get player detailed stats
+GET    /api/groups/[id]/pairings        # Get pairings leaderboard
+GET    /api/groups/[id]/pairings/[p1]/[p2]  # Get pairing detailed stats
 ```
 
 ### Guests

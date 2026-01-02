@@ -7,14 +7,15 @@
 
 ## Core Feature Tests
 
-### 1. Home Page
+### 1. Home Page (Code-Based Access)
 - [ ] Page loads without errors
 - [ ] "PoweredByPace" title is visible
 - [ ] Description text is readable
-- [ ] "Create New Session" button is visible and clickable
-- [ ] If session exists, "Active Session" card is displayed
-- [ ] Active session card shows correct game count
-- [ ] "Continue Session" button works (if session exists)
+- [ ] Group code input field is visible
+- [ ] "Join Group" button works with valid code
+- [ ] Invalid code shows error message
+- [ ] Recent groups section shows previously visited groups (from localStorage)
+- [ ] Clicking recent group navigates to group page
 - [ ] Mobile responsive (test on mobile viewport)
 
 ### 2. Create Session Page
@@ -211,7 +212,67 @@
 - [ ] Final amounts to pay organizer are correct
 - [ ] All calculations match expected values
 
-### 7. Round Robin Feature
+### 7. Group Page Features
+
+#### Group Overview
+- [ ] Group name displays correctly
+- [ ] Shareable code/link is visible
+- [ ] Total sessions count is accurate
+- [ ] Total games count is accurate
+
+#### Tabs
+- [ ] Sessions tab shows all group sessions
+- [ ] Leaderboard tab shows ranked players
+- [ ] Players tab shows player pool
+- [ ] Pairings tab shows pairing rankings
+
+#### Leaderboard
+- [ ] Players ranked by ELO (hidden, but used for sorting)
+- [ ] W-L record displayed for each player
+- [ ] Recent form (last 5 games) shown
+- [ ] Streak badges shown (🔥 hot, ❄️ cold)
+- [ ] Clicking player opens profile sheet
+
+#### Player Profile Sheet
+- [ ] Stats: W-L, Win Rate, Games, Sessions
+- [ ] Points breakdown: For, Against, +/-
+- [ ] Best Win Streak displayed
+- [ ] Recent Form displayed
+- [ ] Partner stats (win rate with each partner)
+- [ ] Opponent stats (win rate vs each opponent)
+- [ ] Recent games list
+- [ ] Close button works
+
+#### Pairings Tab
+- [ ] Pairings ranked by win rate
+- [ ] Unqualified pairings (<5 games) marked with asterisk
+- [ ] Qualified pairings sorted first
+- [ ] Clicking pairing opens profile sheet
+
+#### Pairing Profile Sheet
+- [ ] Stats: W-L, Win Rate, Games
+- [ ] Pair ELO and Best Streak displayed
+- [ ] Points breakdown: For, Against, +/-
+- [ ] Recent form displayed
+- [ ] Head-to-head vs opponent pairings
+- [ ] Points shown per opponent pairing
+- [ ] Clicking opponent pairing opens matchup detail
+
+#### Matchup Detail Sheet
+- [ ] Record vs specific opponent pairing
+- [ ] Points breakdown for this matchup
+- [ ] Dominance indicator displayed
+- [ ] Game history list
+- [ ] Scores and dates shown
+- [ ] Back button closes and returns to pairing sheet
+
+#### Guest Mode
+- [ ] Guest players marked with yellow badge
+- [ ] Recent guests section in Players tab
+- [ ] "Add to Group" button promotes guest
+- [ ] Promoted guest links past sessions
+
+### 8. Round Robin Feature
 
 #### Game Generation
 - [ ] Round robin games are generated correctly
