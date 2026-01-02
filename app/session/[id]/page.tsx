@@ -474,17 +474,24 @@ export default function SessionPage() {
                             <span className="font-medium text-japandi-text-primary">
                               Game {game.gameNumber}
                             </span>
-                            {hasScore && (
-                              <span className="text-xs sm:text-sm font-semibold text-japandi-accent-primary">
-                                {winnerScore}-{loserScore}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              {hasScore && (
+                                <span className="text-xs sm:text-sm font-semibold text-japandi-accent-primary">
+                                  {winnerScore}-{loserScore}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="text-japandi-text-secondary break-words mt-1">
                             <span className="font-medium text-green-600">{winner}</span>
                             <span className="text-japandi-text-muted"> beat </span>
                             <span className="text-japandi-text-secondary">{loser}</span>
                           </div>
+                          {game.createdAt && (
+                            <div className="text-xs text-japandi-text-muted mt-1">
+                              {new Date(game.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
