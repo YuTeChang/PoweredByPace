@@ -31,6 +31,11 @@ body {
   line-height: 1.6;
 }
 
+/* Prevent iOS zoom on input focus - ensure 16px minimum */
+input, select, textarea {
+  font-size: 16px !important;
+}
+
 /* Ensure all main page containers inherit warm background */
 main {
   background: inherit;
