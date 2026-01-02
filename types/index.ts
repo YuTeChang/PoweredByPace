@@ -148,6 +148,7 @@ export interface PairingStats {
   pointsFor?: number;
   pointsAgainst?: number;
   pointDifferential?: number;
+  isQualified?: boolean; // Has enough games (5+) to be considered for rankings
 }
 
 // Head-to-head stats between two pairings

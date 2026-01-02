@@ -747,17 +747,20 @@ export default function GroupPage() {
                   <button
                     key={`${pairing.player1Id}-${pairing.player2Id}`}
                     onClick={() => loadPairingStats(pairing.player1Id, pairing.player2Id)}
-                    className="w-full text-left bg-japandi-background-card border border-japandi-border-light rounded-xl p-4 shadow-soft hover:border-japandi-accent-primary transition-colors"
+                    className={`w-full text-left bg-japandi-background-card border rounded-xl p-4 shadow-soft hover:border-japandi-accent-primary transition-colors ${
+                      pairing.isQualified ? 'border-japandi-border-light' : 'border-dashed border-japandi-border-light'
+                    }`}
                   >
                     <div className="flex items-center gap-4">
                       {/* Rank */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
+                        !pairing.isQualified ? 'bg-japandi-background-primary text-japandi-text-muted' :
                         index === 0 ? 'bg-yellow-100 text-yellow-700' :
                         index === 1 ? 'bg-gray-100 text-gray-600' :
                         index === 2 ? 'bg-orange-100 text-orange-700' :
                         'bg-japandi-background-primary text-japandi-text-muted'
                       }`}>
-                        #{index + 1}
+                        {pairing.isQualified ? `#${index + 1}` : '—'}
                       </div>
                       
                       {/* Pairing Info */}
@@ -766,18 +769,20 @@ export default function GroupPage() {
                           {pairing.player1Name} & {pairing.player2Name}
                         </div>
                         <div className="text-sm text-japandi-text-muted">
-                          {pairing.wins}-{pairing.losses} • {pairing.gamesPlayed} games
+                          {pairing.wins}-{pairing.losses} • {pairing.gamesPlayed} game{pairing.gamesPlayed !== 1 ? 's' : ''}
+                          {!pairing.isQualified && <span className="text-yellow-600 ml-1" title="Need 5+ games to qualify">*</span>}
                         </div>
                       </div>
                       
                       {/* Win Rate */}
                       <div className="text-right flex-shrink-0">
                         <div className={`text-lg font-bold ${
+                          !pairing.isQualified ? 'text-japandi-text-muted' :
                           pairing.winRate >= 60 ? 'text-green-600' :
                           pairing.winRate >= 40 ? 'text-japandi-text-primary' :
                           'text-red-500'
                         }`}>
-                          {formatPercentage(pairing.winRate)}
+                          {formatPercentage(pairing.winRate)}{!pairing.isQualified && '*'}
                         </div>
                         <div className="text-xs text-japandi-text-muted">Win Rate</div>
                       </div>
@@ -788,7 +793,8 @@ export default function GroupPage() {
             )}
             
             <p className="text-center text-xs text-japandi-text-muted pt-4">
-              Tap a pairing to see head-to-head matchups
+              Tap a pairing to see head-to-head matchups<br />
+              <span className="text-yellow-600">*</span> = Less than 5 games played
             </p>
           </div>
         )}

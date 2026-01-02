@@ -460,17 +460,31 @@ export default function SessionPage() {
                         : game.teamB.map(getPlayerName).join(" & ");
                       const winner = game.winningTeam === "A" ? teamA : teamB;
 
+                      const loser = game.winningTeam === "A" ? teamB : teamA;
+                      const winnerScore = game.winningTeam === "A" ? game.teamAScore : game.teamBScore;
+                      const loserScore = game.winningTeam === "A" ? game.teamBScore : game.teamAScore;
+                      const hasScore = winnerScore !== undefined && loserScore !== undefined;
+
                       return (
                         <div
                           key={game.id}
                           className="bg-japandi-background-card border border-japandi-border-light rounded-card p-3 sm:p-4 text-sm sm:text-base shadow-soft"
                         >
-                          <span className="font-medium text-japandi-text-primary">
-                            Game {game.gameNumber}:
-                          </span>{" "}
-                          <span className="text-japandi-text-secondary break-words">
-                            {winner} won
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-japandi-text-primary">
+                              Game {game.gameNumber}
+                            </span>
+                            {hasScore && (
+                              <span className="text-xs sm:text-sm font-semibold text-japandi-accent-primary">
+                                {winnerScore}-{loserScore}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-japandi-text-secondary break-words mt-1">
+                            <span className="font-medium text-green-600">{winner}</span>
+                            <span className="text-japandi-text-muted"> beat </span>
+                            <span className="text-japandi-text-secondary">{loser}</span>
+                          </div>
                         </div>
                       );
                     })}

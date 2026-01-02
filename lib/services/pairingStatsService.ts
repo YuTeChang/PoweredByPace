@@ -8,6 +8,7 @@ import { PairingStats, PairingMatchup, PairingDetailedStats, RecentGame } from '
 export class PairingStatsService {
   private static readonly DEFAULT_PAIRING_ELO = 1500;
   private static readonly K_FACTOR = 32;
+  static readonly MIN_GAMES_QUALIFIED = 5; // Minimum games for a pairing to be considered "qualified"
 
   /**
    * Calculate expected score for ELO (probability of winning)
@@ -337,7 +338,8 @@ export class PairingStatsService {
           player2_id,
           wins,
           losses,
-          total_games
+          total_games,
+          elo_rating
         `)
         .eq('group_id', groupId)
         .gt('total_games', 0)
@@ -365,8 +367,15 @@ export class PairingStatsService {
           wins: stat.wins,
           losses: stat.losses,
           winRate: stat.total_games > 0 ? (stat.wins / stat.total_games) * 100 : 0,
+          eloRating: stat.elo_rating || this.DEFAULT_PAIRING_ELO,
+          isQualified: stat.total_games >= this.MIN_GAMES_QUALIFIED,
         }))
-        .sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
+        .sort((a, b) => {
+          // Qualified pairs first, then by win rate, then by games played
+          if (a.isQualified !== b.isQualified) return a.isQualified ? -1 : 1;
+          if (a.winRate !== b.winRate) return b.winRate - a.winRate;
+          return b.gamesPlayed - a.gamesPlayed;
+        });
     } catch (error) {
       console.error('[PairingStatsService] Error fetching pairing leaderboard:', error);
       return [];
