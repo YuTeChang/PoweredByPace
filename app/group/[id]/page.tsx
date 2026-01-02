@@ -740,7 +740,7 @@ export default function GroupPage() {
                           <div className="text-xs font-medium text-japandi-text-muted uppercase tracking-wide mb-2">Clutch (Won by 1-2 pts)</div>
                           <div className="space-y-2">
                             {groupStats.clutchPlayer && (
-                              <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                              <div className="flex items-center justify-between bg-japandi-background-primary/50 rounded-lg p-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">🎯</span>
                                   <div>
@@ -748,11 +748,11 @@ export default function GroupPage() {
                                     <div className="text-xs text-japandi-text-muted">Most Clutch Player</div>
                                   </div>
                                 </div>
-                                <div className="text-lg font-bold text-green-600">{groupStats.clutchPlayer.count}</div>
+                                <div className="text-sm font-bold text-green-600">{groupStats.clutchPlayer.count} wins</div>
                               </div>
                             )}
                             {groupStats.clutchPairing && (
-                              <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                              <div className="flex items-center justify-between bg-japandi-background-primary/50 rounded-lg p-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">🎯</span>
                                   <div>
@@ -762,7 +762,7 @@ export default function GroupPage() {
                                     <div className="text-xs text-japandi-text-muted">Most Clutch Pair</div>
                                   </div>
                                 </div>
-                                <div className="text-lg font-bold text-green-600">{groupStats.clutchPairing.count}</div>
+                                <div className="text-sm font-bold text-green-600">{groupStats.clutchPairing.count} wins</div>
                               </div>
                             )}
                           </div>
@@ -775,7 +775,7 @@ export default function GroupPage() {
                           <div className="text-xs font-medium text-japandi-text-muted uppercase tracking-wide mb-2">Unlucky (Lost by 1-2 pts)</div>
                           <div className="space-y-2">
                             {groupStats.unluckyPlayer && (
-                              <div className="flex items-center justify-between bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                              <div className="flex items-center justify-between bg-japandi-background-primary/50 rounded-lg p-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">💔</span>
                                   <div>
@@ -783,11 +783,11 @@ export default function GroupPage() {
                                     <div className="text-xs text-japandi-text-muted">Unluckiest Player</div>
                                   </div>
                                 </div>
-                                <div className="text-lg font-bold text-red-500">{groupStats.unluckyPlayer.count}</div>
+                                <div className="text-sm font-bold text-red-500">{groupStats.unluckyPlayer.count} losses</div>
                               </div>
                             )}
                             {groupStats.unluckyPairing && (
-                              <div className="flex items-center justify-between bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
+                              <div className="flex items-center justify-between bg-japandi-background-primary/50 rounded-lg p-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-base">💔</span>
                                   <div>
@@ -797,7 +797,7 @@ export default function GroupPage() {
                                     <div className="text-xs text-japandi-text-muted">Unluckiest Pair</div>
                                   </div>
                                 </div>
-                                <div className="text-lg font-bold text-red-500">{groupStats.unluckyPairing.count}</div>
+                                <div className="text-sm font-bold text-red-500">{groupStats.unluckyPairing.count} losses</div>
                               </div>
                             )}
                           </div>

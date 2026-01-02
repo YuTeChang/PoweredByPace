@@ -157,9 +157,10 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
           {/* Close Games - Clutch & Unlucky */}
           {((stats.clutchGames && stats.clutchGames.length > 0) || (stats.unluckyGames && stats.unluckyGames.length > 0)) && (
             <div>
-              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
+              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-1">
                 Close Games
               </h3>
+              <p className="text-xs text-japandi-text-muted mb-3">Games decided by 1-2 points</p>
               <div className="grid grid-cols-2 gap-3 mb-2">
                 {/* Clutch tile */}
                 <button
@@ -172,10 +173,9 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
                   }`}
                 >
                   <div className="text-lg font-bold text-green-600">
-                    {stats.clutchCount || 0}
+                    🎯 {stats.clutchCount || 0}
                   </div>
                   <div className="text-xs text-japandi-text-muted mt-1">Clutch Wins</div>
-                  <div className="text-[10px] text-japandi-text-muted">(won by 1-2 pts)</div>
                   {stats.clutchGames && stats.clutchGames.length > 0 && (
                     <svg 
                       className={`w-3 h-3 mx-auto mt-1 text-green-600 transition-transform ${showClutchGames ? 'rotate-180' : ''}`} 
@@ -199,10 +199,9 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
                   }`}
                 >
                   <div className="text-lg font-bold text-red-500">
-                    {stats.unluckyCount || 0}
+                    💔 {stats.unluckyCount || 0}
                   </div>
                   <div className="text-xs text-japandi-text-muted mt-1">Unlucky Losses</div>
-                  <div className="text-[10px] text-japandi-text-muted">(lost by 1-2 pts)</div>
                   {stats.unluckyGames && stats.unluckyGames.length > 0 && (
                     <svg 
                       className={`w-3 h-3 mx-auto mt-1 text-red-500 transition-transform ${showUnluckyGames ? 'rotate-180' : ''}`} 
