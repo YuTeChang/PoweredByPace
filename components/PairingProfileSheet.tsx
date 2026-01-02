@@ -165,9 +165,9 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
                 <button
                   onClick={() => stats.clutchGames && stats.clutchGames.length > 0 && setShowClutchGames(!showClutchGames)}
                   disabled={!stats.clutchGames || stats.clutchGames.length === 0}
-                  className={`bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center transition-colors ${
+                  className={`bg-japandi-background-primary rounded-xl p-3 text-center transition-colors ${
                     stats.clutchGames && stats.clutchGames.length > 0 
-                      ? 'hover:bg-green-100 dark:hover:bg-green-900/30 cursor-pointer' 
+                      ? 'hover:bg-japandi-background-primary/80 cursor-pointer' 
                       : 'opacity-50 cursor-default'
                   }`}
                 >
@@ -192,9 +192,9 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
                 <button
                   onClick={() => stats.unluckyGames && stats.unluckyGames.length > 0 && setShowUnluckyGames(!showUnluckyGames)}
                   disabled={!stats.unluckyGames || stats.unluckyGames.length === 0}
-                  className={`bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center transition-colors ${
+                  className={`bg-japandi-background-primary rounded-xl p-3 text-center transition-colors ${
                     stats.unluckyGames && stats.unluckyGames.length > 0 
-                      ? 'hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer' 
+                      ? 'hover:bg-japandi-background-primary/80 cursor-pointer' 
                       : 'opacity-50 cursor-default'
                   }`}
                 >

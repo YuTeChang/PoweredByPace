@@ -913,9 +913,14 @@ export class GroupService {
       } | null = null;
 
       if (matchups && matchups.length > 0) {
+        // Find closest rivalry - prefer smallest win difference, then most games as tie-breaker
         const closest = matchups.reduce((best, current) => {
           const currentDiff = Math.abs(current.team1_wins - current.team1_losses);
           const bestDiff = best ? Math.abs(best.team1_wins - best.team1_losses) : Infinity;
+          // If same closeness, prefer the matchup with more games
+          if (currentDiff === bestDiff) {
+            return current.total_games > (best?.total_games || 0) ? current : best;
+          }
           return currentDiff < bestDiff ? current : best;
         }, null as typeof matchups[0] | null);
 
