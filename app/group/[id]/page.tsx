@@ -772,7 +772,9 @@ export default function GroupPage() {
                                     <div className="text-sm font-medium text-japandi-text-primary">
                                       {pair.player1Name} & {pair.player2Name}
                                     </div>
-                                    <div className="text-xs text-japandi-text-muted">Highest Pair ELO</div>
+                                    <div className="text-xs text-japandi-text-muted">
+                                      Highest Pair ELO{groupStats.highestPairElo.length > 1 && <span className="text-japandi-accent-primary ml-1">(tie)</span>}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="text-lg font-bold text-japandi-accent-primary">{pair.rating}</div>
@@ -786,7 +788,9 @@ export default function GroupPage() {
                                     <div className="text-sm font-medium text-japandi-text-primary">
                                       {pair.player1Name} & {pair.player2Name}
                                     </div>
-                                    <div className="text-xs text-japandi-text-muted">Best Pair Streak</div>
+                                    <div className="text-xs text-japandi-text-muted">
+                                      Best Pair Streak{groupStats.bestPairStreak.length > 1 && <span className="text-japandi-accent-primary ml-1">(tie)</span>}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="text-lg font-bold text-japandi-accent-primary">{pair.streak}</div>
@@ -800,7 +804,9 @@ export default function GroupPage() {
                                     <div className="text-sm font-medium text-japandi-text-primary">
                                       {pair.player1Name} & {pair.player2Name}
                                     </div>
-                                    <div className="text-xs text-japandi-text-muted">Most Games Together</div>
+                                    <div className="text-xs text-japandi-text-muted">
+                                      Most Games Together{groupStats.mostGamesTogether.length > 1 && <span className="text-japandi-accent-primary ml-1">(tie)</span>}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="text-lg font-bold text-japandi-accent-primary">{pair.games}</div>
