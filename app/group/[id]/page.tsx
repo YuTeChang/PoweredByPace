@@ -23,7 +23,6 @@ export default function GroupPage() {
   const [groupStats, setGroupStats] = useState<{
     totalGames: number;
     totalSessions: number;
-    mostActivePlayer: { id: string; name: string; gamesPlayed: number } | null;
     closestMatchup: {
       team1Player1Name: string;
       team1Player2Name: string;
@@ -454,14 +453,6 @@ export default function GroupPage() {
                     <div className="text-xs text-japandi-text-muted">Sessions</div>
                   </div>
                 </div>
-                {groupStats.mostActivePlayer && (
-                  <div className="mt-3 pt-3 border-t border-japandi-border-light">
-                    <div className="text-xs text-japandi-text-muted">Most Active</div>
-                    <div className="text-sm font-medium text-japandi-text-primary">
-                      🏆 {groupStats.mostActivePlayer.name} ({groupStats.mostActivePlayer.gamesPlayed} games)
-                    </div>
-                  </div>
-                )}
                 {groupStats.closestMatchup && (
                   <div className="mt-3 pt-3 border-t border-japandi-border-light">
                     <div className="text-xs text-japandi-text-muted">Closest Rivalry</div>

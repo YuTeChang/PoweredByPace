@@ -6,6 +6,43 @@ This document tracks all features, improvements, and fixes added to PoweredByPac
 
 ### Major Features Added
 
+#### Recent Games in Profile Sheets
+- **Status**: ✅ Complete
+- **Description**: Show last 3 games with full details in player and pairing profile sheets
+- **Implementation**:
+  - Added `RecentGame` type with teamANames, teamBNames, scores, won flag, and date
+  - `StatsService.getPlayerDetailedStats()` now returns `recentGames` array
+  - `PairingStatsService.getRecentGamesForPairing()` helper for pairing recent games
+  - UI displays team names, scores (if entered), and win/loss with colored backgrounds
+- **User Impact**: Players can see their recent game history at a glance
+
+#### Score Validation
+- **Status**: ✅ Complete
+- **Description**: Prevent recording invalid scores where losing team has higher score
+- **Implementation**:
+  - Added `scoresValid()` validation function in `QuickGameForm`
+  - Checks that winning team score >= losing team score when both entered
+  - Displays red error banner when validation fails
+  - Save button disabled until scores are valid
+- **User Impact**: Prevents data integrity issues with point differentials
+
+#### Player Profile Enhancements
+- **Status**: ✅ Complete
+- **Description**: Added games count and sessions count to player profile overview
+- **Implementation**:
+  - Overview now shows: Games | Sessions | W-L (row 1), Win Rate | Pts +/- (row 2)
+  - `totalGames` and `sessionsPlayed` already computed in stats, now displayed
+- **User Impact**: Better visibility into player activity levels
+
+#### Removed "Most Active" from Group Overview
+- **Status**: ✅ Complete
+- **Description**: Simplified group overview card by removing "Most Active Player"
+- **Implementation**:
+  - Removed `mostActivePlayer` query from `GroupService.getGroupStats()`
+  - Removed from API client return type and page state
+  - One fewer database query per group stats request
+- **User Impact**: Cleaner UI, faster group stats loading
+
 #### Extended Stats System
 - **Status**: ✅ Complete
 - **Description**: Added streak tracking, pairing ELO, point differential, and group overview stats

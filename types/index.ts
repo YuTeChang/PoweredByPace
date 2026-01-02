@@ -84,6 +84,16 @@ export interface OpponentStats {
   winRate: number;
 }
 
+// Recent game result for display
+export interface RecentGame {
+  teamANames: string[];
+  teamBNames: string[];
+  teamAScore?: number;
+  teamBScore?: number;
+  won: boolean;
+  date?: Date;
+}
+
 // Detailed player statistics for player profile
 export interface PlayerDetailedStats {
   groupPlayerId: string;
@@ -113,6 +123,9 @@ export interface PlayerDetailedStats {
   
   // Opponent matchups
   opponentStats: OpponentStats[];
+  
+  // Recent games with details
+  recentGames?: RecentGame[];
 }
 
 // ============================================================================
@@ -178,6 +191,8 @@ export interface PairingDetailedStats {
   bestWinStreak: number;
   // Recent form
   recentForm: ('W' | 'L')[];
+  // Recent games with details
+  recentGames?: RecentGame[];
   // Head-to-head against other pairings
   matchups: PairingMatchup[];
 }

@@ -1,5 +1,5 @@
 import { createSupabaseClient } from '@/lib/supabase';
-import { PairingStats, PairingMatchup, PairingDetailedStats } from '@/types';
+import { PairingStats, PairingMatchup, PairingDetailedStats, RecentGame } from '@/types';
 
 /**
  * Service for managing pairing statistics (doubles team combinations)
@@ -436,7 +436,7 @@ export class PairingStatsService {
       }).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
 
       // Calculate recent form from games (computed on-the-fly)
-      const recentForm = await this.getRecentFormForPairing(groupId, orderedP1, orderedP2);
+      const { recentForm, recentGames } = await this.getRecentGamesForPairing(groupId, orderedP1, orderedP2, playerNames);
 
       // Use stored streak if available, otherwise compute from recent form
       let currentStreak = partnerStat?.current_streak ?? 0;
@@ -477,6 +477,7 @@ export class PairingStatsService {
         currentStreak,
         bestWinStreak,
         recentForm: recentForm.slice(0, 5),
+        recentGames: recentGames.slice(0, 3),
         matchups: matchupStats,
       };
     } catch (error) {
@@ -486,13 +487,14 @@ export class PairingStatsService {
   }
 
   /**
-   * Get recent form (last 10 games) for a pairing - computed from games table
+   * Get recent games with details for a pairing - computed from games table
    */
-  private static async getRecentFormForPairing(
+  private static async getRecentGamesForPairing(
     groupId: string,
     player1Id: string,
-    player2Id: string
-  ): Promise<('W' | 'L')[]> {
+    player2Id: string,
+    playerNames: Map<string, string>
+  ): Promise<{ recentForm: ('W' | 'L')[]; recentGames: RecentGame[] }> {
     const supabase = createSupabaseClient();
 
     try {
@@ -503,7 +505,7 @@ export class PairingStatsService {
         .eq('group_id', groupId);
 
       const sessionIds = (sessions || []).map(s => s.id);
-      if (sessionIds.length === 0) return [];
+      if (sessionIds.length === 0) return { recentForm: [], recentGames: [] };
 
       // Get player mappings
       const { data: sessionPlayers } = await supabase
@@ -515,22 +517,25 @@ export class PairingStatsService {
       // Find session player IDs that map to our group player IDs
       const player1SessionIds = new Set<string>();
       const player2SessionIds = new Set<string>();
+      const sessionPlayerToGroup = new Map<string, string>();
       
       (sessionPlayers || []).forEach(p => {
         if (p.group_player_id === player1Id) player1SessionIds.add(p.id);
         if (p.group_player_id === player2Id) player2SessionIds.add(p.id);
+        if (p.group_player_id) sessionPlayerToGroup.set(p.id, p.group_player_id);
       });
 
       // Get recent games
       const { data: games } = await supabase
         .from('games')
-        .select('team_a, team_b, winning_team')
+        .select('team_a, team_b, winning_team, team_a_score, team_b_score, created_at')
         .in('session_id', sessionIds)
         .not('winning_team', 'is', null)
         .order('created_at', { ascending: false })
         .limit(50);
 
       const recentForm: ('W' | 'L')[] = [];
+      const recentGames: RecentGame[] = [];
 
       (games || []).forEach(game => {
         if (recentForm.length >= 10) return;
@@ -545,16 +550,38 @@ export class PairingStatsService {
                            teamB.some((id: string) => player2SessionIds.has(id));
 
         if (bothInTeamA) {
-          recentForm.push(game.winning_team === 'A' ? 'W' : 'L');
+          const won = game.winning_team === 'A';
+          recentForm.push(won ? 'W' : 'L');
+          if (recentGames.length < 3) {
+            recentGames.push({
+              teamANames: teamA.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
+              teamBNames: teamB.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
+              teamAScore: game.team_a_score ?? undefined,
+              teamBScore: game.team_b_score ?? undefined,
+              won,
+              date: game.created_at ? new Date(game.created_at) : undefined,
+            });
+          }
         } else if (bothInTeamB) {
-          recentForm.push(game.winning_team === 'B' ? 'W' : 'L');
+          const won = game.winning_team === 'B';
+          recentForm.push(won ? 'W' : 'L');
+          if (recentGames.length < 3) {
+            recentGames.push({
+              teamANames: teamA.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
+              teamBNames: teamB.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
+              teamAScore: game.team_a_score ?? undefined,
+              teamBScore: game.team_b_score ?? undefined,
+              won,
+              date: game.created_at ? new Date(game.created_at) : undefined,
+            });
+          }
         }
       });
 
-      return recentForm;
+      return { recentForm, recentGames };
     } catch (error) {
-      console.error('[PairingStatsService] Error getting recent form:', error);
-      return [];
+      console.error('[PairingStatsService] Error getting recent games:', error);
+      return { recentForm: [], recentGames: [] };
     }
   }
 

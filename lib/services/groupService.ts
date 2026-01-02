@@ -494,12 +494,11 @@ export class GroupService {
 
   /**
    * Get group-level statistics
-   * Returns total games, total sessions, most active player, and closest matchup
+   * Returns total games, total sessions, and closest matchup
    */
   static async getGroupStats(groupId: string): Promise<{
     totalGames: number;
     totalSessions: number;
-    mostActivePlayer: { id: string; name: string; gamesPlayed: number } | null;
     closestMatchup: {
       team1Player1Name: string;
       team1Player2Name: string;
@@ -537,19 +536,6 @@ export class GroupService {
           .not('winning_team', 'is', null);
         totalGames = gameCount || 0;
       }
-
-      // Get most active player (player with most total_games)
-      const { data: topPlayer } = await supabase
-        .from('group_players')
-        .select('id, name, total_games')
-        .eq('group_id', groupId)
-        .order('total_games', { ascending: false })
-        .limit(1)
-        .single();
-
-      const mostActivePlayer = topPlayer && topPlayer.total_games > 0
-        ? { id: topPlayer.id, name: topPlayer.name, gamesPlayed: topPlayer.total_games }
-        : null;
 
       // Get closest matchup (pairing matchup with smallest win difference, min 5 games)
       const { data: matchups } = await supabase
@@ -601,7 +587,6 @@ export class GroupService {
       return {
         totalGames,
         totalSessions: sessionCount || 0,
-        mostActivePlayer,
         closestMatchup,
       };
     } catch (error) {
@@ -609,7 +594,6 @@ export class GroupService {
       return {
         totalGames: 0,
         totalSessions: 0,
-        mostActivePlayer: null,
         closestMatchup: null,
       };
     }

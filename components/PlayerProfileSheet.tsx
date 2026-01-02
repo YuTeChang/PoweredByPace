@@ -64,10 +64,24 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-japandi-text-primary">
+                  {stats.totalGames}
+                </div>
+                <div className="text-xs text-japandi-text-muted mt-1">Games</div>
+              </div>
+              <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-japandi-text-primary">
+                  {stats.sessionsPlayed}
+                </div>
+                <div className="text-xs text-japandi-text-muted mt-1">Sessions</div>
+              </div>
+              <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
+                <div className="text-2xl font-bold text-japandi-text-primary">
                   {stats.wins}-{stats.losses}
                 </div>
                 <div className="text-xs text-japandi-text-muted mt-1">W-L</div>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
               <div className="bg-japandi-background-primary rounded-xl p-4 text-center">
                 <div className="text-2xl font-bold text-japandi-text-primary">
                   {formatPercentage(stats.winRate)}
@@ -203,6 +217,50 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
             </div>
           )}
 
+          {/* Recent Games */}
+          {stats.recentGames && stats.recentGames.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
+                Last {stats.recentGames.length} Games
+              </h3>
+              <div className="space-y-2">
+                {stats.recentGames.map((game, i) => (
+                  <div
+                    key={i}
+                    className={`rounded-xl p-3 border ${
+                      game.won 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm text-japandi-text-primary truncate">
+                          {game.teamANames.join(' & ')}
+                        </div>
+                        <div className="text-xs text-japandi-text-muted">vs</div>
+                        <div className="text-sm text-japandi-text-primary truncate">
+                          {game.teamBNames.join(' & ')}
+                        </div>
+                      </div>
+                      <div className="text-right ml-3 flex-shrink-0">
+                        {game.teamAScore !== undefined && game.teamBScore !== undefined ? (
+                          <div className="text-lg font-bold text-japandi-text-primary">
+                            {game.teamAScore}-{game.teamBScore}
+                          </div>
+                        ) : (
+                          <div className={`text-sm font-bold ${game.won ? 'text-green-600' : 'text-red-600'}`}>
+                            {game.won ? 'WIN' : 'LOSS'}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Sessions */}
           <div className="text-center text-sm text-japandi-text-muted pt-2 border-t border-japandi-border-light">
             {stats.sessionsPlayed} sessions • {stats.totalGames} games played
@@ -212,4 +270,3 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
     </div>
   );
 }
-

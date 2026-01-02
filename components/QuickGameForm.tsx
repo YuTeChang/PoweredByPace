@@ -143,7 +143,27 @@ export default function QuickGameForm({
         !(teamA as [string | null, string | null]).includes((teamB as [string | null, string | null])[1] as string)
   );
 
-  const canSave = teamsComplete && winningTeam !== null;
+  // Validate scores: if both scores entered, winning team score must be >= losing team score
+  const scoresValid = (): boolean => {
+    if (!teamAScore && !teamBScore) return true; // No scores entered is OK
+    if (!teamAScore || !teamBScore) return true; // Only one score entered is OK (optional)
+    const scoreA = parseInt(teamAScore);
+    const scoreB = parseInt(teamBScore);
+    if (isNaN(scoreA) || isNaN(scoreB)) return true;
+    
+    if (winningTeam === 'A') {
+      return scoreA >= scoreB;
+    } else if (winningTeam === 'B') {
+      return scoreB >= scoreA;
+    }
+    return true;
+  };
+
+  const scoreValidationError = teamsComplete && winningTeam && teamAScore && teamBScore && !scoresValid()
+    ? "Winning team's score must be greater than or equal to losing team's score"
+    : null;
+
+  const canSave = teamsComplete && winningTeam !== null && scoresValid();
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -525,6 +545,13 @@ export default function QuickGameForm({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Score Validation Error */}
+      {scoreValidationError && (
+        <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          {scoreValidationError}
         </div>
       )}
 

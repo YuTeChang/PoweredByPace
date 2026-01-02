@@ -118,7 +118,6 @@ export class ApiClient {
   static async getGroupOverviewStats(groupId: string): Promise<{
     totalGames: number;
     totalSessions: number;
-    mostActivePlayer: { id: string; name: string; gamesPlayed: number } | null;
     closestMatchup: {
       team1Player1Name: string;
       team1Player2Name: string;

@@ -1,5 +1,5 @@
 import { createSupabaseClient } from '@/lib/supabase';
-import { LeaderboardEntry, PlayerDetailedStats, PartnerStats, OpponentStats } from '@/types';
+import { LeaderboardEntry, PlayerDetailedStats, PartnerStats, OpponentStats, RecentGame } from '@/types';
 
 export interface GroupPlayerStats {
   groupPlayerId: string;
@@ -215,6 +215,7 @@ export class StatsService {
       let pointsScored = 0;
       let pointsConceded = 0;
       const recentForm: ('W' | 'L')[] = [];
+      const recentGames: RecentGame[] = [];
       const partnerStatsMap = new Map<string, { wins: number; losses: number }>();
       const opponentStatsMap = new Map<string, { wins: number; losses: number }>();
       let currentStreak = 0;
@@ -252,6 +253,18 @@ export class StatsService {
         // Recent form (first 10 games since we sorted desc)
         if (recentForm.length < 10) {
           recentForm.push(won ? 'W' : 'L');
+        }
+
+        // Recent games with details (first 3)
+        if (recentGames.length < 3) {
+          recentGames.push({
+            teamANames: teamA.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+            teamBNames: teamB.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+            teamAScore: game.team_a_score ?? undefined,
+            teamBScore: game.team_b_score ?? undefined,
+            won,
+            date: game.created_at ? new Date(game.created_at) : undefined,
+          });
         }
 
         // Streak calculation (only count consecutive from most recent)
@@ -338,6 +351,7 @@ export class StatsService {
         currentStreak,
         partnerStats,
         opponentStats,
+        recentGames,
       };
     } catch (error) {
       console.error('[StatsService] Error fetching player detailed stats:', error);

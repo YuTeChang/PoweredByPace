@@ -3,6 +3,13 @@
 ## [Unreleased] - 2025-01
 
 ### Added
+- **Recent Games in Profile Sheets**: Show last 3 games with results in player and pairing profiles
+  - Team names, scores, and win/loss indicator for each game
+  - Green/red background for quick win/loss identification
+- **Games & Sessions Count**: Player profile now shows total games and sessions played in overview
+- **Score Validation**: Prevent recording games where losing team score > winning team score
+  - Error message displayed when validation fails
+  - Save button disabled until scores are valid
 - **Pairing Stats Feature**: Track doubles team combination performance
   - New "Pairings" tab on group page showing best pairs by win rate
   - Pairing profile modal with detailed stats (W-L, win rate, recent form)
@@ -15,6 +22,9 @@
   - Rate limiting documentation
 
 ### Changed
+- **Removed "Most Active" from Group Overview**: Simplified group stats card
+  - Removed mostActivePlayer query (one fewer DB call)
+  - Cleaner UI focusing on total games, sessions, and closest rivalry
 - **Admin-Only Operations**: Moved sensitive operations out of UI
   - Delete Group: Removed from UI, available via API only
   - Recalculate Stats: Removed from UI, available via API only (rate-limited to 5 min)
