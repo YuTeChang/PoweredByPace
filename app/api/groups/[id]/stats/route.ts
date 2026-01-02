@@ -24,11 +24,11 @@ export async function GET(
 
     const leaderboard = await StatsService.getLeaderboard(groupId);
 
-    // Add caching headers (shorter cache for fresh data)
+    // Temporarily disable caching for debugging
     const response = NextResponse.json(leaderboard);
     response.headers.set(
       'Cache-Control',
-      'public, s-maxage=5, stale-while-revalidate=10'
+      'no-store, no-cache, must-revalidate'
     );
     
     return response;

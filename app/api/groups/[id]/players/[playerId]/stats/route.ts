@@ -25,11 +25,11 @@ export async function GET(
       );
     }
 
-    // Add caching headers
+    // Temporarily disable caching for debugging
     const response = NextResponse.json(stats);
     response.headers.set(
       'Cache-Control',
-      'public, s-maxage=10, stale-while-revalidate=30'
+      'no-store, no-cache, must-revalidate'
     );
     
     return response;

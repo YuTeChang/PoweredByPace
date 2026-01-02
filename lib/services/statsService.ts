@@ -94,6 +94,11 @@ export class StatsService {
         .order('created_at', { ascending: false });
       
       console.log(`[getLeaderboard] Found ${allGames?.length || 0} total completed games`);
+      
+      // Debug: Log a sample of games to verify data
+      if (allGames && allGames.length > 0) {
+        console.log(`[getLeaderboard] Sample game: team_a=${JSON.stringify(allGames[0].team_a)}, team_b=${JSON.stringify(allGames[0].team_b)}`);
+      }
 
       // Compute stats for each player from games
       const statsMap = new Map<string, { wins: number; losses: number; recentForm: ('W' | 'L')[] }>();
@@ -142,6 +147,9 @@ export class StatsService {
         const stats = statsMap.get(gp.id) || { wins: 0, losses: 0, recentForm: [] };
         const totalGames = stats.wins + stats.losses;
         const winRate = totalGames > 0 ? (stats.wins / totalGames) * 100 : 0;
+        
+        // Debug: Log stats for each player
+        console.log(`[getLeaderboard] Player ${gp.name} (${gp.id}): ${stats.wins}W-${stats.losses}L = ${totalGames} games`);
         
         // Determine trend based on recent form
         const recentWins = stats.recentForm.filter(r => r === 'W').length;
