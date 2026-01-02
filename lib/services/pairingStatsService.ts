@@ -914,8 +914,6 @@ export class PairingStatsService {
       result.partnerStatsCreated = partnerCount || 0;
       result.matchupsCreated = matchupCount || 0;
 
-      console.log(`[PairingStatsService] Recalculation complete: ${result.gamesProcessed} games, ${result.partnerStatsCreated} partner stats, ${result.matchupsCreated} matchups`);
-
       return result;
     } catch (error) {
       console.error('[PairingStatsService] Error recalculating stats:', error);

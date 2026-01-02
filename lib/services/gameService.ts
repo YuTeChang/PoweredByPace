@@ -409,7 +409,6 @@ export class GameService {
           if (matchedGroupPlayerId) {
             playerToGroupPlayer.set(p.id, matchedGroupPlayerId);
             playersToUpdate.push({ id: p.id, groupPlayerId: matchedGroupPlayerId });
-            console.log(`[GameService] Auto-linking player "${p.name}" to group player ${matchedGroupPlayerId}`);
           }
         }
       });
@@ -429,8 +428,6 @@ export class GameService {
       const teamBGroupIds = game.teamB
         .map(id => playerToGroupPlayer.get(id))
         .filter(Boolean) as string[];
-
-      console.log(`[GameService] Processing game result - TeamA: ${teamAGroupIds.length} players, TeamB: ${teamBGroupIds.length} players`);
 
       // Update ELO ratings and individual stats
       if (teamAGroupIds.length > 0 || teamBGroupIds.length > 0) {
@@ -467,8 +464,6 @@ export class GameService {
           // Update head-to-head pairing matchup
           await PairingStatsService.updatePairingMatchup(groupId, teamAGroupIds, teamBGroupIds, game.winningTeam);
         }
-      } else {
-        console.warn('[GameService] No group player mappings found, skipping ELO update');
       }
     } catch (error) {
       // Log but don't throw - ELO update failure shouldn't fail the game update

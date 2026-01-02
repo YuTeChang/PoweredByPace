@@ -73,6 +73,7 @@ export interface PartnerStats {
   wins: number;
   losses: number;
   winRate: number;
+  games?: RecentGame[]; // Game history with this partner
 }
 
 // Opponent statistics
@@ -83,6 +84,7 @@ export interface OpponentStats {
   wins: number;
   losses: number;
   winRate: number;
+  games?: RecentGame[]; // Game history against this opponent
 }
 
 // Recent game result for display

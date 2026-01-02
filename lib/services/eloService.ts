@@ -258,8 +258,6 @@ export class EloService {
         // Update best win streak if current win streak exceeds it
         const newBestWinStreak = newStreak > bestWinStreak ? newStreak : bestWinStreak;
 
-        console.log(`[EloService] Updating stats for ${update.groupPlayerId}: ELO=${update.newRating}, wins=${currentWins}->${newWins}, losses=${currentLosses}->${newLosses}, streak=${currentStreak}->${newStreak}, bestStreak=${bestWinStreak}->${newBestWinStreak}, won=${won}`);
-
         const { error: updateError } = await supabase
           .from('group_players')
           .update({ 
@@ -351,8 +349,6 @@ export class EloService {
     const supabase = createSupabaseClient();
     const result = { playersReset: 0, gamesProcessed: 0, playersUpdated: [] as string[] };
 
-    console.log(`[EloService] Starting recalculation for group ${groupId}`);
-
     // Reset all players to default ELO and zero stats
     const { data: resetPlayers, error: resetError } = await supabase
       .from('group_players')
@@ -373,7 +369,6 @@ export class EloService {
     }
 
     result.playersReset = resetPlayers?.length || 0;
-    console.log(`[EloService] Reset ${result.playersReset} players to default stats`);
 
     // Get all sessions in the group ordered by date
     const { data: sessions, error: sessionsError } = await supabase
@@ -389,7 +384,6 @@ export class EloService {
     // Get all games from these sessions, ordered by creation time
     const sessionIds = sessions.map(s => s.id);
     if (sessionIds.length === 0) {
-      console.log('[EloService] No sessions found, recalculation complete');
       return result;
     }
 
@@ -403,8 +397,6 @@ export class EloService {
     if (gamesError || !games) {
       throw new Error('Failed to fetch games');
     }
-
-    console.log(`[EloService] Found ${games.length} completed games to process`);
 
     // Get all group players for auto-linking by name
     const { data: groupPlayersData } = await supabase
@@ -447,7 +439,6 @@ export class EloService {
 
     // Update players with missing group_player_id links
     if (playersToUpdate.length > 0) {
-      console.log(`[EloService] Auto-linking ${playersToUpdate.length} session players to group players`);
       for (const update of playersToUpdate) {
         await supabase
           .from('players')
@@ -455,8 +446,6 @@ export class EloService {
           .eq('id', update.id);
       }
     }
-
-    console.log(`[EloService] Found ${playerToGroupPlayer.size} linked session players (${playersToUpdate.length} auto-linked)`);
 
     // Track which group players get updated
     const updatedGroupPlayers = new Set<string>();
@@ -478,7 +467,6 @@ export class EloService {
     }
 
     result.playersUpdated = Array.from(updatedGroupPlayers).map(id => groupPlayerNames.get(id) || id);
-    console.log(`[EloService] Recalculation complete: ${result.gamesProcessed} games, ${result.playersUpdated.length} players updated`);
 
     return result;
   }

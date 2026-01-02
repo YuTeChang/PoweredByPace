@@ -264,8 +264,8 @@ export class StatsService {
       let pointsConceded = 0;
       const recentForm: ('W' | 'L')[] = [];
       const recentGames: RecentGame[] = [];
-      const partnerStatsMap = new Map<string, { wins: number; losses: number }>();
-      const opponentStatsMap = new Map<string, { wins: number; losses: number }>();
+      const partnerStatsMap = new Map<string, { wins: number; losses: number; games: RecentGame[] }>();
+      const opponentStatsMap = new Map<string, { wins: number; losses: number; games: RecentGame[] }>();
       let currentStreak = 0;
       let streakType: 'W' | 'L' | null = null;
       let bestWinStreak = 0;
@@ -308,8 +308,8 @@ export class StatsService {
           recentForm.push(won ? 'W' : 'L');
         }
 
-        // Recent games with details (first 3)
-        if (recentGames.length < 3) {
+        // Recent games with details (first 10)
+        if (recentGames.length < 10) {
           recentGames.push({
             teamANames: teamA.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
             teamBNames: teamB.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
@@ -344,11 +344,20 @@ export class StatsService {
           const partnerGroupId = playerToGroupPlayer.get(teammateId);
           if (partnerGroupId) {
             if (!partnerStatsMap.has(partnerGroupId)) {
-              partnerStatsMap.set(partnerGroupId, { wins: 0, losses: 0 });
+              partnerStatsMap.set(partnerGroupId, { wins: 0, losses: 0, games: [] });
             }
             const pStats = partnerStatsMap.get(partnerGroupId)!;
             if (won) pStats.wins += 1;
             else pStats.losses += 1;
+            // Add game to partner's history
+            pStats.games.push({
+              teamANames: teamA.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+              teamBNames: teamB.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+              teamAScore: game.team_a_score ?? undefined,
+              teamBScore: game.team_b_score ?? undefined,
+              won,
+              date: game.created_at ? new Date(game.created_at) : undefined,
+            });
           }
         });
 
@@ -357,11 +366,20 @@ export class StatsService {
           const opponentGroupId = playerToGroupPlayer.get(opponentId);
           if (opponentGroupId) {
             if (!opponentStatsMap.has(opponentGroupId)) {
-              opponentStatsMap.set(opponentGroupId, { wins: 0, losses: 0 });
+              opponentStatsMap.set(opponentGroupId, { wins: 0, losses: 0, games: [] });
             }
             const oStats = opponentStatsMap.get(opponentGroupId)!;
             if (won) oStats.wins += 1;
             else oStats.losses += 1;
+            // Add game to opponent's history
+            oStats.games.push({
+              teamANames: teamA.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+              teamBNames: teamB.map(id => groupPlayerToName.get(playerToGroupPlayer.get(id) || '') || 'Unknown'),
+              teamAScore: game.team_a_score ?? undefined,
+              teamBScore: game.team_b_score ?? undefined,
+              won,
+              date: game.created_at ? new Date(game.created_at) : undefined,
+            });
           }
         });
       });
@@ -377,6 +395,7 @@ export class StatsService {
           winRate: stats.wins + stats.losses > 0 
             ? (stats.wins / (stats.wins + stats.losses)) * 100 
             : 0,
+          games: stats.games,
         }))
         .sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
 
@@ -391,6 +410,7 @@ export class StatsService {
           winRate: stats.wins + stats.losses > 0 
             ? (stats.wins / (stats.wins + stats.losses)) * 100 
             : 0,
+          games: stats.games,
         }))
         .sort((a, b) => b.winRate - a.winRate || b.gamesPlayed - a.gamesPlayed);
 

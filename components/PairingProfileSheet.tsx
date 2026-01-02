@@ -260,6 +260,11 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
                             {game.won ? 'WIN' : 'LOSS'}
                           </div>
                         )}
+                        {game.date && (
+                          <div className="text-xs text-japandi-text-muted mt-1">
+                            {new Date(game.date).toLocaleDateString()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

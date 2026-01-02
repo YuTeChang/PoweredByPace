@@ -1,14 +1,26 @@
 "use client";
 
-import { PlayerDetailedStats } from "@/types";
+import { useState } from "react";
+import { PlayerDetailedStats, PartnerStats, OpponentStats } from "@/types";
 import { formatPercentage } from "@/lib/calculations";
+import { PlayerMatchupDetailSheet } from "./PlayerMatchupDetailSheet";
 
 interface PlayerProfileSheetProps {
   stats: PlayerDetailedStats;
   onClose: () => void;
 }
 
+type SelectedMatchup = {
+  type: 'partner';
+  data: PartnerStats;
+} | {
+  type: 'opponent';
+  data: OpponentStats;
+} | null;
+
 export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) {
+  const [selectedMatchup, setSelectedMatchup] = useState<SelectedMatchup>(null);
+  
   // Get top 3 partners and opponents
   const topPartners = stats.partnerStats.slice(0, 3);
   const topOpponents = stats.opponentStats.slice(0, 3);
@@ -157,9 +169,10 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
               </h3>
               <div className="space-y-2">
                 {topPartners.map((partner, i) => (
-                  <div
+                  <button
                     key={partner.partnerId}
-                    className="flex items-center justify-between bg-japandi-background-primary rounded-xl p-3"
+                    onClick={() => setSelectedMatchup({ type: 'partner', data: partner })}
+                    className="w-full text-left flex items-center justify-between bg-japandi-background-primary rounded-xl p-3 hover:bg-japandi-background-primary/80 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
@@ -174,14 +187,19 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
                         </div>
                       </div>
                     </div>
-                    <div className={`text-sm font-semibold ${
-                      partner.winRate >= 60 ? 'text-green-600' : 
-                      partner.winRate >= 40 ? 'text-japandi-text-primary' : 
-                      'text-red-600'
-                    }`}>
-                      {formatPercentage(partner.winRate)}
+                    <div className="flex items-center gap-2">
+                      <div className={`text-sm font-semibold ${
+                        partner.winRate >= 60 ? 'text-green-600' : 
+                        partner.winRate >= 40 ? 'text-japandi-text-primary' : 
+                        'text-red-600'
+                      }`}>
+                        {formatPercentage(partner.winRate)}
+                      </div>
+                      <svg className="w-4 h-4 text-japandi-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
               {bestPartner && bestPartner.winRate >= 70 && bestPartner.gamesPlayed >= 3 && (
@@ -205,9 +223,10 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
               </h3>
               <div className="space-y-2">
                 {topOpponents.map((opponent) => (
-                  <div
+                  <button
                     key={opponent.opponentId}
-                    className="flex items-center justify-between bg-japandi-background-primary rounded-xl p-3"
+                    onClick={() => setSelectedMatchup({ type: 'opponent', data: opponent })}
+                    className="w-full text-left flex items-center justify-between bg-japandi-background-primary rounded-xl p-3 hover:bg-japandi-background-primary/80 transition-colors"
                   >
                     <div>
                       <div className="font-medium text-japandi-text-primary">{opponent.opponentName}</div>
@@ -215,14 +234,19 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
                         {opponent.wins}-{opponent.losses} ({opponent.gamesPlayed} games)
                       </div>
                     </div>
-                    <div className={`text-sm font-semibold ${
-                      opponent.winRate >= 60 ? 'text-green-600' : 
-                      opponent.winRate >= 40 ? 'text-japandi-text-primary' : 
-                      'text-red-600'
-                    }`}>
-                      {formatPercentage(opponent.winRate)}
+                    <div className="flex items-center gap-2">
+                      <div className={`text-sm font-semibold ${
+                        opponent.winRate >= 60 ? 'text-green-600' : 
+                        opponent.winRate >= 40 ? 'text-japandi-text-primary' : 
+                        'text-red-600'
+                      }`}>
+                        {formatPercentage(opponent.winRate)}
+                      </div>
+                      <svg className="w-4 h-4 text-japandi-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
               {dominates && dominates.winRate >= 70 && dominates.gamesPlayed >= 3 && (
@@ -274,6 +298,11 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
                             {game.won ? 'WIN' : 'LOSS'}
                           </div>
                         )}
+                        {game.date && (
+                          <div className="text-xs text-japandi-text-muted mt-1">
+                            {new Date(game.date).toLocaleDateString()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -288,6 +317,21 @@ export function PlayerProfileSheet({ stats, onClose }: PlayerProfileSheetProps) 
           </div>
         </div>
       </div>
+      
+      {/* Player Matchup Detail Sheet */}
+      {selectedMatchup && (
+        <PlayerMatchupDetailSheet
+          playerName={stats.playerName}
+          matchupName={selectedMatchup.type === 'partner' ? selectedMatchup.data.partnerName : selectedMatchup.data.opponentName}
+          matchupType={selectedMatchup.type}
+          wins={selectedMatchup.data.wins}
+          losses={selectedMatchup.data.losses}
+          gamesPlayed={selectedMatchup.data.gamesPlayed}
+          winRate={selectedMatchup.data.winRate}
+          games={selectedMatchup.data.games || []}
+          onClose={() => setSelectedMatchup(null)}
+        />
+      )}
     </div>
   );
 }
