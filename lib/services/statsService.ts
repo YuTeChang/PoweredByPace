@@ -36,27 +36,25 @@ export class StatsService {
     try {
       const supabase = createSupabaseClient();
       
-      console.log(`[getLeaderboard] Starting for groupId='${groupId}' (length=${groupId.length})`);
-      
-      // Get all group players
-      const { data: groupPlayers, error: gpError } = await supabase
-        .from('group_players')
-        .select('id, name, elo_rating')
-        .eq('group_id', groupId)
-        .order('elo_rating', { ascending: false });
+      // Run independent queries in parallel for better performance
+      const [groupPlayersResult, sessionsResult] = await Promise.all([
+        supabase
+          .from('group_players')
+          .select('id, name, elo_rating')
+          .eq('group_id', groupId)
+          .order('elo_rating', { ascending: false }),
+        supabase
+          .from('sessions')
+          .select('id')
+          .eq('group_id', groupId)
+      ]);
+
+      const { data: groupPlayers, error: gpError } = groupPlayersResult;
+      const { data: sessions } = sessionsResult;
 
       if (gpError) throw gpError;
       if (!groupPlayers || groupPlayers.length === 0) return [];
 
-      // Get all sessions for this group
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('group_id', groupId);
-      
-      console.log(`[getLeaderboard] Sessions query for groupId='${groupId}': found ${sessions?.length || 0} sessions, error=${sessionsError?.message || 'none'}`);
-      console.log(`[getLeaderboard] Sessions IDs: ${JSON.stringify(sessions?.map(s => s.id) || [])}`);
-      
       const sessionIds = (sessions || []).map(s => s.id);
       if (sessionIds.length === 0) {
         // No sessions = no games, return empty stats for all players
@@ -74,12 +72,23 @@ export class StatsService {
         }));
       }
       
-      // Get player mappings (session player ID -> group player ID)
-      const { data: players } = await supabase
-        .from('players')
-        .select('id, group_player_id')
-        .in('session_id', sessionIds)
-        .not('group_player_id', 'is', null);
+      // Run player mappings and games queries in parallel
+      const [playersResult, allGamesResult] = await Promise.all([
+        supabase
+          .from('players')
+          .select('id, group_player_id')
+          .in('session_id', sessionIds)
+          .not('group_player_id', 'is', null),
+        supabase
+          .from('games')
+          .select('team_a, team_b, winning_team, created_at')
+          .in('session_id', sessionIds)
+          .not('winning_team', 'is', null)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const { data: players } = playersResult;
+      const { data: allGames } = allGamesResult;
 
       const playerToGroupPlayer = new Map<string, string>();
       (players || []).forEach((p) => {
@@ -88,21 +97,9 @@ export class StatsService {
         }
       });
       
-      console.log(`[getLeaderboard] Found ${players?.length || 0} session player mappings, ${sessionIds.length} sessions`);
-
-      // Get ALL completed games (not just recent 50)
-      const { data: allGames } = await supabase
-        .from('games')
-        .select('team_a, team_b, winning_team, created_at')
-        .in('session_id', sessionIds)
-        .not('winning_team', 'is', null)
-        .order('created_at', { ascending: false });
-      
-      console.log(`[getLeaderboard] Found ${allGames?.length || 0} total completed games`);
       
       // Debug: Log a sample of games to verify data
       if (allGames && allGames.length > 0) {
-        console.log(`[getLeaderboard] Sample game: team_a=${JSON.stringify(allGames[0].team_a)}, team_b=${JSON.stringify(allGames[0].team_b)}`);
       }
 
       // Compute stats for each player from games
@@ -154,7 +151,6 @@ export class StatsService {
         const winRate = totalGames > 0 ? (stats.wins / totalGames) * 100 : 0;
         
         // Debug: Log stats for each player
-        console.log(`[getLeaderboard] Player ${gp.name} (${gp.id}): ${stats.wins}W-${stats.losses}L = ${totalGames} games`);
         
         // Determine trend based on recent form
         const recentWins = stats.recentForm.filter(r => r === 'W').length;
@@ -193,59 +189,63 @@ export class StatsService {
   /**
    * Get detailed stats for a specific player
    */
-  // Cache bust: 2026-01-02T17:00 - Force fresh deployment
   static async getPlayerDetailedStats(groupId: string, groupPlayerId: string): Promise<PlayerDetailedStats | null> {
     try {
       const supabase = createSupabaseClient();
       
-      console.log(`[getPlayerDetailedStats v2] Starting for groupId='${groupId}' (length=${groupId.length}), groupPlayerId=${groupPlayerId}`);
-      
-      // Get the player
-      const { data: player, error: playerError } = await supabase
-        .from('group_players')
-        .select('id, name, elo_rating')
-        .eq('id', groupPlayerId)
-        .eq('group_id', groupId)
-        .single();
+      // Run first batch of independent queries in parallel
+      const [playerResult, allPlayersResult, sessionsResult] = await Promise.all([
+        supabase
+          .from('group_players')
+          .select('id, name, elo_rating')
+          .eq('id', groupPlayerId)
+          .eq('group_id', groupId)
+          .single(),
+        supabase
+          .from('group_players')
+          .select('id, elo_rating')
+          .eq('group_id', groupId)
+          .order('elo_rating', { ascending: false }),
+        supabase
+          .from('sessions')
+          .select('id')
+          .eq('group_id', groupId)
+      ]);
+
+      const { data: player, error: playerError } = playerResult;
+      const { data: allPlayers } = allPlayersResult;
+      const { data: sessions } = sessionsResult;
 
       if (playerError || !player) return null;
-
-      // Get total player count for rank
-      const { data: allPlayers } = await supabase
-        .from('group_players')
-        .select('id, elo_rating')
-        .eq('group_id', groupId)
-        .order('elo_rating', { ascending: false });
 
       const totalPlayers = allPlayers?.length || 0;
       const rank = (allPlayers?.findIndex(p => p.id === groupPlayerId) || 0) + 1;
 
-      // Get all sessions in the group
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('group_id', groupId);
-
-      console.log(`[getPlayerDetailedStats] Sessions query for groupId='${groupId}': found ${sessions?.length || 0} sessions, error=${sessionsError?.message || 'none'}`);
-      console.log(`[getPlayerDetailedStats] Sessions IDs: ${JSON.stringify(sessions?.map(s => s.id) || [])}`);
-
       const sessionIds = (sessions || []).map(s => s.id);
       if (sessionIds.length === 0) {
-        console.log(`[getPlayerDetailedStats] No sessions found, returning empty stats`);
         return this.buildEmptyStats(player, rank, totalPlayers);
       }
 
-      // Get player mappings
-      const { data: sessionPlayers } = await supabase
-        .from('players')
-        .select('id, session_id, group_player_id, name')
-        .in('session_id', sessionIds);
+      // Run second batch of queries in parallel
+      const [sessionPlayersResult, gamesResult] = await Promise.all([
+        supabase
+          .from('players')
+          .select('id, session_id, group_player_id, name')
+          .in('session_id', sessionIds),
+        supabase
+          .from('games')
+          .select('*')
+          .in('session_id', sessionIds)
+          .not('winning_team', 'is', null)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const { data: sessionPlayers } = sessionPlayersResult;
+      const { data: games } = gamesResult;
 
       const playerToGroupPlayer = new Map<string, string>();
       const groupPlayerToName = new Map<string, string>();
       const thisPlayerSessionIds = new Set<string>();
-      
-      console.log(`[getPlayerDetailedStats] Found ${sessionPlayers?.length || 0} session players across ${sessionIds.length} sessions`);
       
       (sessionPlayers || []).forEach((p) => {
         if (p.group_player_id) {
@@ -256,19 +256,6 @@ export class StatsService {
           }
         }
       });
-      
-      console.log(`[getPlayerDetailedStats] Player ${player.name} has ${thisPlayerSessionIds.size} sessions with linked entries`);
-      console.log(`[getPlayerDetailedStats] playerToGroupPlayer map size: ${playerToGroupPlayer.size}`);
-
-      // Get all completed games
-      const { data: games } = await supabase
-        .from('games')
-        .select('*')
-        .in('session_id', sessionIds)
-        .not('winning_team', 'is', null)
-        .order('created_at', { ascending: false });
-      
-      console.log(`[getPlayerDetailedStats] Found ${games?.length || 0} total completed games`);
 
       // Calculate stats
       let wins = 0;
@@ -409,7 +396,6 @@ export class StatsService {
 
       const totalGames = wins + losses;
       
-      console.log(`[getPlayerDetailedStats] Player ${player.name}: found in ${gamesPlayerFoundIn} games, wins=${wins}, losses=${losses}, totalGames=${totalGames}`);
 
       return {
         groupPlayerId: player.id,
