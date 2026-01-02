@@ -325,57 +325,127 @@ export class PairingStatsService {
 
   /**
    * Get all pairing stats for a group (leaderboard of best pairs)
+   * Computes stats from actual games for accuracy (stored stats may be stale)
    */
   static async getPairingLeaderboard(groupId: string): Promise<PairingStats[]> {
     const supabase = createSupabaseClient();
 
     try {
-      // Get all partner stats with player names
-      const { data: partnerStats, error } = await supabase
-        .from('partner_stats')
-        .select(`
-          player1_id,
-          player2_id,
-          wins,
-          losses,
-          total_games,
-          elo_rating
-        `)
-        .eq('group_id', groupId)
-        .gt('total_games', 0)
-        .order('wins', { ascending: false });
-
-      if (error) throw error;
-
-      // Get all player names
-      const { data: players } = await supabase
+      // Get all group players
+      const { data: groupPlayers } = await supabase
         .from('group_players')
         .select('id, name')
         .eq('group_id', groupId);
 
-      const playerNames = new Map<string, string>();
-      (players || []).forEach(p => playerNames.set(p.id, p.name));
+      if (!groupPlayers || groupPlayers.length === 0) return [];
 
-      // Map to PairingStats
-      return (partnerStats || [])
-        .map(stat => ({
-          player1Id: stat.player1_id,
-          player1Name: playerNames.get(stat.player1_id) || 'Unknown',
-          player2Id: stat.player2_id,
-          player2Name: playerNames.get(stat.player2_id) || 'Unknown',
-          gamesPlayed: stat.total_games,
-          wins: stat.wins,
-          losses: stat.losses,
-          winRate: stat.total_games > 0 ? (stat.wins / stat.total_games) * 100 : 0,
-          eloRating: stat.elo_rating || this.DEFAULT_PAIRING_ELO,
-          isQualified: stat.total_games >= this.MIN_GAMES_QUALIFIED,
-        }))
-        .sort((a, b) => {
-          // Qualified pairs first, then by win rate, then by games played
-          if (a.isQualified !== b.isQualified) return a.isQualified ? -1 : 1;
-          if (a.winRate !== b.winRate) return b.winRate - a.winRate;
-          return b.gamesPlayed - a.gamesPlayed;
+      const playerNames = new Map<string, string>();
+      groupPlayers.forEach(p => playerNames.set(p.id, p.name));
+
+      // Get all sessions for this group
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('group_id', groupId);
+
+      const sessionIds = (sessions || []).map(s => s.id);
+      if (sessionIds.length === 0) return [];
+
+      // Get player mappings (session player ID -> group player ID)
+      const { data: sessionPlayers } = await supabase
+        .from('players')
+        .select('id, group_player_id')
+        .in('session_id', sessionIds)
+        .not('group_player_id', 'is', null);
+
+      const playerToGroupPlayer = new Map<string, string>();
+      (sessionPlayers || []).forEach((p) => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+        }
+      });
+
+      // Get all completed doubles games
+      const { data: games } = await supabase
+        .from('games')
+        .select('team_a, team_b, winning_team')
+        .in('session_id', sessionIds)
+        .not('winning_team', 'is', null);
+
+      // Compute stats for each pairing
+      const pairingStats = new Map<string, { wins: number; losses: number }>();
+
+      (games || []).forEach((game) => {
+        const teamA = typeof game.team_a === 'string' ? JSON.parse(game.team_a) : game.team_a;
+        const teamB = typeof game.team_b === 'string' ? JSON.parse(game.team_b) : game.team_b;
+        
+        // Skip singles games
+        if (teamA.length !== 2 || teamB.length !== 2) return;
+
+        const winningTeam = game.winning_team;
+
+        // Get group player IDs for each team
+        const teamAGroupIds = teamA.map((id: string) => playerToGroupPlayer.get(id)).filter(Boolean) as string[];
+        const teamBGroupIds = teamB.map((id: string) => playerToGroupPlayer.get(id)).filter(Boolean) as string[];
+
+        // Only count if both players in each team are linked to group players
+        if (teamAGroupIds.length === 2) {
+          const [p1, p2] = this.getOrderedPair(teamAGroupIds[0], teamAGroupIds[1]);
+          const key = `${p1}|${p2}`;
+          if (!pairingStats.has(key)) pairingStats.set(key, { wins: 0, losses: 0 });
+          const stats = pairingStats.get(key)!;
+          if (winningTeam === 'A') stats.wins++;
+          else stats.losses++;
+        }
+
+        if (teamBGroupIds.length === 2) {
+          const [p1, p2] = this.getOrderedPair(teamBGroupIds[0], teamBGroupIds[1]);
+          const key = `${p1}|${p2}`;
+          if (!pairingStats.has(key)) pairingStats.set(key, { wins: 0, losses: 0 });
+          const stats = pairingStats.get(key)!;
+          if (winningTeam === 'B') stats.wins++;
+          else stats.losses++;
+        }
+      });
+
+      // Get stored ELO ratings (these are calculated properly during game recording)
+      const { data: storedStats } = await supabase
+        .from('partner_stats')
+        .select('player1_id, player2_id, elo_rating')
+        .eq('group_id', groupId);
+
+      const eloMap = new Map<string, number>();
+      (storedStats || []).forEach(s => {
+        const key = `${s.player1_id}|${s.player2_id}`;
+        eloMap.set(key, s.elo_rating || this.DEFAULT_PAIRING_ELO);
+      });
+
+      // Build result array
+      const result: PairingStats[] = [];
+      pairingStats.forEach((stats, key) => {
+        const [player1Id, player2Id] = key.split('|');
+        const totalGames = stats.wins + stats.losses;
+        
+        result.push({
+          player1Id,
+          player1Name: playerNames.get(player1Id) || 'Unknown',
+          player2Id,
+          player2Name: playerNames.get(player2Id) || 'Unknown',
+          gamesPlayed: totalGames,
+          wins: stats.wins,
+          losses: stats.losses,
+          winRate: totalGames > 0 ? (stats.wins / totalGames) * 100 : 0,
+          eloRating: eloMap.get(key) || this.DEFAULT_PAIRING_ELO,
+          isQualified: totalGames >= this.MIN_GAMES_QUALIFIED,
         });
+      });
+
+      // Sort: qualified first, then by win rate, then by games played
+      return result.sort((a, b) => {
+        if (a.isQualified !== b.isQualified) return a.isQualified ? -1 : 1;
+        if (a.winRate !== b.winRate) return b.winRate - a.winRate;
+        return b.gamesPlayed - a.gamesPlayed;
+      });
     } catch (error) {
       console.error('[PairingStatsService] Error fetching pairing leaderboard:', error);
       return [];
@@ -384,6 +454,7 @@ export class PairingStatsService {
 
   /**
    * Get detailed stats for a specific pairing including head-to-head matchups
+   * Computes stats from actual games for accuracy
    */
   static async getPairingDetailedStats(
     groupId: string,
@@ -394,10 +465,10 @@ export class PairingStatsService {
     const [orderedP1, orderedP2] = this.getOrderedPair(player1Id, player2Id);
 
     try {
-      // Get partner stats
+      // Get stored partner stats for ELO and streaks (computed values)
       const { data: partnerStat } = await supabase
         .from('partner_stats')
-        .select('*')
+        .select('elo_rating, current_streak, best_win_streak, points_for, points_against')
         .eq('group_id', groupId)
         .eq('player1_id', orderedP1)
         .eq('player2_id', orderedP2)
@@ -412,40 +483,15 @@ export class PairingStatsService {
       const playerNames = new Map<string, string>();
       (players || []).forEach(p => playerNames.set(p.id, p.name));
 
-      // Get all matchups where this pairing is involved
-      const { data: matchups } = await supabase
-        .from('pairing_matchups')
-        .select('*')
-        .eq('group_id', groupId)
-        .or(`and(team1_player1_id.eq.${orderedP1},team1_player2_id.eq.${orderedP2}),and(team2_player1_id.eq.${orderedP1},team2_player2_id.eq.${orderedP2})`);
+      // Get recent games and compute stats from games
+      const { recentForm, recentGames, wins, losses } = await this.getRecentGamesForPairingWithStats(
+        groupId, orderedP1, orderedP2, playerNames
+      );
 
-      // Build matchup stats
-      const matchupStats: PairingMatchup[] = (matchups || []).map(m => {
-        const isTeam1 = m.team1_player1_id === orderedP1 && m.team1_player2_id === orderedP2;
-        
-        const opponentP1 = isTeam1 ? m.team2_player1_id : m.team1_player1_id;
-        const opponentP2 = isTeam1 ? m.team2_player2_id : m.team1_player2_id;
-        const wins = isTeam1 ? m.team1_wins : m.team1_losses;
-        const losses = isTeam1 ? m.team1_losses : m.team1_wins;
+      const gamesPlayed = wins + losses;
 
-        return {
-          pairingPlayer1Id: orderedP1,
-          pairingPlayer1Name: playerNames.get(orderedP1) || 'Unknown',
-          pairingPlayer2Id: orderedP2,
-          pairingPlayer2Name: playerNames.get(orderedP2) || 'Unknown',
-          opponentPlayer1Id: opponentP1,
-          opponentPlayer1Name: playerNames.get(opponentP1) || 'Unknown',
-          opponentPlayer2Id: opponentP2,
-          opponentPlayer2Name: playerNames.get(opponentP2) || 'Unknown',
-          wins,
-          losses,
-          gamesPlayed: wins + losses,
-          winRate: (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0,
-        };
-      }).sort((a, b) => b.gamesPlayed - a.gamesPlayed);
-
-      // Calculate recent form from games (computed on-the-fly)
-      const { recentForm, recentGames } = await this.getRecentGamesForPairing(groupId, orderedP1, orderedP2, playerNames);
+      // Compute matchups from games
+      const matchupStats = await this.computeMatchupsFromGames(groupId, orderedP1, orderedP2, playerNames);
 
       // Use stored streak if available, otherwise compute from recent form
       let currentStreak = partnerStat?.current_streak ?? 0;
@@ -464,7 +510,7 @@ export class PairingStatsService {
 
       // Get stored values with defaults
       const eloRating = partnerStat?.elo_rating ?? this.DEFAULT_PAIRING_ELO;
-      const bestWinStreak = partnerStat?.best_win_streak ?? 0;
+      const bestWinStreak = partnerStat?.best_win_streak ?? Math.max(0, currentStreak);
       const pointsFor = partnerStat?.points_for ?? 0;
       const pointsAgainst = partnerStat?.points_against ?? 0;
 
@@ -473,12 +519,10 @@ export class PairingStatsService {
         player1Name: playerNames.get(orderedP1) || 'Unknown',
         player2Id: orderedP2,
         player2Name: playerNames.get(orderedP2) || 'Unknown',
-        gamesPlayed: partnerStat?.total_games || 0,
-        wins: partnerStat?.wins || 0,
-        losses: partnerStat?.losses || 0,
-        winRate: partnerStat?.total_games > 0 
-          ? (partnerStat.wins / partnerStat.total_games) * 100 
-          : 0,
+        gamesPlayed,
+        wins,
+        losses,
+        winRate: gamesPlayed > 0 ? (wins / gamesPlayed) * 100 : 0,
         eloRating,
         pointsFor,
         pointsAgainst,
@@ -496,14 +540,14 @@ export class PairingStatsService {
   }
 
   /**
-   * Get recent games with details for a pairing - computed from games table
+   * Compute head-to-head matchups from games
    */
-  private static async getRecentGamesForPairing(
+  private static async computeMatchupsFromGames(
     groupId: string,
     player1Id: string,
     player2Id: string,
     playerNames: Map<string, string>
-  ): Promise<{ recentForm: ('W' | 'L')[]; recentGames: RecentGame[] }> {
+  ): Promise<PairingMatchup[]> {
     const supabase = createSupabaseClient();
 
     try {
@@ -514,7 +558,118 @@ export class PairingStatsService {
         .eq('group_id', groupId);
 
       const sessionIds = (sessions || []).map(s => s.id);
-      if (sessionIds.length === 0) return { recentForm: [], recentGames: [] };
+      if (sessionIds.length === 0) return [];
+
+      // Get player mappings
+      const { data: sessionPlayers } = await supabase
+        .from('players')
+        .select('id, group_player_id')
+        .in('session_id', sessionIds)
+        .not('group_player_id', 'is', null);
+
+      const player1SessionIds = new Set<string>();
+      const player2SessionIds = new Set<string>();
+      const sessionPlayerToGroup = new Map<string, string>();
+
+      (sessionPlayers || []).forEach(p => {
+        if (p.group_player_id === player1Id) player1SessionIds.add(p.id);
+        if (p.group_player_id === player2Id) player2SessionIds.add(p.id);
+        if (p.group_player_id) sessionPlayerToGroup.set(p.id, p.group_player_id);
+      });
+
+      // Get all completed doubles games
+      const { data: games } = await supabase
+        .from('games')
+        .select('team_a, team_b, winning_team')
+        .in('session_id', sessionIds)
+        .not('winning_team', 'is', null);
+
+      // Compute matchup stats
+      const matchupMap = new Map<string, { wins: number; losses: number }>();
+
+      (games || []).forEach(game => {
+        const teamA = typeof game.team_a === 'string' ? JSON.parse(game.team_a) : game.team_a;
+        const teamB = typeof game.team_b === 'string' ? JSON.parse(game.team_b) : game.team_b;
+
+        if (teamA.length !== 2 || teamB.length !== 2) return;
+
+        // Check if our pairing is in team A or team B
+        const inTeamA = teamA.some((id: string) => player1SessionIds.has(id)) &&
+                        teamA.some((id: string) => player2SessionIds.has(id));
+        const inTeamB = teamB.some((id: string) => player1SessionIds.has(id)) &&
+                        teamB.some((id: string) => player2SessionIds.has(id));
+
+        if (!inTeamA && !inTeamB) return;
+
+        // Get opponent pairing
+        const opponentTeam = inTeamA ? teamB : teamA;
+        const opponentGroupIds = opponentTeam
+          .map((id: string) => sessionPlayerToGroup.get(id))
+          .filter(Boolean) as string[];
+
+        if (opponentGroupIds.length !== 2) return;
+
+        const [oppP1, oppP2] = this.getOrderedPair(opponentGroupIds[0], opponentGroupIds[1]);
+        const key = `${oppP1}|${oppP2}`;
+
+        if (!matchupMap.has(key)) matchupMap.set(key, { wins: 0, losses: 0 });
+        const stats = matchupMap.get(key)!;
+
+        const won = (inTeamA && game.winning_team === 'A') || (inTeamB && game.winning_team === 'B');
+        if (won) stats.wins++;
+        else stats.losses++;
+      });
+
+      // Build result array
+      const result: PairingMatchup[] = [];
+      matchupMap.forEach((stats, key) => {
+        const [oppP1, oppP2] = key.split('|');
+        const gamesPlayed = stats.wins + stats.losses;
+
+        result.push({
+          pairingPlayer1Id: player1Id,
+          pairingPlayer1Name: playerNames.get(player1Id) || 'Unknown',
+          pairingPlayer2Id: player2Id,
+          pairingPlayer2Name: playerNames.get(player2Id) || 'Unknown',
+          opponentPlayer1Id: oppP1,
+          opponentPlayer1Name: playerNames.get(oppP1) || 'Unknown',
+          opponentPlayer2Id: oppP2,
+          opponentPlayer2Name: playerNames.get(oppP2) || 'Unknown',
+          wins: stats.wins,
+          losses: stats.losses,
+          gamesPlayed,
+          winRate: gamesPlayed > 0 ? (stats.wins / gamesPlayed) * 100 : 0,
+        });
+      });
+
+      return result.sort((a, b) => b.gamesPlayed - a.gamesPlayed);
+    } catch (error) {
+      console.error('[PairingStatsService] Error computing matchups:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get recent games with details for a pairing - computed from games table
+   * Also returns total wins/losses for accuracy
+   */
+  private static async getRecentGamesForPairingWithStats(
+    groupId: string,
+    player1Id: string,
+    player2Id: string,
+    playerNames: Map<string, string>
+  ): Promise<{ recentForm: ('W' | 'L')[]; recentGames: RecentGame[]; wins: number; losses: number }> {
+    const supabase = createSupabaseClient();
+
+    try {
+      // Get sessions in group
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('group_id', groupId);
+
+      const sessionIds = (sessions || []).map(s => s.id);
+      if (sessionIds.length === 0) return { recentForm: [], recentGames: [], wins: 0, losses: 0 };
 
       // Get player mappings
       const { data: sessionPlayers } = await supabase
@@ -534,21 +689,20 @@ export class PairingStatsService {
         if (p.group_player_id) sessionPlayerToGroup.set(p.id, p.group_player_id);
       });
 
-      // Get recent games
+      // Get all completed games (not limited, we need full history for stats)
       const { data: games } = await supabase
         .from('games')
         .select('team_a, team_b, winning_team, team_a_score, team_b_score, created_at')
         .in('session_id', sessionIds)
         .not('winning_team', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
 
       const recentForm: ('W' | 'L')[] = [];
       const recentGames: RecentGame[] = [];
+      let wins = 0;
+      let losses = 0;
 
       (games || []).forEach(game => {
-        if (recentForm.length >= 10) return;
-
         const teamA = typeof game.team_a === 'string' ? JSON.parse(game.team_a) : game.team_a;
         const teamB = typeof game.team_b === 'string' ? JSON.parse(game.team_b) : game.team_b;
 
@@ -560,8 +714,9 @@ export class PairingStatsService {
 
         if (bothInTeamA) {
           const won = game.winning_team === 'A';
-          recentForm.push(won ? 'W' : 'L');
-          if (recentGames.length < 3) {
+          if (won) wins++; else losses++;
+          if (recentForm.length < 10) recentForm.push(won ? 'W' : 'L');
+          if (recentGames.length < 10) {
             recentGames.push({
               teamANames: teamA.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
               teamBNames: teamB.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
@@ -573,8 +728,9 @@ export class PairingStatsService {
           }
         } else if (bothInTeamB) {
           const won = game.winning_team === 'B';
-          recentForm.push(won ? 'W' : 'L');
-          if (recentGames.length < 3) {
+          if (won) wins++; else losses++;
+          if (recentForm.length < 10) recentForm.push(won ? 'W' : 'L');
+          if (recentGames.length < 10) {
             recentGames.push({
               teamANames: teamA.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
               teamBNames: teamB.map((id: string) => playerNames.get(sessionPlayerToGroup.get(id) || '') || 'Unknown'),
@@ -587,10 +743,10 @@ export class PairingStatsService {
         }
       });
 
-      return { recentForm, recentGames };
+      return { recentForm, recentGames, wins, losses };
     } catch (error) {
       console.error('[PairingStatsService] Error getting recent games:', error);
-      return { recentForm: [], recentGames: [] };
+      return { recentForm: [], recentGames: [], wins: 0, losses: 0 };
     }
   }
 

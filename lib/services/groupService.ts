@@ -149,14 +149,16 @@ export class GroupService {
 
   /**
    * Get all players in a group's player pool
+   * Computes wins/losses from actual games for accuracy (stored stats may be stale)
    */
   static async getGroupPlayers(groupId: string): Promise<GroupPlayer[]> {
     try {
       const supabase = createSupabaseClient();
       
-      const { data, error } = await supabase
+      // Get all group players
+      const { data: groupPlayers, error } = await supabase
         .from('group_players')
-        .select('*')
+        .select('id, group_id, name, elo_rating, created_at')
         .eq('group_id', groupId)
         .order('name', { ascending: true });
 
@@ -164,7 +166,95 @@ export class GroupService {
         throw error;
       }
 
-      return (data || []).map((row) => this.mapRowToGroupPlayer(row));
+      if (!groupPlayers || groupPlayers.length === 0) {
+        return [];
+      }
+
+      // Get all sessions for this group
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('group_id', groupId);
+      
+      const sessionIds = (sessions || []).map(s => s.id);
+      
+      // If no sessions, return players with zero stats
+      if (sessionIds.length === 0) {
+        return groupPlayers.map(row => ({
+          id: row.id,
+          groupId: row.group_id,
+          name: row.name,
+          eloRating: row.elo_rating || 1500,
+          wins: 0,
+          losses: 0,
+          totalGames: 0,
+          createdAt: row.created_at ? new Date(row.created_at) : undefined,
+        }));
+      }
+
+      // Get player mappings (session player ID -> group player ID)
+      const { data: players } = await supabase
+        .from('players')
+        .select('id, group_player_id')
+        .in('session_id', sessionIds)
+        .not('group_player_id', 'is', null);
+
+      const playerToGroupPlayer = new Map<string, string>();
+      (players || []).forEach((p) => {
+        if (p.group_player_id) {
+          playerToGroupPlayer.set(p.id, p.group_player_id);
+        }
+      });
+
+      // Get all completed games
+      const { data: games } = await supabase
+        .from('games')
+        .select('team_a, team_b, winning_team')
+        .in('session_id', sessionIds)
+        .not('winning_team', 'is', null);
+
+      // Compute stats for each player from games
+      const statsMap = new Map<string, { wins: number; losses: number }>();
+      groupPlayers.forEach(gp => statsMap.set(gp.id, { wins: 0, losses: 0 }));
+
+      (games || []).forEach((game) => {
+        const teamA = typeof game.team_a === 'string' ? JSON.parse(game.team_a) : game.team_a;
+        const teamB = typeof game.team_b === 'string' ? JSON.parse(game.team_b) : game.team_b;
+        const winningTeam = game.winning_team;
+
+        teamA.forEach((playerId: string) => {
+          const groupPlayerId = playerToGroupPlayer.get(playerId);
+          if (groupPlayerId && statsMap.has(groupPlayerId)) {
+            const stats = statsMap.get(groupPlayerId)!;
+            if (winningTeam === 'A') stats.wins++;
+            else stats.losses++;
+          }
+        });
+
+        teamB.forEach((playerId: string) => {
+          const groupPlayerId = playerToGroupPlayer.get(playerId);
+          if (groupPlayerId && statsMap.has(groupPlayerId)) {
+            const stats = statsMap.get(groupPlayerId)!;
+            if (winningTeam === 'B') stats.wins++;
+            else stats.losses++;
+          }
+        });
+      });
+
+      // Build result with computed stats
+      return groupPlayers.map(row => {
+        const stats = statsMap.get(row.id) || { wins: 0, losses: 0 };
+        return {
+          id: row.id,
+          groupId: row.group_id,
+          name: row.name,
+          eloRating: row.elo_rating || 1500,
+          wins: stats.wins,
+          losses: stats.losses,
+          totalGames: stats.wins + stats.losses,
+          createdAt: row.created_at ? new Date(row.created_at) : undefined,
+        };
+      });
     } catch (error) {
       console.error('[GroupService] Error fetching group players:', error);
       throw new Error('Failed to fetch group players');

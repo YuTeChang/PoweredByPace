@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { PairingDetailedStats } from "@/types";
 import { formatPercentage } from "@/lib/calculations";
 
@@ -9,6 +10,8 @@ interface PairingProfileSheetProps {
 }
 
 export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps) {
+  const [showAllGames, setShowAllGames] = useState(false);
+  
   // Get top matchups (sorted by games played)
   const topMatchups = stats.matchups.slice(0, 5);
   
@@ -179,11 +182,21 @@ export function PairingProfileSheet({ stats, onClose }: PairingProfileSheetProps
           {/* Recent Games */}
           {stats.recentGames && stats.recentGames.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide mb-3">
-                Last {stats.recentGames.length} Games
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-japandi-text-muted uppercase tracking-wide">
+                  Recent Games ({stats.recentGames.length})
+                </h3>
+                {stats.recentGames.length > 3 && (
+                  <button
+                    onClick={() => setShowAllGames(!showAllGames)}
+                    className="text-xs text-japandi-accent-primary hover:text-japandi-accent-hover transition-colors"
+                  >
+                    {showAllGames ? 'Show Less' : `Show All (${stats.recentGames.length})`}
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
-                {stats.recentGames.map((game, i) => (
+                {(showAllGames ? stats.recentGames : stats.recentGames.slice(0, 3)).map((game, i) => (
                   <div
                     key={i}
                     className={`rounded-xl p-3 border ${
