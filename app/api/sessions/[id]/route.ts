@@ -9,10 +9,10 @@ export const revalidate = 0;
 // GET /api/sessions/[id] - Get a specific session
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const session = await SessionService.getSessionById(sessionId);
 
     if (!session) {
@@ -35,10 +35,10 @@ export async function GET(
 // PUT /api/sessions/[id] - Update a session (including players)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const body = await request.json();
     const sessionData = body.session;
     
@@ -89,10 +89,10 @@ export async function PUT(
 // DELETE /api/sessions/[id] - Delete a session
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     
     // Verify session exists before deletion
     const existingSession = await SessionService.getSessionById(sessionId);

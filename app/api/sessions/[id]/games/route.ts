@@ -5,10 +5,10 @@ import { Game } from '@/types';
 // GET /api/sessions/[id]/games - Get all games for a session
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const games = await GameService.getGamesBySessionId(sessionId);
     return NextResponse.json(games);
   } catch (error) {
@@ -23,10 +23,10 @@ export async function GET(
 // POST /api/sessions/[id]/games - Add a new game
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const body = await request.json();
     const game: Omit<Game, 'id' | 'sessionId' | 'gameNumber'> = body.game;
     const gameNumber = body.gameNumber;

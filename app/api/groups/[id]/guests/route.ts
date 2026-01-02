@@ -4,10 +4,10 @@ import { createSupabaseClient } from '@/lib/supabase';
 // GET /api/groups/[id]/guests - Get unlinked players (guests) from recent sessions
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const supabase = createSupabaseClient();
 
     // Get sessions for this group (last 30 days)
@@ -108,10 +108,10 @@ export async function GET(
 // POST /api/groups/[id]/guests - Promote a guest to group player
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const body = await request.json();
     const { name } = body;
 

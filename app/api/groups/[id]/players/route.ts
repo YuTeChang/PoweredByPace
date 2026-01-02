@@ -4,10 +4,10 @@ import { GroupService } from '@/lib/services/groupService';
 // GET /api/groups/[id]/players - Get all players in a group's pool
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const players = await GroupService.getGroupPlayers(groupId);
     return NextResponse.json(players);
   } catch (error) {
@@ -22,10 +22,10 @@ export async function GET(
 // POST /api/groups/[id]/players - Add a player to a group's pool
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const body = await request.json();
     const { name, names } = body;
 
@@ -54,9 +54,10 @@ export async function POST(
 // DELETE /api/groups/[id]/players - Remove a player from a group's pool
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: groupId } = await params;
     const body = await request.json();
     const { playerId } = body;
 
@@ -67,6 +68,7 @@ export async function DELETE(
       );
     }
 
+    console.log(`[API] Removing player ${playerId} from group ${groupId}`);
     await GroupService.removeGroupPlayer(playerId);
     return NextResponse.json({ success: true });
   } catch (error) {

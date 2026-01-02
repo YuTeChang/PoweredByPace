@@ -5,11 +5,10 @@ import { Game } from '@/types';
 // PUT /api/sessions/[id]/games/[gameId] - Update a game
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; gameId: string } }
+  { params }: { params: Promise<{ id: string; gameId: string }> }
 ) {
   try {
-    const sessionId = params.id;
-    const gameId = params.gameId;
+    const { id: sessionId, gameId } = await params;
     const updates: Partial<Game> = await request.json();
 
     const updatedGame = await GameService.updateGame(sessionId, gameId, updates);
@@ -32,11 +31,10 @@ export async function PUT(
 // DELETE /api/sessions/[id]/games/[gameId] - Delete a game
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; gameId: string } }
+  { params }: { params: Promise<{ id: string; gameId: string }> }
 ) {
   try {
-    const sessionId = params.id;
-    const gameId = params.gameId;
+    const { id: sessionId, gameId } = await params;
 
     await GameService.deleteGame(sessionId, gameId);
     return NextResponse.json({ success: true });

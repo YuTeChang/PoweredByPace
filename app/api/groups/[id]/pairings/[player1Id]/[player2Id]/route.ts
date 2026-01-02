@@ -4,10 +4,10 @@ import { PairingStatsService } from '@/lib/services/pairingStatsService';
 // GET /api/groups/[id]/pairings/[player1Id]/[player2Id] - Get detailed stats for a specific pairing
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; player1Id: string; player2Id: string } }
+  { params }: { params: Promise<{ id: string; player1Id: string; player2Id: string }> }
 ) {
   try {
-    const { id: groupId, player1Id, player2Id } = params;
+    const { id: groupId, player1Id, player2Id } = await params;
     
     if (!groupId || !player1Id || !player2Id) {
       return NextResponse.json(

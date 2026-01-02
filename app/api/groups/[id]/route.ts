@@ -4,10 +4,10 @@ import { GroupService } from '@/lib/services/groupService';
 // GET /api/groups/[id] - Get a specific group
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const group = await GroupService.getGroupById(groupId);
 
     if (!group) {
@@ -41,10 +41,10 @@ export const revalidate = 30; // Revalidate every 30 seconds
 // DELETE /api/groups/[id] - Delete a group
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     await GroupService.deleteGroup(groupId);
     return NextResponse.json({ success: true });
   } catch (error) {

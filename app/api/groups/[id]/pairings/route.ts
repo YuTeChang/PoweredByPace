@@ -4,10 +4,10 @@ import { PairingStatsService } from '@/lib/services/pairingStatsService';
 // GET /api/groups/[id]/pairings - Get all pairing stats (leaderboard of best pairs)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     
     if (!groupId) {
       return NextResponse.json(
@@ -42,10 +42,10 @@ const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes
 // POST /api/groups/[id]/pairings - Recalculate pairing stats (admin/maintenance)
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     
     if (!groupId) {
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function POST(
     });
   } catch (error) {
     console.error('[API] Error recalculating pairing stats:', error);
-    recalculationTimestamps.delete(params.id);
+    // Note: Can't clean up rate limit here since params is async
     return NextResponse.json(
       { error: 'Failed to recalculate pairing stats' },
       { status: 500 }

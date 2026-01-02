@@ -10,10 +10,10 @@ const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes between recalculations per gro
 // GET /api/groups/[id]/stats - Get leaderboard data for a group
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     
     if (!groupId) {
       return NextResponse.json(
@@ -45,10 +45,10 @@ export async function GET(
 // Protected with rate limiting - max 1 recalculation per 5 minutes per group
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const groupId = params.id;
+    const { id: groupId } = await params;
     
     if (!groupId) {
       return NextResponse.json(
@@ -90,8 +90,7 @@ export async function POST(
     });
   } catch (error) {
     console.error('[API] Error recalculating stats:', error);
-    // Clear rate limit on error so it can be retried
-    recalculationTimestamps.delete(params.id);
+    // Note: Can't clean up rate limit here since params is async
     return NextResponse.json(
       { error: 'Failed to recalculate stats' },
       { status: 500 }

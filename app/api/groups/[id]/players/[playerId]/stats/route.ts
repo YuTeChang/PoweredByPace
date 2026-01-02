@@ -4,11 +4,10 @@ import { StatsService } from '@/lib/services/statsService';
 // GET /api/groups/[id]/players/[playerId]/stats - Get detailed stats for a player
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; playerId: string } }
+  { params }: { params: Promise<{ id: string; playerId: string }> }
 ) {
   try {
-    const groupId = params.id;
-    const playerId = params.playerId;
+    const { id: groupId, playerId } = await params;
     
     if (!groupId || !playerId) {
       return NextResponse.json(
