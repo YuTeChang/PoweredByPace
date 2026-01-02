@@ -329,12 +329,26 @@ export class GroupService {
     try {
       const supabase = createSupabaseClient();
       
+      // First, unlink any session players that reference this group player
+      // This prevents foreign key constraint violations
+      const { error: unlinkError } = await supabase
+        .from('players')
+        .update({ group_player_id: null })
+        .eq('group_player_id', groupPlayerId);
+
+      if (unlinkError) {
+        console.warn('[GroupService] Warning unlinking players:', unlinkError);
+        // Continue anyway - the players table might not have any linked records
+      }
+
+      // Now delete the group player
       const { error } = await supabase
         .from('group_players')
         .delete()
         .eq('id', groupPlayerId);
 
       if (error) {
+        console.error('[GroupService] Delete error:', error);
         throw error;
       }
     } catch (error) {
