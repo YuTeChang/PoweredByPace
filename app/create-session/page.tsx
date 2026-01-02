@@ -142,6 +142,14 @@ function CreateSessionContent() {
   const [selectedGroupPlayerIds, setSelectedGroupPlayerIds] = useState<Set<string>>(new Set());
   const [bettingEnabled, setBettingEnabled] = useState(false);
   
+  // Guest prompt state
+  const [guestPrompt, setGuestPrompt] = useState<{
+    show: boolean;
+    playerIndex: number;
+    playerName: string;
+  } | null>(null);
+  const [isAddingToGroup, setIsAddingToGroup] = useState(false);
+  
   // Load group players when group is selected
   useEffect(() => {
     const loadGroupPlayers = async () => {
@@ -226,6 +234,7 @@ function CreateSessionContent() {
       );
       if (matchingGroupPlayer) {
         updated[index].groupPlayerId = matchingGroupPlayer.id;
+        updated[index].isGuest = false;
         // Add to selected set if not already there
         if (!selectedGroupPlayerIds.has(matchingGroupPlayer.id)) {
           setSelectedGroupPlayerIds(new Set([...Array.from(selectedGroupPlayerIds), matchingGroupPlayer.id]));
@@ -240,10 +249,70 @@ function CreateSessionContent() {
           newSelected.delete(wasGroupPlayerId!);
           setSelectedGroupPlayerIds(newSelected);
         }
+        // Clear guest flag if name is empty
+        if (!name.trim()) {
+          updated[index].isGuest = undefined;
+        }
       }
     }
     
     setPlayers(updated);
+  };
+
+  // Handle blur on player input - show guest prompt if unlinked and has name
+  const handlePlayerBlur = (index: number) => {
+    const player = players[index];
+    const name = player.name.trim();
+    
+    // Only show prompt if:
+    // 1. We're in a group session
+    // 2. Player has a name
+    // 3. Player is not linked to a group player
+    // 4. Player is not already marked as guest
+    if (selectedGroupId && name && !player.groupPlayerId && player.isGuest === undefined) {
+      setGuestPrompt({ show: true, playerIndex: index, playerName: name });
+    }
+  };
+
+  // Add player as guest (one-time player)
+  const handleAddAsGuest = () => {
+    if (!guestPrompt) return;
+    
+    const updated = [...players];
+    updated[guestPrompt.playerIndex].isGuest = true;
+    setPlayers(updated);
+    setGuestPrompt(null);
+  };
+
+  // Add player to group (create group player profile)
+  const handleAddToGroup = async () => {
+    if (!guestPrompt || !selectedGroupId) return;
+    
+    setIsAddingToGroup(true);
+    try {
+      // Create new group player
+      const newGroupPlayer = await ApiClient.addPlayerToGroup(selectedGroupId, guestPrompt.playerName);
+      
+      // Update local group players list
+      setGroupPlayers([...groupPlayers, newGroupPlayer]);
+      
+      // Link the session player to the new group player
+      const updated = [...players];
+      updated[guestPrompt.playerIndex].groupPlayerId = newGroupPlayer.id;
+      updated[guestPrompt.playerIndex].isGuest = false;
+      setPlayers(updated);
+      
+      // Add to selected set
+      setSelectedGroupPlayerIds(new Set([...Array.from(selectedGroupPlayerIds), newGroupPlayer.id]));
+      
+      setGuestPrompt(null);
+    } catch (error) {
+      console.error('Failed to add player to group:', error);
+      // Fallback to guest mode on error
+      handleAddAsGuest();
+    } finally {
+      setIsAddingToGroup(false);
+    }
   };
   
   // Toggle group player selection
@@ -571,16 +640,24 @@ function CreateSessionContent() {
                       type="text"
                       value={player.name}
                       onChange={(e) => updatePlayerName(index, e.target.value)}
+                      onBlur={() => handlePlayerBlur(index)}
                       placeholder={`Player ${index + 1}`}
                       className={`w-full px-4 py-3 border rounded-card bg-japandi-background-card text-japandi-text-primary focus:ring-2 focus:ring-japandi-accent-primary focus:border-transparent transition-all ${
                         player.groupPlayerId 
                           ? "border-green-300 bg-green-50/30" 
+                          : player.isGuest
+                          ? "border-yellow-300 bg-yellow-50/30"
                           : "border-japandi-border-light"
                       }`}
                     />
                     {player.groupPlayerId && (
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600 text-sm">
                         ✓ Linked
+                      </span>
+                    )}
+                    {player.isGuest && !player.groupPlayerId && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-yellow-600 text-sm">
+                        👤 Guest
                       </span>
                     )}
                   </div>
@@ -824,6 +901,74 @@ function CreateSessionContent() {
           </button>
         </form>
       </div>
+
+      {/* Guest Prompt Modal */}
+      {guestPrompt?.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setGuestPrompt(null)}
+          />
+          
+          {/* Modal */}
+          <div className="relative bg-japandi-background-card rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-japandi-text-primary mb-2">
+              New Player: {guestPrompt.playerName}
+            </h3>
+            <p className="text-sm text-japandi-text-secondary mb-6">
+              &quot;{guestPrompt.playerName}&quot; is not in your group. How would you like to add them?
+            </p>
+            
+            <div className="space-y-3">
+              {/* Add as Guest */}
+              <button
+                type="button"
+                onClick={handleAddAsGuest}
+                className="w-full p-4 text-left bg-yellow-50 border-2 border-yellow-200 rounded-xl hover:border-yellow-300 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <span className="text-lg">👤</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-japandi-text-primary">Add as Guest</div>
+                    <div className="text-xs text-japandi-text-muted">One-time player, no profile created</div>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Add to Group */}
+              <button
+                type="button"
+                onClick={handleAddToGroup}
+                disabled={isAddingToGroup}
+                className="w-full p-4 text-left bg-green-50 border-2 border-green-200 rounded-xl hover:border-green-300 transition-all disabled:opacity-50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-lg">✓</span>
+                  </div>
+                  <div>
+                    <div className="font-semibold text-japandi-text-primary">
+                      {isAddingToGroup ? "Adding..." : "Add to Group"}
+                    </div>
+                    <div className="text-xs text-japandi-text-muted">Create profile, track stats over time</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setGuestPrompt(null)}
+              className="w-full mt-4 py-2 text-sm text-japandi-text-muted hover:text-japandi-text-secondary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

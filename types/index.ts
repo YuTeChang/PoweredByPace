@@ -20,6 +20,7 @@ export interface Player {
   id: string;
   name: string;
   groupPlayerId?: string; // Links to group player pool
+  isGuest?: boolean; // True if explicitly added as guest (one-time player)
 }
 
 export interface Session {

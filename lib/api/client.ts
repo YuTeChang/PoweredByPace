@@ -99,6 +99,37 @@ export class ApiClient {
   }
 
   /**
+   * Guest Players API
+   */
+  static async getRecentGuests(groupId: string): Promise<{
+    guests: {
+      name: string;
+      sessionCount: number;
+      lastSessionId: string;
+      lastSessionName: string;
+      lastSessionDate: string;
+    }[];
+  }> {
+    return this.fetch(`/groups/${groupId}/guests`);
+  }
+
+  static async promoteGuestToGroup(groupId: string, name: string): Promise<{
+    player: GroupPlayer;
+    message: string;
+  }> {
+    return this.fetch(`/groups/${groupId}/guests`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  // Helper method for addPlayerToGroup (used in create-session)
+  static async addPlayerToGroup(groupId: string, name: string): Promise<GroupPlayer> {
+    const result = await this.addGroupPlayer(groupId, name);
+    return result.player;
+  }
+
+  /**
    * Group Sessions API
    */
   static async getGroupSessions(groupId: string): Promise<Session[]> {

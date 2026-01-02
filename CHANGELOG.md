@@ -3,6 +3,21 @@
 ## [Unreleased] - 2025-01
 
 ### Added
+- **Guest Player Mode**: Full guest mode with promotion option
+  - When typing a non-group name in session creation, prompt to "Add as Guest" or "Add to Group"
+  - Guests marked with yellow badge (👤 Guest) throughout the app
+  - Guest players don't pollute group leaderboard but group players still get stats when playing with/against guests
+  - "Recent Guests" section in Players tab showing unlinked players from last 30 days
+  - "Add to Group" button to promote guest to full group player (links past sessions automatically)
+  - Dashed yellow border styling for guest player cards
+- **Pairing Qualification System**: Minimum 5 games for ranking
+  - Pairs with < 5 games shown with asterisk (*) and dashed border
+  - Qualified pairs sorted first, then by win rate
+  - Help text explains qualification requirement
+- **Enhanced Recent Games Display**: Show full match details in session view
+  - "Winner beat Loser" format instead of just "Winner won"
+  - Score displayed (e.g., "21-15") when available
+  - Winner name highlighted in green
 - **Code-Based Group Access**: New streamlined home page with group code input
   - Enter group code (e.g., `i1lcbcsl`) to join any group
   - Recent groups stored in localStorage for quick access (last 3)
@@ -25,6 +40,13 @@
   - API endpoints for stats recalculation
   - Database queries for troubleshooting
   - Rate limiting documentation
+
+### Fixed
+- **Stats Accuracy**: Leaderboard now computes wins/losses from actual games
+  - Previously used stored stats which could get out of sync
+  - Now always accurate regardless of database state
+- **Pair ELO Display**: ELO rating now correctly fetched and displayed for pairings
+- **200% Win Rate Bug**: Fixed data corruption issue where wins could exceed total games
 
 ### Changed
 - **Removed "Most Active" from Group Overview**: Simplified group stats card

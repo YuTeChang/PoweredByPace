@@ -52,6 +52,18 @@ export default function GroupPage() {
   const [selectedPairingStats, setSelectedPairingStats] = useState<PairingDetailedStats | null>(null);
   const [isLoadingPairingStats, setIsLoadingPairingStats] = useState(false);
 
+  // Recent guests state
+  const [recentGuests, setRecentGuests] = useState<{
+    name: string;
+    sessionCount: number;
+    lastSessionId: string;
+    lastSessionName: string;
+    lastSessionDate: string;
+  }[]>([]);
+  const [isLoadingGuests, setIsLoadingGuests] = useState(false);
+  const [promotingGuest, setPromotingGuest] = useState<string | null>(null);
+  const guestsLoadedRef = useRef<boolean>(false);
+
   // Load group and sessions immediately (fast initial render)
   const loadGroupData = useCallback(async () => {
     try {
@@ -154,6 +166,46 @@ export default function GroupPage() {
       console.error('[GroupPage] Error fetching pairing stats:', err);
     } finally {
       setIsLoadingPairingStats(false);
+    }
+  };
+
+  // Load recent guests (lazy load with players tab)
+  const loadRecentGuests = useCallback(async () => {
+    if (guestsLoadedRef.current) return;
+    
+    guestsLoadedRef.current = true;
+    setIsLoadingGuests(true);
+    try {
+      const result = await ApiClient.getRecentGuests(groupId);
+      setRecentGuests(result.guests || []);
+    } catch (err) {
+      console.error('[GroupPage] Error fetching guests:', err);
+      setRecentGuests([]);
+    } finally {
+      setIsLoadingGuests(false);
+    }
+  }, [groupId]);
+
+  // Promote guest to group player
+  const handlePromoteGuest = async (guestName: string) => {
+    setPromotingGuest(guestName);
+    try {
+      const result = await ApiClient.promoteGuestToGroup(groupId, guestName);
+      // Add new player to list
+      setPlayers(prev => [...prev, result.player]);
+      // Remove from guests list
+      setRecentGuests(prev => prev.filter(g => g.name.toLowerCase() !== guestName.toLowerCase()));
+      // Reset leaderboard to force reload with new player
+      leaderboardLoadedRef.current = false;
+    } catch (err: any) {
+      if (err?.existingPlayer) {
+        alert(`Player "${guestName}" already exists in this group.`);
+      } else {
+        console.error('[GroupPage] Error promoting guest:', err);
+        alert('Failed to add player to group. Please try again.');
+      }
+    } finally {
+      setPromotingGuest(null);
     }
   };
 
@@ -419,7 +471,10 @@ export default function GroupPage() {
             Leaderboard
           </button>
           <button
-            onClick={() => setActiveTab("players")}
+            onClick={() => {
+              setActiveTab("players");
+              loadRecentGuests(); // Load guests when players tab is clicked
+            }}
             className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "players"
                 ? "border-japandi-accent-primary text-japandi-accent-primary"
@@ -710,6 +765,59 @@ export default function GroupPage() {
             <p className="text-center text-xs text-japandi-text-muted pt-2">
               Tap a player to see detailed stats
             </p>
+
+            {/* Recent Guests Section */}
+            {(recentGuests.length > 0 || isLoadingGuests) && (
+              <div className="mt-8 pt-6 border-t border-japandi-border-light">
+                <h3 className="text-base font-semibold text-japandi-text-primary mb-2">
+                  Recent Guests
+                </h3>
+                <p className="text-sm text-japandi-text-muted mb-4">
+                  Players who joined sessions but aren&apos;t in your group yet
+                </p>
+                
+                {isLoadingGuests ? (
+                  <div className="text-center py-4 text-japandi-text-muted text-sm">
+                    Loading guests...
+                  </div>
+                ) : recentGuests.length === 0 ? (
+                  <div className="text-center py-4 text-japandi-text-muted text-sm">
+                    No recent guests
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {recentGuests.map((guest) => (
+                      <div
+                        key={guest.name}
+                        className="flex items-center justify-between bg-yellow-50 border border-dashed border-yellow-300 rounded-card p-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-yellow-600">👤</span>
+                            <span className="text-japandi-text-primary font-medium truncate">
+                              {guest.name}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full flex-shrink-0">
+                              Guest
+                            </span>
+                          </div>
+                          <div className="text-xs text-japandi-text-muted mt-1">
+                            {guest.sessionCount} session{guest.sessionCount !== 1 ? 's' : ''} • Last: {new Date(guest.lastSessionDate).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handlePromoteGuest(guest.name)}
+                          disabled={promotingGuest === guest.name}
+                          className="ml-3 px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium rounded-full transition-colors disabled:opacity-50 flex-shrink-0"
+                        >
+                          {promotingGuest === guest.name ? '...' : '+ Add'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

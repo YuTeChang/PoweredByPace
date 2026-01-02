@@ -252,10 +252,16 @@ POST   /api/groups/[id]/players         # Add player(s)
 DELETE /api/groups/[id]/players         # Remove player
 ```
 
-### Stats (NEW)
+### Stats
 ```
 GET    /api/groups/[id]/stats           # Get leaderboard
 GET    /api/groups/[id]/players/[id]/stats  # Get player detailed stats
+```
+
+### Guests
+```
+GET    /api/groups/[id]/guests          # Get recent guests (unlinked session players)
+POST   /api/groups/[id]/guests          # Promote guest to group player
 ```
 
 ### System
@@ -274,7 +280,7 @@ Key types in `types/index.ts`:
 interface Group { id, name, shareableLink, createdAt }
 interface GroupPlayer { id, groupId, name, eloRating?, createdAt }
 interface Session { id, name, date, players[], gameMode, groupId?, ... }
-interface Player { id, name, groupPlayerId? }
+interface Player { id, name, groupPlayerId?, isGuest? }  // isGuest for unlinked players
 interface Game { id, sessionId, teamA, teamB, winningTeam, ... }
 
 // Stats types (NEW)
@@ -347,3 +353,47 @@ See [Database Documentation](./database.md) for details.
 - **Caching**: Redis for frequently accessed leaderboards
 - **Authentication**: User accounts and session ownership
 - **Push Notifications**: Game invites and results
+
+## Guest Mode Architecture
+
+Guest mode allows non-group players to participate in sessions without affecting group stats:
+
+### Data Flow: Session Creation with Guest
+
+```
+1. User types player name in create-session form
+2. On blur, check if name matches existing group player
+3. If no match → Show guest prompt modal:
+   ├─ "Add as Guest" → Create session player with isGuest=true
+   └─ "Add to Group" → Call POST /api/groups/[id]/players
+                       → Create session player linked to new group player
+4. Session created with mix of linked and guest players
+```
+
+### Data Flow: Promote Guest to Group
+
+```
+1. Admin views Players tab → Sees "Recent Guests" section
+2. Guests are unlinked players from last 30 days
+3. Click "Add" on guest → POST /api/groups/[id]/guests
+4. Backend:
+   ├─ Creates new group_player record
+   └─ Links ALL past session players with same name to new group_player
+5. Guest now appears in group player pool with historical stats linked
+```
+
+### Guest vs Linked Player
+
+```
+Linked Player (groupPlayerId set):
+  - Stats count toward group leaderboard
+  - ELO rating tracked and updated
+  - Appears in player pool for future sessions
+  - Shows rank badge in session
+
+Guest Player (isGuest=true, no groupPlayerId):
+  - Stats don't affect group leaderboard
+  - No ELO impact
+  - Shows yellow "Guest" badge in session
+  - Can be promoted later to link historical games
+```

@@ -6,6 +6,37 @@ This document tracks all features, improvements, and fixes added to PoweredByPac
 
 ### Major Features Added
 
+#### Guest Mode
+- **Status**: ✅ Complete
+- **Description**: Allow non-group players to participate in sessions without affecting group stats
+- **Implementation**:
+  - **Session Creation**: When typing a name that doesn't match a group player, modal prompts:
+    - "Add as Guest" - Player added with `isGuest: true`, no group stats impact
+    - "Add to Group" - Creates group player via API and links session player
+  - **In-Session Display**: Guest players show yellow "Guest" badge with dashed border
+  - **Recent Guests API**: `GET /api/groups/[id]/guests` returns unlinked players from last 30 days
+  - **Promote Guest**: `POST /api/groups/[id]/guests` creates group player and links all historical session records with matching name
+  - **Players Tab**: New "Recent Guests" section shows guests with session count and "Add" button
+- **Types Changed**: Added `isGuest?: boolean` to Player interface
+- **User Impact**: Groups can include temporary players (visitors, try-outs) without cluttering the permanent roster
+
+#### Pairing Qualification System
+- **Status**: ✅ Complete
+- **Description**: Pairs need minimum 5 games together to appear in rankings
+- **Implementation**:
+  - Added `MIN_GAMES_QUALIFIED = 5` constant in `pairingStatsService.ts`
+  - Leaderboard returns `isQualified` flag per pairing
+  - Unqualified pairings still visible but marked with "(needs X more games)"
+- **User Impact**: Prevents single-game pairings from dominating best/worst pair rankings
+
+#### Stats Computation Fix
+- **Status**: ✅ Complete
+- **Description**: Leaderboard stats now computed from actual games instead of stored values
+- **Implementation**:
+  - Refactored `StatsService.getLeaderboard()` to query games and compute W/L on-the-fly
+  - Fixes edge cases where stored `wins`/`losses`/`total_games` could be out of sync
+- **User Impact**: Stats always accurate, even if database has stale cached values
+
 #### Code-Based Group Access (Home Page Redesign)
 - **Status**: ✅ Complete
 - **Description**: Redesigned home page with code-based group access instead of dashboard listing

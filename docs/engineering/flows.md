@@ -195,3 +195,55 @@ amountToPayOrganizer[organizer] = 0
 - Easy to see all upcoming games
 - Quick access to record any scheduled game
 - Clear separation between scheduled and played games
+
+---
+
+## Flow 8: Add Guest Player to Session
+
+**Status**: ✅ Implemented
+
+**Steps:**
+1. User navigates to `/create-session`
+2. Types a player name that doesn't match any group player
+3. On blur (tabbing/clicking away), a modal appears:
+   - "Add as Guest" - Player participates without affecting group stats
+   - "Add to Group" - Creates new group player and links them
+4. If "Add as Guest": Player added with `isGuest: true`
+5. If "Add to Group": 
+   - API call creates new group_player
+   - Session player linked to new group_player
+6. In session, guest players show yellow "Guest" badge
+7. Guest games don't affect group leaderboard or ELO
+
+**UI Indicators:**
+- Guest badge: Yellow background, dashed yellow border on card
+- Linked player badge: Shows rank if available, or "Linked" badge
+
+---
+
+## Flow 9: Promote Guest to Group Player
+
+**Status**: ✅ Implemented
+
+**Steps:**
+1. Admin navigates to Group page → Players tab
+2. Scrolls down to "Recent Guests" section
+3. Sees list of unlinked players from last 30 days sessions
+4. Each guest card shows:
+   - Player name
+   - Number of sessions played as guest
+   - Last played date
+   - "+ Add" button
+5. Clicks "+ Add" button on a guest
+6. Confirmation prompt appears
+7. On confirm:
+   - New group_player created with that name
+   - All past session players with matching name get linked
+   - Historical games now count toward stats
+8. Guest disappears from "Recent Guests" list
+9. Player appears in main player pool with accumulated stats
+
+**Benefits:**
+- Retroactive stat linking
+- Clean guest → member promotion path
+- Group admin maintains control over permanent roster

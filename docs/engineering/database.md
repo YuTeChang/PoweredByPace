@@ -171,6 +171,11 @@ Players within a specific session.
 | `group_player_id` | VARCHAR(255) | Foreign key to `group_players.id` (null if not linked) |
 | `created_at` | TIMESTAMP | Creation timestamp |
 
+**Player Linking:**
+- **Linked Player**: `group_player_id` is set → Stats count toward group leaderboard, ELO tracked
+- **Guest Player**: `group_player_id` is NULL → Stats don't affect leaderboard, shown as "Guest"
+- Guests can be promoted later via `/api/groups/[id]/guests` which links all past session records
+
 **Indexes:**
 - Primary key on `id`
 - Index on `session_id`

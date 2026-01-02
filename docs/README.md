@@ -80,6 +80,10 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 - Maintain player pool per group
 - Quick-add players when creating sessions
 - Link session players to group pool
+- **Guest Mode**: Allow non-group players to join temporarily
+  - Guests shown with yellow badge in sessions
+  - Guest games don't affect group leaderboard
+  - Promote guests to full group players anytime
 
 **Cross-Session Tracking**
 - View all sessions within a group
@@ -107,12 +111,13 @@ See [SETUP_BACKEND.md](SETUP_BACKEND.md) for database setup.
 - Current streak tracking (win/loss)
 - Labels for "Hot Duo", "Nemesis", etc.
 
-### Pairing Stats (NEW)
+### Pairing Stats
 
 **Pairings Tab**
 - View all doubles pairings ranked by win rate
 - See which two-player combinations perform best
 - Click any pairing to view detailed stats
+- Pairs need 5+ games to qualify for rankings
 
 **Pairing Profile**
 - Combined W-L record for the pair
@@ -357,10 +362,14 @@ types/index.ts          # TypeScript type definitions
 - `POST /api/groups/[id]/stats` - Recalculate ELO/W-L *(admin only)*
 - `GET /api/groups/[id]/players/[playerId]/stats` - Get player detailed stats
 
-**Pairings (NEW)**
+**Pairings**
 - `GET /api/groups/[id]/pairings` - Get pairing leaderboard
 - `POST /api/groups/[id]/pairings` - Recalculate pairing stats *(admin only)*
 - `GET /api/groups/[id]/pairings/[p1]/[p2]` - Get pairing detailed stats
+
+**Guests**
+- `GET /api/groups/[id]/guests` - Get recent guests (unlinked players)
+- `POST /api/groups/[id]/guests` - Promote guest to group player
 
 **Games**
 - `GET /api/sessions/[id]/games` - Get session games

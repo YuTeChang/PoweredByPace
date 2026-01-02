@@ -59,6 +59,7 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Player Pool**: Maintain player pool per group
 - ✅ **Group Sessions**: Track all sessions within a group
 - ✅ **Cross-Session Stats**: View aggregated player statistics
+- ✅ **Guest Mode**: Allow non-group players to join sessions temporarily
 
 ### Leaderboard & Player Stats
 - ✅ **ELO Rating System**: Track player skill with ELO ratings (starting at 1500)
@@ -74,6 +75,7 @@ See [docs/SETUP_BACKEND.md](docs/SETUP_BACKEND.md) for detailed setup instructio
 - ✅ **Pairing Profiles**: Detailed stats for each pairing (click to view)
 - ✅ **Head-to-Head Matchups**: See how pairings perform against other pairings
 - ✅ **Pairing Form**: Recent form and streaks for each pairing
+- ✅ **Pairing Qualification**: Pairs need 5+ games to qualify for rankings
 
 ### Optional Betting
 - ✅ **Toggle Betting**: Enable/disable per session (default: OFF)

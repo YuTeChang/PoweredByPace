@@ -13,14 +13,29 @@ export default function LiveStatsCard({ stats, player }: LiveStatsCardProps) {
   const isPositive = stats.gamblingNet > 0;
   const isNegative = stats.gamblingNet < 0;
   const isNeutral = stats.gamblingNet === 0;
+  const isGuest = player.isGuest || (!player.groupPlayerId && player.name);
 
   return (
-    <div className="bg-japandi-background-card rounded-card border border-japandi-border-light p-4 sm:p-6 shadow-soft transition-shadow hover:shadow-md">
+    <div className={`bg-japandi-background-card rounded-card border p-4 sm:p-6 shadow-soft transition-shadow hover:shadow-md ${
+      isGuest ? 'border-dashed border-yellow-300' : 'border-japandi-border-light'
+    }`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-japandi-text-primary truncate">
-            {player.name}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base sm:text-lg font-semibold text-japandi-text-primary truncate">
+              {player.name}
+            </h3>
+            {isGuest && (
+              <span className="flex-shrink-0 text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full">
+                Guest
+              </span>
+            )}
+            {player.groupPlayerId && (
+              <span className="flex-shrink-0 text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
+                Linked
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-3 sm:gap-4 mt-2 sm:mt-3">
             <div className="text-sm sm:text-base">
               <span className="text-japandi-text-secondary">W/L: </span>
