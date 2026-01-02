@@ -206,7 +206,6 @@ export class GroupService {
         }
       });
 
-      console.log(`[GroupService] Found ${players?.length || 0} linked session players for ${groupPlayers.length} group players`);
 
       // Get all completed games
       const { data: games } = await supabase

@@ -3,9 +3,8 @@ import { StatsService } from '@/lib/services/statsService';
 import { EloService } from '@/lib/services/eloService';
 import { PairingStatsService } from '@/lib/services/pairingStatsService';
 
-// Force dynamic rendering - no caching
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Allow caching with short TTL - data refreshes every few seconds
+export const revalidate = 5; // ISR: revalidate every 5 seconds
 
 // Simple in-memory rate limiting for recalculation
 const recalculationTimestamps = new Map<string, number>();
@@ -28,11 +27,11 @@ export async function GET(
 
     const leaderboard = await StatsService.getLeaderboard(groupId);
 
-    // Temporarily disable caching for debugging
+    // Cache for 5 seconds, serve stale while revalidating for up to 30 seconds
     const response = NextResponse.json(leaderboard);
     response.headers.set(
       'Cache-Control',
-      'no-store, no-cache, must-revalidate'
+      'public, s-maxage=5, stale-while-revalidate=30'
     );
     
     return response;

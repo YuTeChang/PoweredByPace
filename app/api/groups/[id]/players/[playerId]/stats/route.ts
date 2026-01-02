@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StatsService } from '@/lib/services/statsService';
 
-// Force dynamic rendering - no caching
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// Allow caching with short TTL
+export const revalidate = 5; // ISR: revalidate every 5 seconds
 
 // GET /api/groups/[id]/players/[playerId]/stats - Get detailed stats for a player
 export async function GET(
@@ -29,11 +28,11 @@ export async function GET(
       );
     }
 
-    // Temporarily disable caching for debugging
+    // Cache for 5 seconds, serve stale while revalidating for up to 30 seconds
     const response = NextResponse.json(stats);
     response.headers.set(
       'Cache-Control',
-      'no-store, no-cache, must-revalidate'
+      'public, s-maxage=5, stale-while-revalidate=30'
     );
     
     return response;
