@@ -664,7 +664,7 @@ export class GroupService {
           .from('pairing_matchups')
           .select('team1_player1_id, team1_player2_id, team2_player1_id, team2_player2_id, team1_wins, team1_losses, total_games')
           .eq('group_id', groupId)
-          .gte('total_games', 5),
+          .gte('total_games', 3),
         supabase
           .from('group_players')
           .select('id, name, elo_rating, wins, losses, total_games, best_win_streak')

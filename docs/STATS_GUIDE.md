@@ -249,9 +249,9 @@ Found in the expandable "Group Overview" section on the group page.
 
 **Display:** Shows both pairs and their head-to-head record (e.g., "12-11 (23 games)").
 
-**Criteria:** Only pairs who have played each other **5+ times** are considered. This ensures statistical significance and prevents showing fluky one-game rivalries.
+**Criteria:** Only pairs who have played each other **3+ times** are considered. This ensures some statistical significance while still showing rivalries early.
 
-**Why you might not see it:** If no two pairs in your group have faced each other 5+ times, this stat won't appear. This is common in smaller groups or groups that rotate players frequently.
+**Why you might not see it:** If no two pairs in your group have faced each other 3+ times, this stat won't appear. This is common in smaller groups or groups that rotate players frequently.
 
 ---
 
