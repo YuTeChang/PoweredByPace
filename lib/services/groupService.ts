@@ -195,7 +195,7 @@ export class GroupService {
       // Get player mappings (session player ID -> group player ID)
       const { data: players } = await supabase
         .from('players')
-        .select('id, group_player_id')
+        .select('id, group_player_id, name')
         .in('session_id', sessionIds)
         .not('group_player_id', 'is', null);
 
@@ -205,6 +205,8 @@ export class GroupService {
           playerToGroupPlayer.set(p.id, p.group_player_id);
         }
       });
+
+      console.log(`[GroupService] Found ${players?.length || 0} linked session players for ${groupPlayers.length} group players`);
 
       // Get all completed games
       const { data: games } = await supabase

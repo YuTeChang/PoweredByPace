@@ -191,12 +191,20 @@ export default function GroupPage() {
     setPromotingGuest(guestName);
     try {
       const result = await ApiClient.promoteGuestToGroup(groupId, guestName);
-      // Add new player to list
-      setPlayers(prev => [...prev, result.player]);
+      // Add new player to list with zero stats (will be computed on reload)
+      setPlayers(prev => [...prev, { ...result.player, wins: 0, losses: 0, totalGames: 0 }]);
       // Remove from guests list
       setRecentGuests(prev => prev.filter(g => g.name.toLowerCase() !== guestName.toLowerCase()));
-      // Reset leaderboard to force reload with new player
+      // Reset all refs to force reload with fresh data
       leaderboardLoadedRef.current = false;
+      playersLoadedRef.current = false;
+      guestsLoadedRef.current = false;
+      // Force reload players with computed stats
+      const fetchedPlayers = await ApiClient.getGroupPlayers(groupId);
+      setPlayers(fetchedPlayers || []);
+      // Force reload guests to ensure linked players don't show
+      const guestResult = await ApiClient.getRecentGuests(groupId);
+      setRecentGuests(guestResult.guests || []);
     } catch (err: any) {
       if (err?.existingPlayer) {
         alert(`Player "${guestName}" already exists in this group.`);
@@ -244,12 +252,13 @@ export default function GroupPage() {
   useEffect(() => {
     if (activeTab === 'players') {
       loadPlayers();
+      loadRecentGuests(); // Also load guests on players tab
     } else if (activeTab === 'leaderboard') {
       loadLeaderboard();
     } else if (activeTab === 'pairings') {
       loadPairings();
     }
-  }, [activeTab, loadPlayers, loadLeaderboard, loadPairings]);
+  }, [activeTab, loadPlayers, loadLeaderboard, loadPairings, loadRecentGuests]);
 
   // Track navigation for refresh handling
   const hasNavigatedAwayRef = useRef(false);

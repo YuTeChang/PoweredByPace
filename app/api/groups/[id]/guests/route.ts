@@ -153,16 +153,34 @@ export async function POST(
     const sessionIds = (sessions || []).map(s => s.id);
     
     if (sessionIds.length > 0) {
-      const { error: linkError } = await supabase
+      // First get all players that should be linked (for logging)
+      const { data: playersToLink } = await supabase
         .from('players')
-        .update({ group_player_id: groupPlayerId })
+        .select('id, name, session_id')
         .in('session_id', sessionIds)
-        .ilike('name', name.trim())
         .is('group_player_id', null);
 
-      if (linkError) {
-        console.warn('[API] Failed to link past players:', linkError);
-        // Don't fail the request - player was created successfully
+      // Filter by name case-insensitively
+      const matchingPlayers = (playersToLink || []).filter(p => 
+        p.name.toLowerCase().trim() === name.trim().toLowerCase()
+      );
+
+      console.log(`[API] Linking ${matchingPlayers.length} session players to group player ${groupPlayerId} for name "${name}"`);
+
+      // Update matching players by their IDs
+      if (matchingPlayers.length > 0) {
+        const playerIds = matchingPlayers.map(p => p.id);
+        const { error: linkError, count } = await supabase
+          .from('players')
+          .update({ group_player_id: groupPlayerId })
+          .in('id', playerIds);
+
+        if (linkError) {
+          console.warn('[API] Failed to link past players:', linkError);
+          // Don't fail the request - player was created successfully
+        } else {
+          console.log(`[API] Successfully linked ${count} players`);
+        }
       }
     }
 
