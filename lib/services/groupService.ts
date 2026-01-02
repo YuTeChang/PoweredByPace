@@ -3,11 +3,13 @@ import { Group, GroupPlayer, Session } from '@/types';
 
 /**
  * Generate a short shareable link code
+ * Uses 6 characters from an unambiguous character set
+ * (removed 0/O/l/1/I to avoid confusion when sharing verbally)
  */
 function generateShareableLink(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
   let result = '';
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 6; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;

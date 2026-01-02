@@ -6,13 +6,13 @@ import { PairingStatsService } from './pairingStatsService';
  * 
  * Implements the ELO rating system for badminton players.
  * - Starting rating: 1500
- * - K-factor: 32 (standard for casual play)
+ * - K-factor: 64 (higher for faster skill differentiation in casual groups)
  * - For doubles: team rating = average of both players' ELO
  * - Both teammates receive the same rating change
  */
 export class EloService {
   private static readonly DEFAULT_ELO = 1500;
-  private static readonly K_FACTOR = 32;
+  private static readonly K_FACTOR = 64;
 
   /**
    * Calculate expected score (probability of winning)
