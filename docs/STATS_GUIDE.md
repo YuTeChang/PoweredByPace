@@ -236,15 +236,22 @@ Found in the expandable "Group Overview" section on the group page.
 
 **Display:** `Player A & Player B (W-L)` with win rate percentage.
 
-**Criteria:** Must have played games together. Shows wins-losses record.
+**Criteria:** Must have played 5+ games together. Shows wins-losses record.
 
-#### Closest Rivalry
+#### Closest Rivalry ⚔️
 
 **What it is:** The matchup between two pairs that is most evenly matched.
 
-**Calculation:** Finds pair vs pair matchup with the closest to 50-50 record.
+**How it's calculated:**
+- Tracks all pair vs pair matchups (e.g., A&B vs C&D)
+- Finds the matchup closest to a 50-50 split
+- Example: A&B vs C&D with 12-11 record (closer than 8-3)
 
-**Display:** Shows both pairs and their head-to-head record.
+**Display:** Shows both pairs and their head-to-head record (e.g., "12-11 (23 games)").
+
+**Criteria:** Only pairs who have played each other **5+ times** are considered. This ensures statistical significance and prevents showing fluky one-game rivalries.
+
+**Why you might not see it:** If no two pairs in your group have faced each other 5+ times, this stat won't appear. This is common in smaller groups or groups that rotate players frequently.
 
 ---
 
