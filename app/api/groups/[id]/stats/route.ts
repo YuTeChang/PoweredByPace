@@ -3,6 +3,10 @@ import { StatsService } from '@/lib/services/statsService';
 import { EloService } from '@/lib/services/eloService';
 import { PairingStatsService } from '@/lib/services/pairingStatsService';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Simple in-memory rate limiting for recalculation
 const recalculationTimestamps = new Map<string, number>();
 const RATE_LIMIT_MS = 5 * 60 * 1000; // 5 minutes between recalculations per group

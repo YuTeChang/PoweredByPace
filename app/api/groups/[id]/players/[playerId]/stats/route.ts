@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StatsService } from '@/lib/services/statsService';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET /api/groups/[id]/players/[playerId]/stats - Get detailed stats for a player
 export async function GET(
   request: NextRequest,
