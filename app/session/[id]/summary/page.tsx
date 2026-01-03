@@ -129,18 +129,23 @@ export default function SummaryPage() {
     ? `← Back to ${groupName || 'Group'}` 
     : "← Back to Home";
 
-  // Build group link for sharing
-  const groupLink = isGroupSession && typeof window !== 'undefined'
-    ? `${window.location.origin}/group/${currentSession.groupId}`
+  // Build session link for sharing
+  const sessionLink = typeof window !== 'undefined'
+    ? `${window.location.origin}/session/${currentSession.id}/summary`
     : null;
 
   const settlement = calculateFinalSettlement(currentSession, currentGames);
+  
+  // Calculate cost per person for non-betting mode
+  const costPerPerson = settlement.length > 0 ? settlement[0].evenSharePerPlayer : 0;
+  
   const shareableText = generateShareableText(settlement, bettingEnabled, {
     sessionName: currentSession.name || 'Badminton Session',
     groupName: groupName,
-    groupLink: groupLink,
+    sessionLink: sessionLink,
     games: currentGames,
     players: currentSession.players,
+    costPerPerson: costPerPerson,
   });
 
   const handleCopy = async () => {

@@ -233,117 +233,129 @@ export function formatPercentage(value: number): string {
 export interface ShareableTextOptions {
   sessionName?: string;
   groupName?: string | null;
-  groupLink?: string | null;
+  sessionLink?: string | null;
   games?: Game[];
   players?: Player[];
+  costPerPerson?: number;
+}
+
+interface ClutchUnluckyResult {
+  player: { name: string; count: number } | null;
+  pair: { name: string; count: number } | null;
 }
 
 /**
- * Find unluckiest player/pair (most games lost by 1-2 points)
+ * Find unluckiest player AND pair (most games lost by 1-2 points)
  */
-function findUnluckiestFromGames(games: Game[], players: Player[]): { name: string; count: number } | null {
+function findUnluckiestFromGames(games: Game[], players: Player[]): ClutchUnluckyResult {
   const playerMap = new Map(players.map(p => [p.id, p.name]));
-  const unluckyCount = new Map<string, number>(); // player ID or pair key -> count
+  const playerCount = new Map<string, number>(); // individual player counts
+  const pairCount = new Map<string, number>(); // pair counts
 
   games.forEach(game => {
     if (!game.winningTeam || game.teamAScore === undefined || game.teamBScore === undefined) return;
     
     const margin = Math.abs(game.teamAScore - game.teamBScore);
     if (margin >= 1 && margin <= 2) {
-      // This was a close game
       const losingTeam = game.winningTeam === 'A' ? game.teamB : game.teamA;
       
+      // Always track individual players
+      losingTeam.forEach(id => {
+        playerCount.set(id, (playerCount.get(id) || 0) + 1);
+      });
+      
+      // Track pairs for doubles
       if (losingTeam.length === 2) {
-        // Pairs - track as pair
-        const pairKey = losingTeam.sort().join('|');
-        const pairName = losingTeam.map(id => playerMap.get(id) || 'Unknown').join(' & ');
-        unluckyCount.set(pairKey, (unluckyCount.get(pairKey) || 0) + 1);
-      } else {
-        // Singles - track individual
-        losingTeam.forEach(id => {
-          unluckyCount.set(id, (unluckyCount.get(id) || 0) + 1);
-        });
+        const pairKey = [...losingTeam].sort().join('|');
+        pairCount.set(pairKey, (pairCount.get(pairKey) || 0) + 1);
       }
     }
   });
 
-  if (unluckyCount.size === 0) return null;
-
-  // Find the most unlucky
-  let maxKey = '';
-  let maxCount = 0;
-  unluckyCount.forEach((count, key) => {
-    if (count > maxCount) {
-      maxCount = count;
-      maxKey = key;
+  // Find most unlucky player
+  let maxPlayerKey = '';
+  let maxPlayerCount = 0;
+  playerCount.forEach((count, key) => {
+    if (count > maxPlayerCount) {
+      maxPlayerCount = count;
+      maxPlayerKey = key;
     }
   });
 
-  if (maxCount === 0) return null;
+  // Find most unlucky pair
+  let maxPairKey = '';
+  let maxPairCount = 0;
+  pairCount.forEach((count, key) => {
+    if (count > maxPairCount) {
+      maxPairCount = count;
+      maxPairKey = key;
+    }
+  });
 
-  // Get the name
-  let name: string;
-  if (maxKey.includes('|')) {
-    // It's a pair
-    const ids = maxKey.split('|');
-    name = ids.map(id => playerMap.get(id) || 'Unknown').join(' & ');
-  } else {
-    name = playerMap.get(maxKey) || 'Unknown';
-  }
-
-  return { name, count: maxCount };
+  return {
+    player: maxPlayerCount > 0 ? { name: playerMap.get(maxPlayerKey) || 'Unknown', count: maxPlayerCount } : null,
+    pair: maxPairCount > 0 ? { 
+      name: maxPairKey.split('|').map(id => playerMap.get(id) || 'Unknown').join(' & '), 
+      count: maxPairCount 
+    } : null,
+  };
 }
 
 /**
- * Find most clutch player/pair (most games won by 1-2 points)
+ * Find most clutch player AND pair (most games won by 1-2 points)
  */
-function findClutchFromGames(games: Game[], players: Player[]): { name: string; count: number } | null {
+function findClutchFromGames(games: Game[], players: Player[]): ClutchUnluckyResult {
   const playerMap = new Map(players.map(p => [p.id, p.name]));
-  const clutchCount = new Map<string, number>();
+  const playerCount = new Map<string, number>();
+  const pairCount = new Map<string, number>();
 
   games.forEach(game => {
     if (!game.winningTeam || game.teamAScore === undefined || game.teamBScore === undefined) return;
     
     const margin = Math.abs(game.teamAScore - game.teamBScore);
     if (margin >= 1 && margin <= 2) {
-      // This was a close game
       const winningTeam = game.winningTeam === 'A' ? game.teamA : game.teamB;
       
+      // Always track individual players
+      winningTeam.forEach(id => {
+        playerCount.set(id, (playerCount.get(id) || 0) + 1);
+      });
+      
+      // Track pairs for doubles
       if (winningTeam.length === 2) {
-        // Pairs
-        const pairKey = winningTeam.sort().join('|');
-        clutchCount.set(pairKey, (clutchCount.get(pairKey) || 0) + 1);
-      } else {
-        // Singles
-        winningTeam.forEach(id => {
-          clutchCount.set(id, (clutchCount.get(id) || 0) + 1);
-        });
+        const pairKey = [...winningTeam].sort().join('|');
+        pairCount.set(pairKey, (pairCount.get(pairKey) || 0) + 1);
       }
     }
   });
 
-  if (clutchCount.size === 0) return null;
-
-  let maxKey = '';
-  let maxCount = 0;
-  clutchCount.forEach((count, key) => {
-    if (count > maxCount) {
-      maxCount = count;
-      maxKey = key;
+  // Find most clutch player
+  let maxPlayerKey = '';
+  let maxPlayerCount = 0;
+  playerCount.forEach((count, key) => {
+    if (count > maxPlayerCount) {
+      maxPlayerCount = count;
+      maxPlayerKey = key;
     }
   });
 
-  if (maxCount === 0) return null;
+  // Find most clutch pair
+  let maxPairKey = '';
+  let maxPairCount = 0;
+  pairCount.forEach((count, key) => {
+    if (count > maxPairCount) {
+      maxPairCount = count;
+      maxPairKey = key;
+    }
+  });
 
-  let name: string;
-  if (maxKey.includes('|')) {
-    const ids = maxKey.split('|');
-    name = ids.map(id => playerMap.get(id) || 'Unknown').join(' & ');
-  } else {
-    name = playerMap.get(maxKey) || 'Unknown';
-  }
-
-  return { name, count: maxCount };
+  return {
+    player: maxPlayerCount > 0 ? { name: playerMap.get(maxPlayerKey) || 'Unknown', count: maxPlayerCount } : null,
+    pair: maxPairCount > 0 ? { 
+      name: maxPairKey.split('|').map(id => playerMap.get(id) || 'Unknown').join(' & '), 
+      count: maxPairCount 
+    } : null,
+  };
 }
 
 /**
@@ -376,6 +388,12 @@ export function generateShareableText(
     settlement.forEach(s => {
       lines.push(`${s.playerName}: ${s.wins}W-${s.losses}L (${formatPercentage(s.winRate)})`);
     });
+    
+    // Show cost breakdown if betting is disabled but there are costs
+    if (options.costPerPerson !== undefined && options.costPerPerson > 0) {
+      lines.push('');
+      lines.push(`💵 Cost: ${formatCurrency(options.costPerPerson)} per person`);
+    }
   }
 
   // Add clutch and unlucky info if games are provided
@@ -383,21 +401,33 @@ export function generateShareableText(
     const unlucky = findUnluckiestFromGames(options.games, options.players);
     const clutch = findClutchFromGames(options.games, options.players);
     
-    if (unlucky || clutch) {
+    const hasClutchOrUnlucky = clutch.player || clutch.pair || unlucky.player || unlucky.pair;
+    
+    if (hasClutchOrUnlucky) {
       lines.push('');
-      if (clutch && clutch.count > 0) {
-        lines.push(`🎯 Most Clutch: ${clutch.name} (${clutch.count} close win${clutch.count > 1 ? 's' : ''})`);
+      
+      // Clutch - show pair first if exists, then player
+      if (clutch.pair && clutch.pair.count > 0) {
+        lines.push(`🎯 Clutch Pair: ${clutch.pair.name} (${clutch.pair.count} close win${clutch.pair.count > 1 ? 's' : ''})`);
       }
-      if (unlucky && unlucky.count > 0) {
-        lines.push(`😰 Unluckiest: ${unlucky.name} (${unlucky.count} close loss${unlucky.count > 1 ? 'es' : ''})`);
+      if (clutch.player && clutch.player.count > 0) {
+        lines.push(`🎯 Clutch Player: ${clutch.player.name} (${clutch.player.count} close win${clutch.player.count > 1 ? 's' : ''})`);
+      }
+      
+      // Unlucky - show pair first if exists, then player
+      if (unlucky.pair && unlucky.pair.count > 0) {
+        lines.push(`😰 Unlucky Pair: ${unlucky.pair.name} (${unlucky.pair.count} close loss${unlucky.pair.count > 1 ? 'es' : ''})`);
+      }
+      if (unlucky.player && unlucky.player.count > 0) {
+        lines.push(`😰 Unlucky Player: ${unlucky.player.name} (${unlucky.player.count} close loss${unlucky.player.count > 1 ? 'es' : ''})`);
       }
     }
   }
 
-  // Add link
-  if (options.groupLink) {
+  // Add session link
+  if (options.sessionLink) {
     lines.push('');
-    lines.push(`🔗 ${options.groupLink}`);
+    lines.push(`🔗 ${options.sessionLink}`);
   }
 
   return lines.join('\n');
