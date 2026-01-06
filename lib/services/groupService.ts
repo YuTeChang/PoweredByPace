@@ -135,16 +135,37 @@ export class GroupService {
     try {
       const supabase = createSupabaseClient();
       
+      // First check if group exists
+      const { data: existingGroup, error: fetchError } = await supabase
+        .from('groups')
+        .select('id, name')
+        .eq('id', groupId)
+        .single();
+
+      if (fetchError || !existingGroup) {
+        console.error('[GroupService] Group not found:', groupId, fetchError);
+        throw new Error(`Group not found: ${groupId}`);
+      }
+
+      console.log('[GroupService] Deleting group:', existingGroup);
+      
       const { error } = await supabase
         .from('groups')
         .delete()
         .eq('id', groupId);
 
       if (error) {
+        console.error('[GroupService] Supabase delete error:', error);
         throw error;
       }
+
+      console.log('[GroupService] Successfully deleted group:', groupId);
     } catch (error) {
       console.error('[GroupService] Error deleting group:', error);
+      // Throw the original error with more context
+      if (error instanceof Error) {
+        throw new Error(`Failed to delete group: ${error.message}`);
+      }
       throw new Error('Failed to delete group');
     }
   }
