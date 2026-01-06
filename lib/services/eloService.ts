@@ -281,6 +281,7 @@ export class EloService {
 
   /**
    * Reverse ELO and stats changes when a game is deleted or result changes
+   * Also properly handles streak resets: best_win_streak can never exceed total wins
    */
   static async reverseGameResult(
     teamAGroupPlayerIds: string[],
@@ -297,18 +298,27 @@ export class EloService {
     for (const playerId of validTeamA) {
       const { data: player } = await supabase
         .from('group_players')
-        .select('wins, losses, total_games')
+        .select('wins, losses, total_games, best_win_streak')
         .eq('id', playerId)
         .single();
 
       if (player) {
         const wasWin = wasWinningTeam === 'A';
+        const newWins = wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0;
+        const newLosses = wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1);
+        // Cap best_win_streak to never exceed new wins count (fixes bug where streak > wins)
+        const cappedBestWinStreak = Math.min(player.best_win_streak || 0, newWins);
+        
         await supabase
           .from('group_players')
           .update({
-            wins: wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0,
-            losses: wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1),
+            wins: newWins,
+            losses: newLosses,
             total_games: Math.max(0, (player.total_games || 0) - 1),
+            // Reset current_streak to 0 since we can't accurately track after deletion
+            current_streak: 0,
+            // Cap best_win_streak to never exceed total wins
+            best_win_streak: cappedBestWinStreak,
           })
           .eq('id', playerId);
       }
@@ -318,18 +328,27 @@ export class EloService {
     for (const playerId of validTeamB) {
       const { data: player } = await supabase
         .from('group_players')
-        .select('wins, losses, total_games')
+        .select('wins, losses, total_games, best_win_streak')
         .eq('id', playerId)
         .single();
 
       if (player) {
         const wasWin = wasWinningTeam === 'B';
+        const newWins = wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0;
+        const newLosses = wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1);
+        // Cap best_win_streak to never exceed new wins count (fixes bug where streak > wins)
+        const cappedBestWinStreak = Math.min(player.best_win_streak || 0, newWins);
+        
         await supabase
           .from('group_players')
           .update({
-            wins: wasWin ? Math.max(0, (player.wins || 0) - 1) : player.wins || 0,
-            losses: wasWin ? player.losses || 0 : Math.max(0, (player.losses || 0) - 1),
+            wins: newWins,
+            losses: newLosses,
             total_games: Math.max(0, (player.total_games || 0) - 1),
+            // Reset current_streak to 0 since we can't accurately track after deletion
+            current_streak: 0,
+            // Cap best_win_streak to never exceed total wins
+            best_win_streak: cappedBestWinStreak,
           })
           .eq('id', playerId);
       }

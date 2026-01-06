@@ -28,12 +28,13 @@ export default function SessionPage() {
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [showEditGameModal, setShowEditGameModal] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   
   // Track loading state to prevent duplicate calls
   const isLoadingRef = useRef(false);
-  const sessionIdRef = useRef<string | null>(null);
 
-  // Load session using context's loadSession (which handles API calls)
+  // Load session on mount - always fetches fresh from API
   useEffect(() => {
     const sessionId = params.id as string;
     if (!sessionId) {
@@ -42,33 +43,17 @@ export default function SessionPage() {
       return;
     }
 
-    // Skip if already loading this session
-    if (isLoadingRef.current && sessionIdRef.current === sessionId) {
+    // Skip if already loading
+    if (isLoadingRef.current) {
       return;
     }
 
-    // Skip if session is already loaded and matches (check games belong to this session)
-    if (session && session.id === sessionId) {
-      // Session is loaded - check if games are for this session or empty
-      const gamesMatchSession = games.length === 0 || games[0]?.sessionId === sessionId;
-      if (gamesMatchSession) {
-        setLocalSession(session);
-        setLocalGames(games);
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Load session via context (handles API calls and caching)
+    // Load session from API
     const loadData = async () => {
-      if (isLoadingRef.current) return;
       isLoadingRef.current = true;
-      sessionIdRef.current = sessionId;
       
       try {
         await loadSession(sessionId);
-        // After loadSession completes, sync local state
-        // We'll use the sync effect below to update local state
       } catch (error) {
         console.warn('[SessionPage] Failed to load session:', error);
         setNotFound(true);
@@ -78,10 +63,8 @@ export default function SessionPage() {
       }
     };
 
-    // Small delay to allow context to hydrate first
-    const timer = setTimeout(loadData, 100);
-    return () => clearTimeout(timer);
-  }, [params.id, loadSession, session, games]);
+    loadData();
+  }, [params.id, loadSession]);
 
   // Sync local state with context when context updates (after loadSession completes)
   useEffect(() => {
@@ -97,6 +80,23 @@ export default function SessionPage() {
       setIsLoading(false);
     }
   }, [session, games, params.id]);
+
+  // Manual refresh function to sync with other users' game recordings
+  const handleRefresh = async () => {
+    const sessionId = params.id as string;
+    if (!sessionId || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Reload session and games from API
+      await loadSession(sessionId);
+      setLastRefreshed(new Date());
+    } catch (error) {
+      console.error('[SessionPage] Failed to refresh:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -166,9 +166,32 @@ export default function SessionPage() {
         {/* Stats Tab */}
         {activeTab === "stats" && (
           <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-japandi-text-primary">
-              Live Stats
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl sm:text-2xl font-bold text-japandi-text-primary">
+                Live Stats
+              </h2>
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium text-japandi-text-secondary hover:text-japandi-text-primary border border-japandi-border-light hover:border-japandi-border rounded-full transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                title="Refresh to see games recorded by others"
+              >
+                <svg 
+                  className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {isRefreshing ? 'Syncing...' : 'Sync'}
+              </button>
+            </div>
+            {lastRefreshed && (
+              <p className="text-xs text-japandi-text-muted -mt-2">
+                Last synced: {lastRefreshed.toLocaleTimeString()}
+              </p>
+            )}
             <div className="space-y-4">
               {currentSession.players.length === 0 ? (
                 <div className="bg-japandi-background-card border border-japandi-border-light rounded-card p-6 text-center">

@@ -42,37 +42,14 @@ function CreateSessionContent() {
   // This ensures groups are available when creating a session from a group page
   useEffect(() => {
     // If groups from context are empty and we haven't tried loading yet, fetch them
-    if (groups.length === 0 && localGroups.length === 0 && !hasTriedLoadingGroups && typeof window !== "undefined") {
+    if (groups.length === 0 && localGroups.length === 0 && !hasTriedLoadingGroups) {
       setHasTriedLoadingGroups(true);
       
-      // First, check localStorage
-      try {
-        const saved = localStorage.getItem("poweredbypace_groups");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed && parsed.length > 0) {
-            setLocalGroups(parsed);
-            // If we have initialGroupId, try to find it in parsed groups
-            if (initialGroupId && !selectedGroup) {
-              const foundGroup = parsed.find((g: Group) => g.id === initialGroupId);
-              if (foundGroup) {
-                setSelectedGroup(foundGroup);
-              }
-            }
-            return; // Use localStorage groups
-          }
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-      
-      // If no localStorage, try to fetch from API
+      // Fetch from API
       ApiClient.getAllGroups()
         .then((fetchedGroups) => {
           if (fetchedGroups.length > 0) {
             setLocalGroups(fetchedGroups);
-            // Update localStorage for future use
-            localStorage.setItem("poweredbypace_groups", JSON.stringify(fetchedGroups));
             // If we have initialGroupId, try to find it in fetched groups
             if (initialGroupId && !selectedGroup) {
               const foundGroup = fetchedGroups.find(g => g.id === initialGroupId);
@@ -82,17 +59,14 @@ function CreateSessionContent() {
             }
             // Try to refresh context groups if refreshGroups is available
             if (refreshGroups) {
-              // Wait a bit for apiAvailable to be determined, then refresh
-              setTimeout(() => {
-                refreshGroups().catch(() => {
-                  // Ignore errors - we have localGroups
-                });
-              }, 500);
+              refreshGroups().catch(() => {
+                // Ignore errors - we have localGroups
+              });
             }
           }
         })
-        .catch(() => {
-          // Silently fail - use localStorage groups
+        .catch((error) => {
+          console.error('[CreateSession] Failed to load groups:', error);
         });
     }
   }, [groups.length, localGroups.length, hasTriedLoadingGroups, refreshGroups, initialGroupId, selectedGroup]);

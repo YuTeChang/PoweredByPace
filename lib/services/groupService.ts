@@ -970,11 +970,13 @@ export class GroupService {
         }
 
         // Best Win Streak (all ties)
-        const maxStreak = Math.max(...players.map(p => p.best_win_streak || 0));
+        // Cap best_win_streak to never exceed wins (safety check for data integrity)
+        const getValidatedStreak = (p: typeof players[0]) => Math.min(p.best_win_streak || 0, p.wins || 0);
+        const maxStreak = Math.max(...players.map(getValidatedStreak));
         if (maxStreak > 0) {
           bestWinStreak = players
-            .filter(p => (p.best_win_streak || 0) === maxStreak)
-            .map(p => ({ name: p.name, streak: p.best_win_streak || 0 }));
+            .filter(p => getValidatedStreak(p) === maxStreak)
+            .map(p => ({ name: p.name, streak: getValidatedStreak(p) }));
         }
 
         // Most Games Played (all ties)

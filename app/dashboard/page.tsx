@@ -70,28 +70,6 @@ export default function Dashboard() {
         const summariesWithDates = summaries.map(s => ({ ...s, date: new Date(s.date) }));
         setSessionSummaries(summariesWithDates);
         
-        // Sync localStorage with API data - remove any sessions that don't exist in API
-        // This prevents deleted sessions from reappearing on refresh
-        if (typeof window !== "undefined") {
-          try {
-            const savedAllSessions = localStorage.getItem("poweredbypace_all_sessions");
-            if (savedAllSessions) {
-              const parsed = JSON.parse(savedAllSessions);
-              const apiSessionIds = new Set(summaries.map(s => s.id));
-              const updated = parsed.filter((s: any) => apiSessionIds.has(s.id));
-              
-              if (updated.length === 0) {
-                localStorage.removeItem("poweredbypace_all_sessions");
-              } else if (updated.length !== parsed.length) {
-                // Some sessions were removed, update localStorage
-                localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
-              }
-            }
-          } catch {
-            // Ignore localStorage sync errors
-          }
-        }
-        
         // Calculate session counts from summaries
         if (fetchedGroups && fetchedGroups.length > 0 && summaries.length > 0) {
           const counts: Record<string, number> = {};
@@ -106,23 +84,6 @@ export default function Dashboard() {
         }
       } catch {
         // Silently handle data loading errors
-      }
-
-      // Load game counts for all sessions from localStorage
-      if (typeof window !== "undefined") {
-        try {
-          const savedGames = localStorage.getItem("poweredbypace_games");
-          if (savedGames) {
-            const parsedGames = JSON.parse(savedGames);
-            const counts: Record<string, number> = {};
-            parsedGames.forEach((game: { sessionId: string }) => {
-              counts[game.sessionId] = (counts[game.sessionId] || 0) + 1;
-            });
-            setSessionGameCounts(counts);
-          }
-        } catch (error) {
-          // Silently handle errors
-        }
       }
       
       setIsLoaded(true);
@@ -251,39 +212,6 @@ export default function Dashboard() {
       const result = await ApiClient.deleteSession(sessionId);
       if (!result.success) {
         throw new Error('Deletion failed: API returned unsuccessful response');
-      }
-      
-      // Remove from localStorage to prevent it from reappearing
-      if (typeof window !== "undefined") {
-        // Remove from allSessions in localStorage
-        const savedAllSessions = localStorage.getItem("poweredbypace_all_sessions");
-        if (savedAllSessions) {
-          try {
-            const parsed = JSON.parse(savedAllSessions);
-            const updated = parsed.filter((s: any) => s.id !== sessionId);
-            if (updated.length === 0) {
-              localStorage.removeItem("poweredbypace_all_sessions");
-            } else {
-              localStorage.setItem("poweredbypace_all_sessions", JSON.stringify(updated));
-            }
-          } catch {
-            // Ignore localStorage errors
-          }
-        }
-        
-        // Also remove session and games if this was the active session
-        const savedSession = localStorage.getItem("poweredbypace_session");
-        if (savedSession) {
-          try {
-            const parsed = JSON.parse(savedSession);
-            if (parsed.id === sessionId) {
-              localStorage.removeItem("poweredbypace_session");
-              localStorage.removeItem("poweredbypace_games");
-            }
-          } catch (error) {
-            // Ignore parse errors
-          }
-        }
       }
       
       // Background refresh from API to ensure eventual consistency
