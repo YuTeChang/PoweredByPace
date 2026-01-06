@@ -3,7 +3,7 @@
 ## Pre-Testing Setup
 - [ ] Dev server is running (`npm run dev`)
 - [ ] Browser console is open to check for errors
-- [ ] Clear browser localStorage before starting (to test fresh state)
+- [ ] Clear browser cache/cookies if testing fresh state (recent groups stored in localStorage)
 
 ## Core Feature Tests
 
@@ -54,7 +54,7 @@
 #### Submission
 - [ ] Form submits successfully with valid data
 - [ ] Navigates to session page after submission
-- [ ] Session is saved to localStorage
+- [ ] Session is saved to database via API
 - [ ] Round robin games are created when enabled
 
 ### 3. Session Page - Stats Tab
@@ -341,11 +341,18 @@
 - [ ] Very long player names (truncation)
 - [ ] Special characters in names
 
-### 10. State Management
+### 10. State Management & Multi-User Sync
 
-#### localStorage
-- [ ] Session persists after page refresh
-- [ ] Games persist after page refresh
+#### Data Persistence
+- [ ] Session loads from database on page refresh
+- [ ] Games load from database on page refresh
+- [ ] Recent groups persist in localStorage (max 3)
+
+#### Multi-User Collaboration
+- [ ] Two users in same session can both record games
+- [ ] Manual "Sync" button fetches latest games from all users
+- [ ] "Last synced" timestamp updates after sync
+- [ ] Browser refresh shows all games from all users (no stale cache)
 - [ ] Session clears when "End Session" is clicked
 - [ ] New session replaces old session
 - [ ] Games are filtered by session ID

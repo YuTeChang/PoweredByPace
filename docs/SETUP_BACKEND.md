@@ -142,7 +142,7 @@ If automatic migration doesn't work or you need to run it manually:
 
 ## How It Works
 
-### Event-Driven Sync (No Polling)
+### Event-Driven Sync with Manual Refresh
 
 The app uses **optimistic updates** with background sync:
 
@@ -155,7 +155,8 @@ The app uses **optimistic updates** with background sync:
 This means:
 - ✅ **No wasteful polling** - only syncs when user does something
 - ✅ **Instant UI feedback** - optimistic updates
-- ✅ **Works offline** - localStorage fallback
+- ✅ **Always fresh data** - fetches from API on page load
+- ✅ **Multi-user sync** - manual "Sync" button for collaboration
 - ✅ **Efficient** - minimal API calls
 
 ### Database Schema
@@ -191,10 +192,10 @@ See `scripts/init-db-schema.sql` for complete schema.
 
 ### API Not Available
 
-The app falls back to localStorage if API is unavailable:
-- Sessions stored locally
-- Works offline
-- Data not shared across devices
+The app requires API connection to function:
+- Sessions and games are stored in the database
+- Multi-user collaboration requires API
+- Only recent groups (user preference) stored locally
 
 ### RLS Policies
 

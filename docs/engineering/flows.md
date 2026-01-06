@@ -22,7 +22,7 @@
 **Data Structures:**
 - `Session` object created with unique ID
 - If round robin: `Game` objects created with teams set, `winningTeam: null`
-- Stored in SessionContext and localStorage
+- Stored in database via API, cached in SessionContext
 
 ---
 

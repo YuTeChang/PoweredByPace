@@ -3,6 +3,35 @@
 ## [Unreleased] - 2025-01
 
 ### Added
+- **Manual Sync Button**: Added "Sync" button to session page for multi-user collaboration
+  - Fetches latest games from all users in the session
+  - Shows "Last synced" timestamp
+  - Spinning animation while syncing
+  - Fixes issue where users couldn't see each other's recorded games
+
+### Changed
+- **Removed localStorage Caching**: Simplified data architecture for better multi-user sync
+  - Removed ~300 lines of complex localStorage caching logic
+  - Now always fetches fresh data from API on page load
+  - Kept sessionStorage for current session ID (navigation only)
+  - Kept localStorage for recent groups (user preference, max 3)
+  - Fixes stale data issues where browser refresh showed outdated games
+
+### Fixed
+- **Multi-User Sync Bug**: Users can now see games recorded by others in the same session
+  - Previously each user only saw their own games unless opening in incognito mode
+  - Root cause: localStorage was caching stale data and skipping API fetches
+  - Solution: Always fetch fresh from API, no caching
+- **Win Streak Bug**: Best win streak can no longer exceed total wins
+  - Example: Player with 7-1 record was showing 8 best win streak (impossible)
+  - Root cause: `reverseGameResult` never decremented `best_win_streak` on game deletion
+  - Solution: Cap `best_win_streak` to never exceed `wins` count
+  - Added validation in group overview stats display as safety check
+- **Streak Reset on Deletion**: Current streak now properly resets when games are deleted
+  - Previously streak tracking became inaccurate after deletions
+  - Now resets to 0 since we can't accurately track after deletion
+
+### Added
 - **Soft-Delete Players**: Players removed from groups are now soft-deleted instead of permanently deleted
   - Preserves player ID, ELO rating, and all stats
   - Re-adding a player with the same name automatically restores their stats

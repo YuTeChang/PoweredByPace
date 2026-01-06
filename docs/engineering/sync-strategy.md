@@ -1,194 +1,170 @@
 # Real-Time Sync Strategy
 
-## Current Approach: Event-Driven Sync (Recommended for Low Usage)
+## Current Approach: Event-Driven Sync with Manual Refresh
 
-Instead of constant polling, we use an **event-driven sync strategy** that only syncs when needed.
+The app uses an **event-driven sync strategy** with optimistic updates and manual refresh capabilities for multi-user scenarios.
 
 ## Strategy Overview
 
 ### 1. Optimistic Updates (Immediate UI Response)
 - User action → UI updates **immediately** (optimistic)
 - API call happens in **background**
-- If API fails → Rollback optimistic update
+- If API fails → Rollback optimistic update and show error
 
-### 2. Sync on User Actions
-- Create session → Sync to server
-- Add game → Sync to server
-- Update game → Sync to server
-- Delete game → Sync to server
+### 2. Always Fetch Fresh Data
+- **Page loads**: Always fetch from API (no stale cache)
+- **Multi-user sync**: Users see latest data from all participants
+- **Manual refresh**: "Sync" button to pull latest data on demand
 
-### 3. Manual Refresh (Optional)
-- "Refresh" button for users to pull latest data
-- Useful when multiple users are editing same session
-
-### 4. Smart Polling (Future - Only When Needed)
-- Only poll when:
-  - Session is active (user is viewing/editing)
-  - Multiple users detected (based on last activity timestamps)
-  - User explicitly enables "Live Updates"
-- Poll interval: 5-10 seconds (configurable)
-- Stop polling when:
-  - User navigates away
-  - Session inactive for >5 minutes
-  - No other users detected
+### 3. Minimal Local Storage
+- **sessionStorage**: Current session ID only (for navigation)
+- **localStorage**: Recent groups only (user preference, max 3)
+- **No caching**: Sessions, games, and stats always fetched fresh from API
 
 ## Implementation
 
-### Current: Event-Driven (No Polling)
+### Current: Event-Driven with Optimistic Updates
 
 ```typescript
 // In SessionContext.tsx
 const addGame = async (game) => {
   // 1. Optimistic update
+  const tempId = `game-${Date.now()}-${Math.random()}`;
+  const newGame = { id: tempId, ...game };
   setGames(prev => [...prev, newGame]);
   
   // 2. Sync to server (background)
   try {
-    await ApiClient.createGame(sessionId, game);
-    // Success - optimistic update stays
+    const createdGame = await ApiClient.createGame(sessionId, game);
+    // Replace temp with real game from API
+    setGames(prev => prev.map(g => g.id === tempId ? createdGame : g));
   } catch (error) {
     // Rollback on error
-    setGames(prev => prev.filter(g => g.id !== newGame.id));
-    showError('Failed to save game');
+    setGames(prev => prev.filter(g => g.id !== tempId));
+    throw error;
   }
 };
 ```
 
-### Future: Smart Polling (When Needed)
+### Manual Refresh for Multi-User Sync
 
 ```typescript
-// Only poll when:
-// 1. Session is active
-// 2. Multiple users detected
-// 3. User enabled "Live Updates"
-
-useEffect(() => {
-  if (!shouldPoll) return;
-  
-  const interval = setInterval(async () => {
-    const latestGames = await ApiClient.getGames(sessionId);
-    // Only update if data changed
-    if (hasChanges(latestGames, games)) {
-      setGames(latestGames);
-    }
-  }, 5000); // 5 second interval
-  
-  return () => clearInterval(interval);
-}, [shouldPoll, sessionId]);
+// In session page
+const handleRefresh = async () => {
+  setIsRefreshing(true);
+  try {
+    // Reload session and games from API
+    await loadSession(sessionId);
+    setLastRefreshed(new Date());
+  } catch (error) {
+    console.error('Failed to refresh:', error);
+  } finally {
+    setIsRefreshing(false);
+  }
+};
 ```
 
-## Why Not Constant Polling?
+## Why No localStorage Caching?
 
-### Problems with Constant Polling:
-1. **Wasteful**: Most polls return no changes (empty results)
-2. **Cost**: Unnecessary database queries and API calls
-3. **Battery**: Drains device battery
-4. **Server Load**: Unnecessary load on database
-5. **Rate Limits**: May hit API rate limits unnecessarily
+### Problems with localStorage Caching:
+1. **Stale Data**: Users see outdated games when others record new ones
+2. **Multi-User Issues**: Each user's cache is independent, causing sync problems
+3. **Complexity**: ~300 lines of sync logic, hard to debug
+4. **False Offline Support**: API required anyway, so "offline" mode doesn't work
+5. **Inconsistent State**: Cache can diverge from database
 
-### When Polling Makes Sense:
-- **High Activity**: Multiple users actively editing
-- **Real-time Needs**: Users need to see changes within seconds
-- **Collaborative**: Multiple people editing same session simultaneously
+### Benefits of API-First Approach:
+- ✅ **Always Fresh**: Users see latest data from all participants
+- ✅ **Simpler Code**: 50% less code in SessionContext
+- ✅ **Multi-User Works**: No stale cache issues
+- ✅ **Easier Debugging**: One source of truth (database)
+- ✅ **Better UX**: Manual sync button gives users control
 
-## Recommended Approach for PoweredByPace
-
-### Phase 1: Event-Driven (Current)
-✅ **Best for low usage**
-- Sync only on user actions
-- Optimistic updates for instant feedback
-- Manual refresh button for pulling latest data
-- **Zero unnecessary API calls**
-
-### Phase 2: Smart Polling (Future)
-- Add polling only when:
-  - Session has >1 active user
-  - User explicitly enables "Live Updates"
-  - Session is actively being viewed
-- Poll interval: 5-10 seconds
-- Stop when inactive
-
-### Phase 3: WebSockets (Future - High Usage)
-- Real-time bidirectional communication
-- Server pushes updates to clients
-- Only when usage justifies the complexity
-
-## Implementation Details
-
-### Sync Triggers
+## Sync Triggers
 
 ```typescript
 // Sync happens on these events:
-1. User creates session → POST /api/sessions
-2. User adds game → POST /api/sessions/[id]/games
-3. User updates game → PUT /api/sessions/[id]/games/[id]
-4. User deletes game → DELETE /api/sessions/[id]/games/[id]
-5. User clicks "Refresh" → GET /api/sessions/[id]/games
-6. User loads session → GET /api/sessions/[id] + GET games
+1. Page load → GET /api/sessions/[id] + GET games
+2. User creates session → POST /api/sessions
+3. User adds game → POST /api/sessions/[id]/games
+4. User updates game → PUT /api/sessions/[id]/games/[id]
+5. User deletes game → DELETE /api/sessions/[id]/games/[id]
+6. User clicks "Sync" → GET /api/sessions/[id] + GET games
 ```
 
-### Error Handling
+## Error Handling
 
 ```typescript
 // If API call fails:
 1. Rollback optimistic update
 2. Show error message to user
-3. Keep localStorage backup
-4. Allow retry
-5. Fallback to localStorage mode
+3. Throw error for caller to handle
+4. User can retry action
 ```
 
-### Conflict Resolution
+## Multi-User Conflict Resolution
 
 ```typescript
 // If multiple users edit simultaneously:
 1. Last write wins (simple approach)
-2. Or: Show conflict dialog to user
-3. Or: Merge changes intelligently (complex)
+2. Manual "Sync" button to pull latest changes
+3. Users can see "Last synced" timestamp
 ```
 
 ## Performance Considerations
 
 ### API Call Frequency
-- **Event-driven**: ~1-5 calls per user action
-- **Constant polling**: 12-60 calls per minute (wasteful)
-- **Smart polling**: 0-12 calls per minute (only when needed)
+- **Event-driven**: 1-3 calls per user action
+- **Page load**: 2 calls (session + games)
+- **Manual sync**: 2 calls (session + games)
 
 ### Database Load
 - **Event-driven**: Only on user actions
-- **Constant polling**: Continuous, even when idle
-- **Smart polling**: Only when session is active
+- **No polling**: Zero background queries
+- **Efficient**: Minimal API calls, maximum freshness
 
 ## User Experience
 
-### With Event-Driven (Current)
+### Current Implementation
 - ✅ Instant UI updates (optimistic)
-- ✅ No unnecessary network activity
-- ✅ Works offline (localStorage fallback)
+- ✅ Always shows fresh data on load
+- ✅ Manual "Sync" button for multi-user scenarios
+- ✅ "Last synced" timestamp for transparency
 - ✅ Fast and responsive
-- ⚠️ Other users' changes not seen until refresh
+- ✅ Multi-user sessions work correctly
+- ✅ No stale data issues
 
-### With Smart Polling (Future)
-- ✅ See other users' changes automatically
-- ✅ Still efficient (only when needed)
-- ⚠️ Slight battery/network usage
-- ⚠️ More complex implementation
+## Future Enhancements
+
+### Smart Polling (Optional)
+Only add if users request automatic sync:
+- Poll only when session is active
+- Detect multiple users (based on activity)
+- Poll interval: 5-10 seconds
+- Stop when inactive
+
+### WebSockets (Optional)
+Only add for high concurrent usage:
+- Real-time bidirectional communication
+- Server pushes updates to clients
+- Requires WebSocket infrastructure
+- Best for 10+ simultaneous users
 
 ## Recommendation
 
-**For PoweredByPace's current usage level:**
+**For PoweredByPace's current usage:**
 - ✅ **Use event-driven sync** (current approach)
-- ✅ Add manual "Refresh" button
-- ✅ Optimistic updates for instant feedback
-- ❌ **Don't add constant polling** (wasteful)
+- ✅ **Manual "Sync" button** (implemented)
+- ✅ **Optimistic updates** (instant feedback)
+- ✅ **Always fetch fresh** (no stale cache)
+- ❌ **Don't add polling** (not needed yet)
 
 **When to add smart polling:**
-- When you have multiple users editing same session regularly
-- When users request "live updates" feature
-- When usage justifies the added complexity
+- Multiple users editing same session regularly
+- Users request "auto-sync" feature
+- Usage justifies the added complexity
 
 **When to add WebSockets:**
 - High concurrent usage (10+ simultaneous users)
 - Real-time collaboration is critical
 - Budget allows for WebSocket infrastructure
-
